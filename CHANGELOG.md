@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.0.1] - 2026-09-16
+
+### Added
+
+- Added a reference to the W3Schools Northwind sample database used by the
+  application.
+
+### Changed
+
+- Expanded the README with setup requirements, database configuration, API
+  endpoints, JWT usage, development commands and security notes.
+- Documented the current `v1.0` release and MIT license in the README.
+
 ## [1.0.0] - 2026-09-16
 
 ### Changed
