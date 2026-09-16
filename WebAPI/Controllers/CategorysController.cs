@@ -1,10 +1,6 @@
-﻿using System.Collections.Generic;
-using Business.Abstract;
+﻿using Business.Abstract;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
-using System.Linq.Expressions;
-using Core.Utilities.Results;
-using Microsoft.AspNetCore.Authorization;
 
 namespace WebAPI.Controllers
 {

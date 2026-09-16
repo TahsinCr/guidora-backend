@@ -1,23 +1,17 @@
 using System;
 using Autofac;
-using Autofac.Core;
 using Autofac.Extensions.DependencyInjection;
 using Business.DependencyResolvers.Autofac;
-using Castle.Core.Configuration;
 using Core.DependencyResolvers;
 using Core.Extensions;
-using Core.Utilities.IoC;
 using Core.Utilities.Security.Encyption;
 using Core.Utilities.Security.JWT;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.Net.Http.Headers;
 
 namespace WebAPI
 {
@@ -28,7 +22,7 @@ namespace WebAPI
             var builder = WebApplication.CreateBuilder(args);
 
             string apiCorsPolicy = "_apiCorsPolicy";
-            string[] allowOrigins = new String[] { "http://localhost:4200" };
+            string[] allowOrigins = ["http://localhost:4200"];
 
             builder.Services.AddCors(options =>
             {
@@ -53,7 +47,8 @@ namespace WebAPI
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 
-            var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>();
+            var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>()
+                ?? throw new InvalidOperationException("TokenOptions configuration is missing.");
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>

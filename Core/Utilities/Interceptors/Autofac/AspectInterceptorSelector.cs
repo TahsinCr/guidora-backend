@@ -14,7 +14,7 @@ namespace Core.Utilities.Interceptors.Autofac
         {
             var classAttributes = type.GetCustomAttributes<MethodInterceptionBaseAttribute>(true)
                 .ToList();
-            var methodAttributes = type.GetMethod(method.Name)
+            var methodAttributes = (type.GetMethod(method.Name) ?? method)
                 .GetCustomAttributes<MethodInterceptionBaseAttribute>(true)
                 .ToList();
             classAttributes.AddRange(methodAttributes);

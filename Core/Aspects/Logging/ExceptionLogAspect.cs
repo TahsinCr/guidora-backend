@@ -13,16 +13,17 @@ namespace Core.Aspects.Logging
 {
     public class ExceptionLogAspect : MethodInterception
     {
-        private LoggerServiceBase _loggerServiceBase;
+        private readonly LoggerServiceBase _loggerServiceBase;
 
         public ExceptionLogAspect(Type loggerService)
         {
-            if (loggerService.BaseType != typeof(LoggerServiceBase))
+            if (!typeof(LoggerServiceBase).IsAssignableFrom(loggerService))
             {
                 throw new System.Exception(AspectMessages.WrongLoggerType);
             }
 
-            _loggerServiceBase = (LoggerServiceBase)Activator.CreateInstance(loggerService);
+            _loggerServiceBase = Activator.CreateInstance(loggerService) as LoggerServiceBase
+                ?? throw new InvalidOperationException(AspectMessages.WrongLoggerType);
         }
         protected override void OnException(IInvocation invocation, System.Exception e)
         {
@@ -39,9 +40,9 @@ namespace Core.Aspects.Logging
             {
                 logParameters.Add(new LogParameter
                 {
-                    Name = invocation.GetConcreteMethod().GetParameters()[i].Name,
+                    Name = invocation.GetConcreteMethod().GetParameters()[i].Name ?? $"arg{i}",
                     Value = invocation.Arguments[i],
-                    Type = invocation.Arguments[i].GetType().Name
+                    Type = invocation.Arguments[i]?.GetType().Name ?? "<Null>"
                 });
             }
 

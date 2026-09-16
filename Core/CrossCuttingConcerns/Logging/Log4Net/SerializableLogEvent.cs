@@ -15,6 +15,6 @@ namespace Core.CrossCuttingConcerns.Logging.Log4Net
             _loggingEvent = loggingEvent;
         }
 
-        public object Message => _loggingEvent.MessageObject;
+        public object? Message => _loggingEvent.MessageObject;
     }
 }

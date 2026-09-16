@@ -14,7 +14,7 @@ namespace Core.Aspects.Autofac.Validation
 {
     public class ValidationAspect : MethodInterception
     {
-        private Type _validatorType;
+        private readonly Type _validatorType;
         public ValidationAspect(Type validatorType)
         {
             if (!typeof(IValidator).IsAssignableFrom(validatorType))
@@ -26,9 +26,13 @@ namespace Core.Aspects.Autofac.Validation
 
         protected override void OnBefore(IInvocation invocation)
         {
-            var validator = (IValidator)Activator.CreateInstance(_validatorType);
-            var entityType = _validatorType.BaseType.GetGenericArguments()[0];
-            var entities = invocation.Arguments.Where(t => t.GetType() == entityType);
+            var validator = Activator.CreateInstance(_validatorType) as IValidator
+                ?? throw new InvalidOperationException("Unable to create the validator.");
+            var entityType = _validatorType.BaseType?.GetGenericArguments().FirstOrDefault()
+                ?? throw new InvalidOperationException("The validator must inherit from a generic validator type.");
+            var entities = invocation.Arguments
+                .Where(t => t is not null && t.GetType() == entityType)
+                .Select(t => t!);
             foreach ( var entity in entities)
             {
                 ValidationTool.FluentValidation(validator, entity);

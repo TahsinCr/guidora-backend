@@ -16,6 +16,6 @@ namespace Core.Utilities.Results
             Success = success;
         }
         public bool Success { get; }
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
     }
 }

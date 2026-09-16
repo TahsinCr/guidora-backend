@@ -20,10 +20,10 @@ namespace Core.Aspects.Transaction
                     invocation.Proceed();
                     transactionScope.Complete();
                 }
-                catch (System.Exception error)
+                catch
                 {
                     transactionScope.Dispose();
-                    throw error;
+                    throw;
                 }
             }
         }

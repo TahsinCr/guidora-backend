@@ -1,7 +1,5 @@
 ﻿using Business.Abstract;
-using Core.Utilities.Results;
 using Entities.DTOs;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers

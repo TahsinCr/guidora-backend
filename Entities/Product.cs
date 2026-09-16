@@ -8,7 +8,7 @@ namespace Entities
 
         public int CategoryId { get; set; }
 
-        public string ProductName { get; set; }
+        public string ProductName { get; set; } = string.Empty;
 
         public short UnitsInStock { get; set; }
 

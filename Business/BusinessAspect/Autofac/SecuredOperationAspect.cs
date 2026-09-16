@@ -11,19 +11,19 @@ namespace Business.BusinessAspect.Autofac
 {
     public class SecuredOperationAspect : MethodInterception
     {
-        private string[] _roles;
-        private IHttpContextAccessor _httpContextAccessor;
+        private readonly string[] _roles;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public SecuredOperationAspect(params string[] roles)
         {
             _roles = roles;
-            _httpContextAccessor = ServiceTool.ServiceProvider.GetService<IHttpContextAccessor>();
+            _httpContextAccessor = ServiceTool.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
 
         }
 
         protected override void OnBefore(IInvocation invocation)
         {
-            var roleClaims = _httpContextAccessor.HttpContext.User.ClaimRoles();
+            var roleClaims = _httpContextAccessor.HttpContext?.User.ClaimRoles() ?? new System.Collections.Generic.List<string>();
             foreach (var role in _roles)
             {
                 if (roleClaims.Contains(role))

@@ -11,15 +11,16 @@ namespace Core.CrossCuttingConcerns.Logging.Log4Net
 {
     public class LoggerServiceBase
     {
-        private ILog _log;
+        private readonly ILog _log;
         public LoggerServiceBase(string name)
         {
             XmlDocument xmlDocument=new XmlDocument();
             xmlDocument.Load(File.OpenRead("log4net.config"));
 
-            ILoggerRepository loggerRepository = LogManager.CreateRepository(Assembly.GetEntryAssembly(),
+            ILoggerRepository loggerRepository = LogManager.CreateRepository(Assembly.GetEntryAssembly() ?? typeof(LoggerServiceBase).Assembly,
                 typeof(log4net.Repository.Hierarchy.Hierarchy));
-            log4net.Config.XmlConfigurator.Configure(loggerRepository, xmlDocument["log4net"]);
+            log4net.Config.XmlConfigurator.Configure(loggerRepository,
+                xmlDocument["log4net"] ?? throw new InvalidOperationException("The log4net configuration section is missing."));
 
             _log = LogManager.GetLogger(loggerRepository.Name, name);
 
