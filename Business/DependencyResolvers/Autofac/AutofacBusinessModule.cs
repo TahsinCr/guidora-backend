@@ -26,7 +26,6 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<OperationClaimManager>().As<IOperationClaimService>();
             builder.RegisterType<EfOperationClaimDal>().As<IOperationClaimDal>();
 
-            builder.RegisterType<EfUserStatusDal>().As<IUserStatusDal>();
             builder.RegisterType<EfUserProfileDal>().As<IUserProfileDal>();
             builder.RegisterType<EfRoleDal>().As<IRoleDal>();
             builder.RegisterType<EfUserRoleDal>().As<IUserRoleDal>();
@@ -36,6 +35,22 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<EfTagDal>().As<ITagDal>();
             builder.RegisterType<EfProductCategoryDal>().As<IProductCategoryDal>();
             builder.RegisterType<EfProductTagDal>().As<IProductTagDal>();
+            builder.RegisterType<EfProductDocumentDal>().As<IProductDocumentDal>();
+            builder.RegisterType<EfProductMediaDal>().As<IProductMediaDal>();
+            builder.RegisterType<EfProductChangelogDal>().As<IProductChangelogDal>();
+            builder.RegisterType<EfCommentStatusDal>().As<ICommentStatusDal>();
+            builder.RegisterType<EfCommentDal>().As<ICommentDal>();
+            builder.RegisterType<EfFavoriteDal>().As<IFavoriteDal>();
+            builder.RegisterType<EfReportReasonDal>().As<IReportReasonDal>();
+            builder.RegisterType<EfReportStatusDal>().As<IReportStatusDal>();
+            builder.RegisterType<EfProductReportDal>().As<IProductReportDal>();
+            builder.RegisterType<EfProductContributorDal>().As<IProductContributorDal>();
+            builder.RegisterType<EfVerificationTypeDal>().As<IVerificationTypeDal>();
+            builder.RegisterType<EfProductVerificationDal>().As<IProductVerificationDal>();
+            builder.RegisterType<EfProductEditProposalDal>().As<IProductEditProposalDal>();
+            builder.RegisterType<EfProductEditProposalTagDal>().As<IProductEditProposalTagDal>();
+            builder.RegisterType<EfProductEditProposalCategoryDal>().As<IProductEditProposalCategoryDal>();
+            builder.RegisterType<EfAuditLogDal>().As<IAuditLogDal>();
 
             builder.RegisterType<AuthManager>().As<IAuthService>();
             builder.RegisterType<JwtHelper>().As<ITokenHelper>();

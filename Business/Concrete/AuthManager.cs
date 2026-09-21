@@ -39,7 +39,7 @@ namespace Business.Concrete
                 LastName = userForRegisterDto.LastName,
                 PasswordHash = passwordHash,
                 PasswordSalt = passwordSalt,
-                UserStatusId = 1
+                Status = true
             };
 
 

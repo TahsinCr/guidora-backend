@@ -13,8 +13,7 @@ namespace Core.Entities.Concrete
         public string Email { get; set; } = string.Empty;
         public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
         public byte[] PasswordHash { get; set; } = Array.Empty<byte>();
-        public int UserStatusId { get; set; } = 1;
-        public UserStatus? UserStatus { get; set; }
+        public bool Status { get; set; }
 
 
     }
