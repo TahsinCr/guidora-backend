@@ -33,6 +33,8 @@ All notable changes to the Guidora backend are documented here.
 - Static configuration and diff checks passed.
 - Runtime build and migration execution remain pending because the environment
   does not currently have the .NET runtime/SDK installed.
+- Added the explicit `System.Threading.Tasks` import required by `Program.cs`
+  because implicit usings are disabled.
 
 ### Notes
 
