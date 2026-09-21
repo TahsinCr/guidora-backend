@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfProductContributorDal : EfEntityRepositoryBase<ProductContributor, NorthwindContext>, IProductContributorDal
     {
+        public EfProductContributorDal(NorthwindContext context) : base(context) { }
     }
 }

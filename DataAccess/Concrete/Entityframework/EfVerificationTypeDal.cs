@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfVerificationTypeDal : EfEntityRepositoryBase<VerificationType, NorthwindContext>, IVerificationTypeDal
     {
+        public EfVerificationTypeDal(NorthwindContext context) : base(context) { }
     }
 }

@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfProductEditProposalTagDal : EfEntityRepositoryBase<ProductEditProposalTag, NorthwindContext>, IProductEditProposalTagDal
     {
+        public EfProductEditProposalTagDal(NorthwindContext context) : base(context) { }
     }
 }

@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfFavoriteDal : EfEntityRepositoryBase<Favorite, NorthwindContext>, IFavoriteDal
     {
+        public EfFavoriteDal(NorthwindContext context) : base(context) { }
     }
 }

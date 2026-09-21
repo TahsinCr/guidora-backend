@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfProductTagDal : EfEntityRepositoryBase<ProductTag, NorthwindContext>, IProductTagDal
     {
+        public EfProductTagDal(NorthwindContext context) : base(context) { }
     }
 }

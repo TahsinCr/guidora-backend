@@ -30,6 +30,11 @@ docker compose up -d
 docker compose ps
 ```
 
+The Compose stack builds and runs the backend together with PostgreSQL, Redis,
+and RabbitMQ. Copy `.env.example` to `.env` and replace every placeholder
+secret before starting the stack. The backend is exposed on `localhost:8080`
+and its liveness endpoint is available at `/health`.
+
 Compose services:
 
 | Service | Address |
@@ -58,6 +63,12 @@ as an explicit switch:
 Keep the switch disabled by default in production. For local development it may
 be enabled after reviewed migrations exist. Production deployments should apply
 migrations through a controlled migration bundle or reviewed SQL deployment.
+
+The backend reads the PostgreSQL connection from the standard
+`ConnectionStrings:Guidora` configuration key. In Docker Compose this is
+overridden with the `postgres` service hostname. Redis and RabbitMQ are
+provisioned as infrastructure dependencies; feature-specific integrations are
+added only when their application contracts are defined.
 
 ## Project structure
 

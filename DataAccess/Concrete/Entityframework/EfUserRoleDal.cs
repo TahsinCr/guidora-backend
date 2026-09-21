@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfUserRoleDal : EfEntityRepositoryBase<UserRole, NorthwindContext>, IUserRoleDal
     {
+        public EfUserRoleDal(NorthwindContext context) : base(context) { }
     }
 }

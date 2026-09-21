@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using DataAccess.Concrete.Entityframework.Contexts;
 
 namespace WebAPI
 {
@@ -38,7 +39,8 @@ namespace WebAPI
 
             // Add services to the container.
             builder.Services.AddControllers();
-            builder.Services.AddScoped<DataAccess.Concrete.Entityframework.Contexts.NorthwindContext>();
+            builder.Services.AddDbContext<NorthwindContext>(options =>
+                options.UseNpgsql(builder.Configuration.GetConnectionString("Guidora")));
 
             //builder.Services.AddSingleton<IProductDal,EfProductDal>();
             //builder.Services.AddSingleton<IProductService,ProductManager>();
@@ -102,6 +104,7 @@ namespace WebAPI
             app.UseAuthorization();
             
             app.MapControllers();
+            app.MapGet("/health", () => "ok");
 
             app.Run();
         }

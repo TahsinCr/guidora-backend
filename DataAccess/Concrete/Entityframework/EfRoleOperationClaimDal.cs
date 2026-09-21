@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfRoleOperationClaimDal : EfEntityRepositoryBase<RoleOperationClaim, NorthwindContext>, IRoleOperationClaimDal
     {
+        public EfRoleOperationClaimDal(NorthwindContext context) : base(context) { }
     }
 }

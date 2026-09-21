@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfCommentDal : EfEntityRepositoryBase<Comment, NorthwindContext>, ICommentDal
     {
+        public EfCommentDal(NorthwindContext context) : base(context) { }
     }
 }

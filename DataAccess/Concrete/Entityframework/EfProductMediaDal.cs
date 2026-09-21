@@ -7,5 +7,6 @@ namespace DataAccess.Concrete.Entityframework
 {
     public class EfProductMediaDal : EfEntityRepositoryBase<ProductMedia, NorthwindContext>, IProductMediaDal
     {
+        public EfProductMediaDal(NorthwindContext context) : base(context) { }
     }
 }

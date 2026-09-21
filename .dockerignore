@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+.git/
+.idea/
+.serena/
+.env
+*.user
+*.suo
+README.md
+CHANGELOG.md

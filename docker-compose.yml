@@ -1,6 +1,27 @@
 name: guidora
 
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__Guidora: Host=postgres;Port=5432;Database=${POSTGRES_DB:-guidora};Username=${POSTGRES_USER:-guidora};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}
+      TokenOptions__SecurityKey: ${TOKEN_OPTIONS__SECURITYKEY:?TOKEN_OPTIONS__SECURITYKEY must be set in .env}
+    ports:
+      - "${WEBAPI_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [guidora]
+
   postgres:
     image: postgres:18.6-alpine
     restart: unless-stopped

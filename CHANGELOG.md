@@ -6,6 +6,12 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Switched the EF Core data access provider from SQL Server LocalDB to
+  configuration-driven PostgreSQL with Npgsql.
+- Registered `NorthwindContext` through ASP.NET Core dependency injection and
+  made all EF DAL implementations share the scoped context.
+- Added a multi-stage backend Dockerfile, Compose backend service, dependency
+  health conditions, environment template values, and a liveness endpoint.
 - Added local PostgreSQL, Redis, and RabbitMQ infrastructure with Docker Compose.
 - Added persistent volumes, health checks, and a private Docker network.
 - Added `.env.example` for local infrastructure configuration.
