@@ -14,6 +14,8 @@ All notable changes to the Guidora backend are documented here.
   contributors, proposals, verification and audit records.
 - Added abstract DAL contracts and Entity Framework DAL implementations for the
   new entity foundations.
+- Added an opt-in EF Core startup migration switch through
+  `Database:ApplyMigrationsOnStartup`.
 
 ### Architecture
 
@@ -23,6 +25,14 @@ All notable changes to the Guidora backend are documented here.
   property.
 - Kept legacy Product fields temporarily so the existing Business/API flow can
   be migrated without an unsafe breaking change.
+- Kept startup migration disabled by default until the first reviewed migration
+  exists.
+
+### Verification
+
+- Static configuration and diff checks passed.
+- Runtime build and migration execution remain pending because the environment
+  does not currently have the .NET runtime/SDK installed.
 
 ### Notes
 

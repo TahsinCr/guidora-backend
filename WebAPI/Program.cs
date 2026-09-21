@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Business.DependencyResolvers.Autofac;
@@ -8,6 +9,7 @@ using Core.Utilities.Security.Encyption;
 using Core.Utilities.Security.JWT;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +19,7 @@ namespace WebAPI
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +37,7 @@ namespace WebAPI
 
             // Add services to the container.
             builder.Services.AddControllers();
+            builder.Services.AddScoped<DataAccess.Concrete.Entityframework.Contexts.NorthwindContext>();
 
             //builder.Services.AddSingleton<IProductDal,EfProductDal>();
             //builder.Services.AddSingleton<IProductService,ProductManager>();
@@ -75,6 +78,11 @@ namespace WebAPI
 
             var app = builder.Build();
 
+            if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+            {
+                await ApplyDatabaseMigrationsAsync(app.Services);
+            }
+
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
@@ -95,6 +103,21 @@ namespace WebAPI
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static async Task ApplyDatabaseMigrationsAsync(IServiceProvider services)
+        {
+            using IServiceScope scope = services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<DataAccess.Concrete.Entityframework.Contexts.NorthwindContext>();
+            var migrations = await context.Database.GetMigrationsAsync();
+
+            if (!migrations.Any())
+            {
+                throw new InvalidOperationException(
+                    "Database migration startup is enabled, but no EF Core migrations are available.");
+            }
+
+            await context.Database.MigrateAsync();
         }
     }
 }

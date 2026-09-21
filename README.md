@@ -41,6 +41,24 @@ Compose services:
 
 See [infra/README.md](infra/README.md) for infrastructure details.
 
+## Database schema lifecycle
+
+The application uses EF Core migrations for schema changes. `EnsureCreated` is
+not used because it bypasses migration history. Startup migration is available
+as an explicit switch:
+
+```json
+{
+  "Database": {
+    "ApplyMigrationsOnStartup": false
+  }
+}
+```
+
+Keep the switch disabled by default in production. For local development it may
+be enabled after reviewed migrations exist. Production deployments should apply
+migrations through a controlled migration bundle or reviewed SQL deployment.
+
 ## Project structure
 
 The current solution layers will evolve toward independently deployable services:
