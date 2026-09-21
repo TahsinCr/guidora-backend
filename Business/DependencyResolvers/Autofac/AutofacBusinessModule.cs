@@ -26,6 +26,17 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<OperationClaimManager>().As<IOperationClaimService>();
             builder.RegisterType<EfOperationClaimDal>().As<IOperationClaimDal>();
 
+            builder.RegisterType<EfUserStatusDal>().As<IUserStatusDal>();
+            builder.RegisterType<EfUserProfileDal>().As<IUserProfileDal>();
+            builder.RegisterType<EfRoleDal>().As<IRoleDal>();
+            builder.RegisterType<EfUserRoleDal>().As<IUserRoleDal>();
+            builder.RegisterType<EfRoleOperationClaimDal>().As<IRoleOperationClaimDal>();
+            builder.RegisterType<EfProductStatusDal>().As<IProductStatusDal>();
+            builder.RegisterType<EfTagCategoryDal>().As<ITagCategoryDal>();
+            builder.RegisterType<EfTagDal>().As<ITagDal>();
+            builder.RegisterType<EfProductCategoryDal>().As<IProductCategoryDal>();
+            builder.RegisterType<EfProductTagDal>().As<IProductTagDal>();
+
             builder.RegisterType<AuthManager>().As<IAuthService>();
             builder.RegisterType<JwtHelper>().As<ITokenHelper>();
 
