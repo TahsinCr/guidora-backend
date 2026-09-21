@@ -12,6 +12,12 @@ All notable changes to the Guidora backend are documented here.
   made all EF DAL implementations share the scoped context.
 - Added a multi-stage backend Dockerfile, Compose backend service, dependency
   health conditions, environment template values, and a liveness endpoint.
+- Added explicit EF Core entity configurations for keys, foreign keys, indexes,
+  duplicate-prevention constraints, and delete behavior.
+- Added a design-time `NorthwindContext` factory for PostgreSQL migrations.
+- Removed the stale SQL Server database logger configuration; technical logs
+  now remain file-based until a PostgreSQL logging contract is deliberately
+  introduced.
 - Added local PostgreSQL, Redis, and RabbitMQ infrastructure with Docker Compose.
 - Added persistent volumes, health checks, and a private Docker network.
 - Added `.env.example` for local infrastructure configuration.

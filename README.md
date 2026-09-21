@@ -70,6 +70,16 @@ overridden with the `postgres` service hostname. Redis and RabbitMQ are
 provisioned as infrastructure dependencies; feature-specific integrations are
 added only when their application contracts are defined.
 
+The EF design-time factory reads `ConnectionStrings__Guidora` when creating
+migrations. With the .NET SDK installed, create the first migration with:
+
+```bash
+ConnectionStrings__Guidora='Host=localhost;Port=5432;Database=guidora;Username=guidora;Password=your-password' \
+  dotnet ef migrations add InitialGuidoraSchema \
+  --project DataAccess --startup-project WebAPI \
+  --output-dir Migrations
+```
+
 ## Project structure
 
 The current solution layers will evolve toward independently deployable services:
