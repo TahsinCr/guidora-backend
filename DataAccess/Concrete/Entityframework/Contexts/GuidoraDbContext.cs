@@ -14,6 +14,7 @@ namespace DataAccess.Concrete.Entityframework.Contexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasPostgresExtension("citext");
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(GuidoraDbContext).Assembly);
             base.OnModelCreating(modelBuilder);
         }

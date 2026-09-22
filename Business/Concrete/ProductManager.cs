@@ -146,7 +146,15 @@ namespace Business.Concrete
                 return new ErrorResult("Product was not found.");
             }
 
-            _productDal.Delete(product);
+            var deletedStatus = _productStatusDal.Get(status => status.Code == "deleted");
+            if (deletedStatus == null)
+            {
+                return new ErrorResult("Deleted product status is not configured.");
+            }
+
+            product.ProductStatusId = deletedStatus.Id;
+            product.UpdatedAt = DateTime.UtcNow;
+            _productDal.Update(product);
             return new SuccessResult();
         }
 

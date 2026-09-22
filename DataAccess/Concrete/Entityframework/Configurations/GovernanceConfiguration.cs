@@ -42,6 +42,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasKey(report => report.Id);
             builder.Property(report => report.Description).HasMaxLength(4000).IsRequired();
             builder.HasIndex(report => new { report.ProductId, report.ReportedByUserId, report.ReportStatusId });
+            builder.HasIndex(report => new { report.ReportStatusId, report.CreatedAt });
             builder.HasOne<Product>().WithMany().HasForeignKey(report => report.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
             builder.HasOne<User>().WithMany().HasForeignKey(report => report.ReportedByUserId)
@@ -111,8 +112,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(proposal => proposal.Slug).HasMaxLength(220).IsRequired();
             builder.Property(proposal => proposal.WebsiteUrl).HasMaxLength(2048).IsRequired();
             builder.Property(proposal => proposal.LogoUrl).HasMaxLength(2048).IsRequired();
+            builder.Property(proposal => proposal.ShortDescription).HasMaxLength(500).IsRequired();
             builder.Property(proposal => proposal.ReviewNote).HasMaxLength(4000).IsRequired();
             builder.HasIndex(proposal => new { proposal.ProductId, proposal.Status });
+            builder.HasIndex(proposal => new { proposal.Status, proposal.CreatedAt });
             builder.HasOne<Product>().WithMany().HasForeignKey(proposal => proposal.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
             builder.HasOne<User>().WithMany().HasForeignKey(proposal => proposal.ProposedByUserId)
@@ -156,6 +159,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(log => log.EntityType).HasMaxLength(150).IsRequired();
             builder.Property(log => log.EntityId).HasMaxLength(100).IsRequired();
             builder.Property(log => log.Action).HasMaxLength(100).IsRequired();
+            builder.Property(log => log.OldValues).HasColumnType("jsonb").IsRequired();
+            builder.Property(log => log.NewValues).HasColumnType("jsonb").IsRequired();
             builder.HasIndex(log => new { log.EntityType, log.EntityId, log.CreatedAt });
             builder.HasOne<User>().WithMany().HasForeignKey(log => log.ActorUserId)
                 .OnDelete(DeleteBehavior.Restrict);

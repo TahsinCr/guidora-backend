@@ -10,7 +10,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         {
             builder.HasKey(category => category.CategoryId);
             builder.Property(category => category.CategoryName).HasMaxLength(150).IsRequired();
-            builder.Property(category => category.Slug).HasMaxLength(180).IsRequired();
+            builder.Property(category => category.Slug).HasColumnType("citext").HasMaxLength(180).IsRequired();
             builder.HasIndex(category => category.Slug).IsUnique();
         }
     }
@@ -21,7 +21,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         {
             builder.HasKey(product => product.ProductId);
             builder.Property(product => product.Name).HasMaxLength(200).IsRequired();
-            builder.Property(product => product.Slug).HasMaxLength(220).IsRequired();
+            builder.Property(product => product.Slug).HasColumnType("citext").HasMaxLength(220).IsRequired();
             builder.Property(product => product.ShortDescription).HasMaxLength(500).IsRequired();
             builder.Property(product => product.WebsiteUrl).HasMaxLength(2048).IsRequired();
             builder.Property(product => product.LogoUrl).HasMaxLength(2048).IsRequired();
@@ -56,7 +56,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         {
             builder.HasKey(category => category.Id);
             builder.Property(category => category.Name).HasMaxLength(120).IsRequired();
-            builder.Property(category => category.Slug).HasMaxLength(140).IsRequired();
+            builder.Property(category => category.Slug).HasColumnType("citext").HasMaxLength(140).IsRequired();
             builder.HasIndex(category => category.Slug).IsUnique();
         }
     }
@@ -67,7 +67,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         {
             builder.HasKey(tag => tag.Id);
             builder.Property(tag => tag.Name).HasMaxLength(120).IsRequired();
-            builder.Property(tag => tag.Slug).HasMaxLength(140).IsRequired();
+            builder.Property(tag => tag.Slug).HasColumnType("citext").HasMaxLength(140).IsRequired();
             builder.HasIndex(tag => new { tag.TagCategoryId, tag.Slug }).IsUnique();
             builder.HasOne<TagCategory>().WithMany().HasForeignKey(tag => tag.TagCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);

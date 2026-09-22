@@ -30,9 +30,11 @@ namespace DataAccess.Concrete.Entityframework
             var roleClaims = from operationClaim in Context.OperationClaims
                 join roleOperationClaim in Context.RoleOperationClaims
                     on operationClaim.Id equals roleOperationClaim.OperationClaimId
+                join role in Context.Roles
+                    on roleOperationClaim.RoleId equals role.Id
                 join userRole in Context.UserRoles
-                    on roleOperationClaim.RoleId equals userRole.RoleId
-                where userRole.UserId == user.Id
+                    on role.Id equals userRole.RoleId
+                where userRole.UserId == user.Id && role.IsActive
                 select new OperationClaim { Id = operationClaim.Id, Name = operationClaim.Name };
 
             return directClaims.Concat(roleClaims).Distinct().ToList();

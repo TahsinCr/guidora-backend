@@ -35,6 +35,11 @@ All notable changes to the Guidora backend are documented here.
   and fixed build-blocking DTO, cache namespace, and EF migration metadata calls.
 - Documented the pinned local .NET SDK and solution restore workflow required
   for Rider NuGet and framework-reference resolution.
+- Hardened catalog and identity schema constraints with case-insensitive
+  PostgreSQL email/slug uniqueness, bounded profile values, moderation queue
+  indexes, proposal description limits, and validated `jsonb` audit payloads.
+- Excluded inactive roles from effective-permission resolution and changed the
+  Product delete command to a status-based soft delete.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to

@@ -9,7 +9,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<User> builder)
         {
             builder.HasKey(user => user.Id);
-            builder.Property(user => user.Email).HasMaxLength(320).IsRequired();
+            builder.Property(user => user.Email).HasColumnType("citext").HasMaxLength(320).IsRequired();
             builder.HasIndex(user => user.Email).IsUnique();
             builder.Property(user => user.FirstName).HasMaxLength(100).IsRequired();
             builder.Property(user => user.LastName).HasMaxLength(100).IsRequired();
@@ -55,6 +55,14 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<UserProfile> builder)
         {
             builder.HasKey(profile => profile.Id);
+            builder.Property(profile => profile.DisplayName).HasMaxLength(100).IsRequired();
+            builder.Property(profile => profile.Name).HasMaxLength(200).IsRequired();
+            builder.Property(profile => profile.Description).HasMaxLength(4000).IsRequired();
+            builder.Property(profile => profile.AvatarUrl).HasMaxLength(2048).IsRequired();
+            builder.Property(profile => profile.PhoneNumber).HasMaxLength(32).IsRequired();
+            builder.Property(profile => profile.WebsiteUrl).HasMaxLength(2048).IsRequired();
+            builder.Property(profile => profile.Country).HasMaxLength(100).IsRequired();
+            builder.Property(profile => profile.City).HasMaxLength(100).IsRequired();
             builder.HasIndex(profile => profile.UserId).IsUnique();
             builder.HasOne<User>().WithMany().HasForeignKey(profile => profile.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
