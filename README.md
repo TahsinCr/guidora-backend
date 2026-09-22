@@ -4,6 +4,8 @@ Guidora Backend is a .NET platform designed to run on Docker and evolve into ind
 
 ## Development principles
 
+- Read and maintain [MEMORY.md](MEMORY.md) before architectural or
+  implementation work; it records active decisions and deferred work in Turkish.
 - Services must be able to run as independent Docker containers.
 - Each service must own its domain model, `DbContext`, and migrations.
 - Services must not access each other's tables directly.

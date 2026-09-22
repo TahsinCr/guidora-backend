@@ -6,6 +6,8 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Added Turkish `MEMORY.md` as the project-local source for durable
+  architecture decisions, active priorities, and deferred work.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to
