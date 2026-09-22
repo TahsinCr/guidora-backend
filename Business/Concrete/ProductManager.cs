@@ -13,6 +13,8 @@ using Core.Entities;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
+using Entities.DTOs;
+using Core.Aspects.Transaction;
 
 namespace Business.Concrete
 {
@@ -21,13 +23,15 @@ namespace Business.Concrete
         private readonly IProductDal _productDal;
         private readonly IProductCategoryDal _productCategoryDal;
         private readonly IProductStatusDal _productStatusDal;
+        private readonly ICategoryDal _categoryDal;
 
         public ProductManager(IProductDal productDal, IProductCategoryDal productCategoryDal,
-            IProductStatusDal productStatusDal)
+            IProductStatusDal productStatusDal, ICategoryDal categoryDal)
         {
             _productDal = productDal;
             _productCategoryDal = productCategoryDal;
             _productStatusDal = productStatusDal;
+            _categoryDal = categoryDal;
         }
 
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
@@ -74,6 +78,77 @@ namespace Business.Concrete
             
         }
 
+        [TransactionScopeAspect]
+        [SecuredOperationAspect("Product.Create")]
+        [ValidationAspect(typeof(CreateProductRequestValidator))]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        public IResult Create(CreateProductRequest request, int createdByUserId)
+        {
+            var product = new Product
+            {
+                Name = request.Name,
+                Slug = request.Slug,
+                ShortDescription = request.ShortDescription,
+                Description = request.Description,
+                WebsiteUrl = request.WebsiteUrl,
+                LogoUrl = request.LogoUrl,
+                CreatedByUserId = createdByUserId
+            };
+
+            var result = Add(product);
+            if (!result.Success)
+            {
+                return result;
+            }
+
+            return ReplaceCategories(product.ProductId, request.CategoryIds);
+        }
+
+        [TransactionScopeAspect]
+        [SecuredOperationAspect("Product.Update")]
+        [ValidationAspect(typeof(UpdateProductRequestValidator))]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        public IResult Update(int productId, UpdateProductRequest request)
+        {
+            var product = _productDal.Get(item => item.ProductId == productId);
+            if (product == null)
+            {
+                return new ErrorResult("Product was not found.");
+            }
+
+            product.Name = request.Name;
+            product.Slug = request.Slug;
+            product.ShortDescription = request.ShortDescription;
+            product.Description = request.Description;
+            product.WebsiteUrl = request.WebsiteUrl;
+            product.LogoUrl = request.LogoUrl;
+            product.UpdatedAt = DateTime.UtcNow;
+
+            var duplicateResult = CheckIfProductNameAlreadyExists(product.Name, product.ProductId);
+            if (!duplicateResult.Success)
+            {
+                return duplicateResult;
+            }
+
+            _productDal.Update(product);
+            return ReplaceCategories(product.ProductId, request.CategoryIds);
+        }
+
+        [TransactionScopeAspect]
+        [SecuredOperationAspect("Product.Delete")]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        public IResult Delete(int productId)
+        {
+            var product = _productDal.Get(item => item.ProductId == productId);
+            if (product == null)
+            {
+                return new ErrorResult("Product was not found.");
+            }
+
+            _productDal.Delete(product);
+            return new SuccessResult();
+        }
+
         [SecuredOperationAspect("Product.Update")]
         [ValidationAspect(typeof(ProductValidator))]
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
@@ -91,12 +166,43 @@ namespace Business.Concrete
             return new SuccessResult();
         }
 
-        private IResult CheckIfProductNameAlreadyExists(string productName)
+        private IResult CheckIfProductNameAlreadyExists(string productName, int? excludingProductId = null)
         {
-            bool result = _productDal.GetAll(p => p.Name == productName).Any();
+            bool result = _productDal.GetAll(p => p.Name == productName &&
+                (!excludingProductId.HasValue || p.ProductId != excludingProductId.Value)).Any();
             if (result)
             {
                 return new ErrorResult(Messages.ProductNameAlreadyExistsError);
+            }
+
+            return new SuccessResult();
+        }
+
+        private IResult ReplaceCategories(int productId, IEnumerable<int> categoryIds)
+        {
+            var normalizedCategoryIds = categoryIds.Distinct().ToList();
+            if (normalizedCategoryIds.Count == 0)
+            {
+                return new ErrorResult("At least one category is required.");
+            }
+
+            var knownCategoryIds = _categoryDal.GetAll(category =>
+                normalizedCategoryIds.Contains(category.CategoryId))
+                .Select(category => category.CategoryId)
+                .ToHashSet();
+            if (knownCategoryIds.Count != normalizedCategoryIds.Count)
+            {
+                return new ErrorResult("One or more categories do not exist.");
+            }
+
+            foreach (var existing in _productCategoryDal.GetAll(item => item.ProductId == productId))
+            {
+                _productCategoryDal.Delete(existing);
+            }
+
+            foreach (var categoryId in normalizedCategoryIds)
+            {
+                _productCategoryDal.Add(new ProductCategory { ProductId = productId, CategoryId = categoryId });
             }
 
             return new SuccessResult();

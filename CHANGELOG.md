@@ -26,6 +26,8 @@ All notable changes to the Guidora backend are documented here.
   unauthorized requests as 403.
 - Recorded the foundation-cleanup state and deferred work in the Turkish
   project memory.
+- Added Product create/update command DTOs, JWT-derived creator assignment,
+  category aggregate validation, and transactional category replacement.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to

@@ -1,6 +1,8 @@
 ﻿using Business.Abstract;
 using Entities;
+using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace WebAPI.Controllers
 {
@@ -16,9 +18,15 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost("add")]
-        public IActionResult Add(Product product)
+        public IActionResult Add(CreateProductRequest request)
         {
-            var result = _productService.Add(product);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userId, out var createdByUserId))
+            {
+                return Unauthorized();
+            }
+
+            var result = _productService.Create(request, createdByUserId);
             if (result.Success)
             {
                 return Ok(result);
@@ -28,9 +36,9 @@ namespace WebAPI.Controllers
         }
 
         [HttpDelete("delete")]
-        public IActionResult Delete(Product product)
+        public IActionResult Delete(int id)
         {
-            var result = _productService.Delete(product);
+            var result = _productService.Delete(id);
             if (result.Success)
             {
                 return Ok(result);
@@ -76,9 +84,9 @@ namespace WebAPI.Controllers
         }
 
         [HttpPut("update")]
-        public IActionResult Update(Product product)
+        public IActionResult Update(int id, UpdateProductRequest request)
         {
-            var result = _productService.Update(product);
+            var result = _productService.Update(id, request);
             if (result.Success)
             {
                 return Ok(result);
