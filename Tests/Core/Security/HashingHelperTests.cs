@@ -1,6 +1,6 @@
 using Core.Utilities.Security.Hashing;
 
-namespace Guidora.Tests.Security;
+namespace Tests.Core.Security;
 
 public sealed class HashingHelperTests
 {
@@ -9,9 +9,7 @@ public sealed class HashingHelperTests
     {
         HashingHelper.CreatePasswordHash("correct horse battery staple", out var hash, out var salt);
 
-        var verified = HashingHelper.VerifyPasswordHash("correct horse battery staple", hash, salt);
-
-        Assert.True(verified);
+        Assert.True(HashingHelper.VerifyPasswordHash("correct horse battery staple", hash, salt));
     }
 
     [Fact]
@@ -19,8 +17,6 @@ public sealed class HashingHelperTests
     {
         HashingHelper.CreatePasswordHash("correct horse battery staple", out var hash, out var salt);
 
-        var verified = HashingHelper.VerifyPasswordHash("incorrect password", hash, salt);
-
-        Assert.False(verified);
+        Assert.False(HashingHelper.VerifyPasswordHash("incorrect password", hash, salt));
     }
 }

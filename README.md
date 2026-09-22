@@ -154,7 +154,7 @@ generic CRUD repository.
 ```bash
 dotnet restore
 dotnet build NetCoreBackend.sln --configuration Release
-dotnet test Tests/Guidora.Tests/Guidora.Tests.csproj --configuration Release
+dotnet test Tests/Tests.csproj --configuration Release
 ```
 
 Relevant build and test commands must be run after code changes, and their results should be recorded in the commit or development notes.

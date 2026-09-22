@@ -49,6 +49,11 @@ All notable changes to the Guidora backend are documented here.
   entity-based Product write commands from the public service contract.
 - Made cache and performance aspects await-aware and added the initial xUnit
   test project with coverage collection support.
+- Organized the single test project by production layer and a root-level
+  integration-test area, keeping test ownership explicit without creating a
+  second test solution or project.
+- Moved the sole test project directly to `Tests/Tests.csproj`; no product-
+  prefixed test project or nested test-project directory remains.
 - Corrected the PostgreSQL 18 Compose data-volume mount so a fresh local
   database can initialize successfully.
 - Added the missing Redis configuration and infrastructure documentation
