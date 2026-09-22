@@ -6,6 +6,7 @@ using Entities;
 using System.Collections.Generic;
 using Core.Aspects.Caching;
 using Core.CrossCuttingConcerns.Caching;
+using Business.BusinessAspect.Autofac;
 
 namespace Business.Concrete
 {
@@ -31,6 +32,7 @@ namespace Business.Concrete
         }
 
         [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
+        [SecuredOperationAspect("Category.Manage")]
         public IResult Add(Category category)
         {
             _categoryDal.Add(category);
@@ -38,6 +40,7 @@ namespace Business.Concrete
         }
 
         [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
+        [SecuredOperationAspect("Category.Manage")]
         public IResult Update(Category category)
         {
             _categoryDal.Update(category);
@@ -45,6 +48,7 @@ namespace Business.Concrete
         }
 
         [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
+        [SecuredOperationAspect("Category.Manage")]
         public IResult Delete(Category category)
         {
             _categoryDal.Delete(category);

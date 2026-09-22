@@ -20,6 +20,8 @@ All notable changes to the Guidora backend are documented here.
   verification while retaining a temporary legacy verification path.
 - Added 403 handling for authorization failures and redacted sensitive
   password, token, secret, and authorization parameters from technical logs.
+- Protected Category mutations with `Category.Manage` and corrected legacy
+  Product and Category update/delete HTTP verbs.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to
