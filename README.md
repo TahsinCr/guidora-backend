@@ -144,6 +144,11 @@ infra/       Local Docker infrastructure
 
 The first architectural split will separate the Identity and Catalog bounded contexts. Every new service must have its own application, data access, migrations, and test boundaries.
 
+Repository mutations only stage EF Core changes. A scoped `IUnitOfWork` owns
+the commit boundary, while `TransactionScopeAspect` supports synchronous,
+`Task`, and `Task<T>` commands. Audit persistence is append-only and is not a
+generic CRUD repository.
+
 ## Verification
 
 ```bash

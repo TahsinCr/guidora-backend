@@ -44,6 +44,9 @@ All notable changes to the Guidora backend are documented here.
   repository mutations now stage EF changes and command handlers own commits.
 - Added the EF Core design-time dependency required to generate and review the
   initial PostgreSQL migration from the WebAPI startup project.
+- Made transaction interception safe for `Task` and `Task<T>` command methods,
+  constrained audit persistence to an append-only DAL, and removed legacy
+  entity-based Product write commands from the public service contract.
 - Corrected the PostgreSQL 18 Compose data-volume mount so a fresh local
   database can initialize successfully.
 - Added the missing Redis configuration and infrastructure documentation

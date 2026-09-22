@@ -64,10 +64,7 @@ namespace Business.Concrete
                 : new SuccessDataResult<Product>(product);
         }
 
-        [SecuredOperationAspect("Product.Create")]
-        [ValidationAspect(typeof(ProductValidator))]
-        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
-        public IResult Add(Product product)
+        private IResult AddNewProduct(Product product)
         {
             IResult? result = CheckIfProductNameAlreadyExists(product.Name);
             if (result != null) return result;
@@ -103,7 +100,7 @@ namespace Business.Concrete
                 CreatedByUserId = createdByUserId
             };
 
-            var result = Add(product);
+            var result = AddNewProduct(product);
             if (!result.Success)
             {
                 return result;
@@ -178,23 +175,6 @@ namespace Business.Concrete
             _productDal.Update(product);
             _unitOfWork.SaveChanges();
             return new SuccessResult();
-        }
-
-        [SecuredOperationAspect("Product.Update")]
-        [ValidationAspect(typeof(ProductValidator))]
-        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
-        public IResult Update(Product entity)
-        {
-            _productDal.Update(entity);
-            _unitOfWork.SaveChanges();
-            return new SuccessResult();
-        }
-
-        [SecuredOperationAspect("Product.Delete")]
-        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
-        public IResult Delete(Product entity)
-        {
-            return new ErrorResult("Physical product deletion is not supported.");
         }
 
         private IResult CheckIfProductNameAlreadyExists(string productName, int? excludingProductId = null)
