@@ -16,6 +16,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using DataAccess.Concrete.Entityframework.Contexts;
+using Business.Abstract;
+using System.Security.Claims;
 
 namespace WebAPI
 {
@@ -30,9 +32,12 @@ namespace WebAPI
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy(apiCorsPolicy, configurePolicy =>
+                    options.AddPolicy(apiCorsPolicy, configurePolicy =>
                     {
-                        configurePolicy.WithOrigins(allowOrigins).AllowAnyHeader();
+                        configurePolicy.WithOrigins(allowOrigins)
+                            .AllowAnyHeader()
+                            .AllowAnyMethod()
+                            .AllowCredentials();
                     }
                 );
             });
@@ -41,6 +46,11 @@ namespace WebAPI
             builder.Services.AddControllers();
             builder.Services.AddDbContext<NorthwindContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("Guidora")));
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = builder.Configuration.GetSection("Redis")["Configuration"];
+                options.InstanceName = "guidora:";
+            });
 
             //builder.Services.AddSingleton<IProductDal,EfProductDal>();
             //builder.Services.AddSingleton<IProductService,ProductManager>();
@@ -67,7 +77,35 @@ namespace WebAPI
                         ValidIssuer = tokenOptions.Issuer,
                         ValidAudience = tokenOptions.Audience,
                         ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey)
+                        IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey),
+                        ClockSkew = TimeSpan.FromSeconds(tokenOptions.ClockSkewSeconds)
+                    };
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = context =>
+                        {
+                            var userIdValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                            var sessionId = context.Principal?.FindFirst("sid")?.Value;
+                            var authorizationVersionValue = context.Principal?.FindFirst("av")?.Value;
+
+                            if (!int.TryParse(userIdValue, out var userId) ||
+                                !int.TryParse(authorizationVersionValue, out var authorizationVersion) ||
+                                string.IsNullOrWhiteSpace(sessionId))
+                            {
+                                context.Fail("Access token security claims are invalid.");
+                                return Task.CompletedTask;
+                            }
+
+                            var validationService = context.HttpContext.RequestServices
+                                .GetRequiredService<ITokenValidationService>();
+                            var validationResult = validationService.Validate(userId, sessionId, authorizationVersion);
+                            if (!validationResult.Success)
+                            {
+                                context.Fail(validationResult.Message);
+                            }
+
+                            return Task.CompletedTask;
+                        }
                     };
                 });
 

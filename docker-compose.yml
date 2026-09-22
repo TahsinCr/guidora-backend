@@ -9,6 +9,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__Guidora: Host=postgres;Port=5432;Database=${POSTGRES_DB:-guidora};Username=${POSTGRES_USER:-guidora};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      Redis__Configuration: redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
       Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}
       TokenOptions__SecurityKey: ${TOKEN_OPTIONS__SECURITYKEY:?TOKEN_OPTIONS__SECURITYKEY must be set in .env}
     ports:

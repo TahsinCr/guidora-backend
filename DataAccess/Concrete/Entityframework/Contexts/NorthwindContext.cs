@@ -48,6 +48,8 @@ namespace DataAccess.Concrete.Entityframework.Contexts
         public DbSet<ProductEditProposalTag> ProductEditProposalTags { get; set; }
         public DbSet<ProductEditProposalCategory> ProductEditProposalCategories { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<UserAuthenticationState> UserAuthenticationStates { get; set; }
+        public DbSet<UserSession> UserSessions { get; set; }
 
 
     }

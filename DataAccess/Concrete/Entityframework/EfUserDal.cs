@@ -21,12 +21,21 @@ namespace DataAccess.Concrete.Entityframework
 
         public List<OperationClaim> GetClaims(User user)
         {
-            var result = from operationClaim in Context.OperationClaims
+            var directClaims = from operationClaim in Context.OperationClaims
                 join userOperationClaim in Context.UserOperationClaims
                     on operationClaim.Id equals userOperationClaim.OperationClaimId
                 where userOperationClaim.UserId == user.Id
                 select new OperationClaim { Id = operationClaim.Id, Name = operationClaim.Name };
-            return result.ToList();
+
+            var roleClaims = from operationClaim in Context.OperationClaims
+                join roleOperationClaim in Context.RoleOperationClaims
+                    on operationClaim.Id equals roleOperationClaim.OperationClaimId
+                join userRole in Context.UserRoles
+                    on roleOperationClaim.RoleId equals userRole.RoleId
+                where userRole.UserId == user.Id
+                select new OperationClaim { Id = operationClaim.Id, Name = operationClaim.Name };
+
+            return directClaims.Concat(roleClaims).Distinct().ToList();
         }
 
         public void AddClaim(User user, OperationClaim operationClaim)

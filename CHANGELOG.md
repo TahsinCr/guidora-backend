@@ -18,6 +18,12 @@ All notable changes to the Guidora backend are documented here.
 - Removed the stale SQL Server database logger configuration; technical logs
   now remain file-based until a PostgreSQL logging contract is deliberately
   introduced.
+- Added rotating, hashed refresh sessions with 15-minute access tokens and
+  persistent session settings for frictionless but revocable sign-in.
+- Added JWT session and authorization-version validation backed by PostgreSQL
+  and a one-minute Redis validation cache.
+- Added user authentication state, session invalidation, ban/restore, direct
+  claim invalidation, and effective direct-plus-role claim resolution.
 - Added local PostgreSQL, Redis, and RabbitMQ infrastructure with Docker Compose.
 - Added persistent volumes, health checks, and a private Docker network.
 - Added `.env.example` for local infrastructure configuration.

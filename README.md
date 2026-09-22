@@ -80,6 +80,23 @@ ConnectionStrings__Guidora='Host=localhost;Port=5432;Database=guidora;Username=g
   --output-dir Migrations
 ```
 
+## Authentication sessions
+
+Guidora uses a short-lived JWT access token together with a rotating refresh
+session. Refresh tokens are random secrets, stored only as hashes in
+PostgreSQL, and are delivered to the browser in an HttpOnly cookie. The
+PostgreSQL session record is the security source of truth; Redis caches a
+successful access-token session validation for one minute and is explicitly
+invalidated on logout, ban, or authorization invalidation.
+
+The default token settings are deliberately persistent without being
+indefinite: access token 15 minutes, refresh session 30 days, remembered
+session 90 days, and an absolute rolling-session limit of 180 days. A ban,
+direct user-claim change, or explicit authorization invalidation revokes all
+of the user's sessions and increments its authorization version. Future
+UserRole and RoleOperationClaim command handlers must call the same
+invalidation service after changing permissions.
+
 ## Project structure
 
 The current solution layers will evolve toward independently deployable services:

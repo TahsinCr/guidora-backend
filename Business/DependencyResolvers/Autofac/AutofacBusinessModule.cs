@@ -51,8 +51,13 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<EfProductEditProposalTagDal>().As<IProductEditProposalTagDal>();
             builder.RegisterType<EfProductEditProposalCategoryDal>().As<IProductEditProposalCategoryDal>();
             builder.RegisterType<EfAuditLogDal>().As<IAuditLogDal>();
+            builder.RegisterType<EfUserAuthenticationStateDal>().As<IUserAuthenticationStateDal>();
+            builder.RegisterType<EfUserSessionDal>().As<IUserSessionDal>();
 
             builder.RegisterType<AuthManager>().As<IAuthService>();
+            builder.RegisterType<UserSessionInvalidationManager>().As<IUserSessionInvalidationService>();
+            builder.RegisterType<TokenValidationManager>().As<ITokenValidationService>();
+            builder.RegisterType<UserSecurityManager>().As<IUserSecurityService>();
             builder.RegisterType<JwtHelper>().As<ITokenHelper>();
 
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -61,7 +66,7 @@ namespace Business.DependencyResolvers.Autofac
                 .EnableInterfaceInterceptors(new ProxyGenerationOptions()
                 {
                     Selector = new AspectInterceptorSelector()
-                }).SingleInstance();
+                }).InstancePerLifetimeScope();
 
         }
     }

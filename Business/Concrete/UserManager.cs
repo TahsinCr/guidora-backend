@@ -16,10 +16,12 @@ namespace Business.Concrete
     public class UserManager : IUserService
     {
         private readonly IUserDal _userDal;
+        private readonly IUserSessionInvalidationService _sessionInvalidationService;
 
-        public UserManager(IUserDal userDal)
+        public UserManager(IUserDal userDal, IUserSessionInvalidationService sessionInvalidationService)
         {
             _userDal = userDal;
+            _sessionInvalidationService = sessionInvalidationService;
         }
 
         public IDataResult<List<User>> GetAll()
@@ -35,7 +37,7 @@ namespace Business.Concrete
         public IResult AddClaim(User user, OperationClaim operationClaim)
         {
             _userDal.AddClaim(user, operationClaim);
-            return new SuccessResult();
+            return _sessionInvalidationService.InvalidateUserSessions(user.Id);
         }
 
         public IDataResult<User> GetByMail(string email)
@@ -44,6 +46,14 @@ namespace Business.Concrete
 
             if (result != null) return new SuccessDataResult<User>(result);
             else return new ErrorDataResult<User>(Messages.UserNotFound);
+        }
+
+        public IDataResult<User> GetById(int id)
+        {
+            User? result = _userDal.Get(user => user.Id == id);
+
+            if (result != null) return new SuccessDataResult<User>(result);
+            return new ErrorDataResult<User>(Messages.UserNotFound);
         }
 
         public IResult Add(User user)
