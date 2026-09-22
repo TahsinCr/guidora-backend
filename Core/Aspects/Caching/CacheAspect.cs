@@ -1,15 +1,14 @@
-﻿using Castle.DynamicProxy;
+using System;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using Castle.DynamicProxy;
 using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Interceptors.Autofac;
 using Core.Utilities.IoC;
-using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Security.Cryptography;
 using Core.Utilities.Results;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 
 namespace Core.Aspects.Caching
@@ -32,20 +31,58 @@ namespace Core.Aspects.Caching
         public override void Intercept(IInvocation invocation)
         {
             var key = BuildCacheKey(invocation);
+            var returnType = invocation.Method.ReturnType;
             if (_cacheManager.IsExists(key))
             {
-                invocation.ReturnValue = _cacheManager.Get(key);
+                var cachedValue = _cacheManager.Get(key);
+                invocation.ReturnValue = IsGenericTask(returnType)
+                    ? CreateCompletedTask(returnType.GetGenericArguments()[0], cachedValue)
+                    : cachedValue;
                 return;
             }
+
             invocation.Proceed();
-            if (invocation.ReturnValue is IResult result && !result.Success)
+            if (invocation.ReturnValue is Task task && IsGenericTask(returnType))
+            {
+                invocation.ReturnValue = CacheGenericTask(task, returnType.GetGenericArguments()[0], key);
+                return;
+            }
+
+            CacheIfSuccessful(key, invocation.ReturnValue);
+        }
+
+        private object CacheGenericTask(Task task, Type resultType, string key)
+        {
+            var method = typeof(CacheAspect).GetMethod(nameof(CacheGenericTaskCore),
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            return method.MakeGenericMethod(resultType).Invoke(this, [task, key])!;
+        }
+
+        private async Task<T> CacheGenericTaskCore<T>(Task task, string key)
+        {
+            var result = await ((Task<T>)task).ConfigureAwait(false);
+            CacheIfSuccessful(key, result);
+            return result;
+        }
+
+        private static object CreateCompletedTask(Type resultType, object? value)
+        {
+            var method = typeof(Task).GetMethod(nameof(Task.FromResult))!.MakeGenericMethod(resultType);
+            return method.Invoke(null, [value])!;
+        }
+
+        private void CacheIfSuccessful(string key, object? value)
+        {
+            if (value is IResult result && !result.Success)
             {
                 return;
             }
 
-            var duration = _cachePolicyProvider.GetDurationMinutes(_profile, _duration);
-            _cacheManager.Add(key, invocation.ReturnValue, duration);
+            _cacheManager.Add(key, value, _cachePolicyProvider.GetDurationMinutes(_profile, _duration));
         }
+
+        private static bool IsGenericTask(Type returnType) =>
+            returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>);
 
         private string BuildCacheKey(IInvocation invocation)
         {
