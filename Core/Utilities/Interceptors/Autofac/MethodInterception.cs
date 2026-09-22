@@ -31,8 +31,8 @@ namespace Core.Utilities.Interceptors.Autofac
                 {
                     OnSuccess(invocation);
                 }
+                OnAfter(invocation);
             }
-            OnAfter(invocation);
         }
     }
 }

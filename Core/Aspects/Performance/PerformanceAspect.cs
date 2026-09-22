@@ -1,7 +1,5 @@
 ﻿using Castle.DynamicProxy;
 using Core.Utilities.Interceptors.Autofac;
-using Core.Utilities.IoC;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,27 +12,28 @@ namespace Core.Aspects.Performance
     public class PerformanceAspect : MethodInterception
     {
         private readonly int _interval;
-        private readonly Stopwatch _stopwatch;
 
         public PerformanceAspect(int interval)
         {
             _interval = interval;
-            _stopwatch = ServiceTool.ServiceProvider.GetRequiredService<Stopwatch>();
         }
 
 
-        protected override void OnBefore(IInvocation invocation)
+        public override void Intercept(IInvocation invocation)
         {
-            _stopwatch.Start();
-        }
-
-        protected override void OnAfter(IInvocation invocation)
-        {
-            if (_stopwatch.Elapsed.TotalSeconds > _interval)
+            var stopwatch = Stopwatch.StartNew();
+            try
             {
-                Debug.WriteLine($"Performance : {invocation.Method.DeclaringType?.FullName ?? "<Unknown>"}.{invocation.Method.Name}-->{_stopwatch.Elapsed.TotalSeconds}");
+                invocation.Proceed();
             }
-            _stopwatch.Reset();
+            finally
+            {
+                stopwatch.Stop();
+                if (stopwatch.Elapsed.TotalSeconds > _interval)
+                {
+                    Debug.WriteLine($"Performance : {invocation.Method.DeclaringType?.FullName ?? "<Unknown>"}.{invocation.Method.Name}-->{stopwatch.Elapsed.TotalSeconds}");
+                }
+            }
         }
     }
 }

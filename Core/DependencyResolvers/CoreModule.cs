@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
 using Core.CrossCuttingConcerns.Caching;
 using Core.CrossCuttingConcerns.Caching.Redis;
@@ -17,7 +16,6 @@ namespace Core.DependencyResolvers
             serviceCollection.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             serviceCollection.AddSingleton<ICachePolicyProvider, ConfigurationCachePolicyProvider>();
             serviceCollection.AddSingleton<ICacheManager, RedisCacheManager>();
-            serviceCollection.AddSingleton<Stopwatch>();
         }
     }
 }

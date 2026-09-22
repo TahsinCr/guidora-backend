@@ -147,6 +147,7 @@ namespace WebAPI
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
+            Core.Utilities.IoC.ServiceTool.SetProvider(app.Services);
 
             if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
             {

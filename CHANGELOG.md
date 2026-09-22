@@ -38,6 +38,12 @@ All notable changes to the Guidora backend are documented here.
   new entity foundations.
 - Added an opt-in EF Core startup migration switch through
   `Database:ApplyMigrationsOnStartup`.
+- Removed the secondary `ServiceProvider` construction from the dependency
+  resolver; cross-cutting aspects now resolve services from the final host
+  container.
+- Made performance timing invocation-local and ensured interception cleanup
+  runs even when the intercepted operation throws.
+- Enabled async-flow propagation for transaction scopes.
 - Added profile-driven Redis cache aspects for public catalog navigation,
   listings, and product details, with write-side cache invalidation.
 - Added a RabbitMQ durable-topic publisher abstraction and Compose-to-API
