@@ -128,7 +128,6 @@ Entities/    Current domain models and DTOs
 DataAccess/  Current EF Core data access
 Business/    Current business rules and services
 WebAPI/      Current HTTP entry point
-ConsoleUI/   Console entry point
 infra/       Local Docker infrastructure
 ```
 

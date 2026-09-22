@@ -1,18 +1,16 @@
-# Guidora local infrastructure
+# Local infrastructure
 
-Copy `.env.example` to `.env`, replace both passwords, then start the local infrastructure:
+The Compose stack provisions PostgreSQL, Redis, and RabbitMQ for local
+development. Redis uses the checked-in configuration for durable AOF writes and
+an `allkeys-lru` eviction policy; cache entries remain disposable because
+PostgreSQL is the source of truth.
+
+Copy `.env.example` to `.env`, replace the placeholder secrets, and start the
+stack with:
 
 ```bash
-cp .env.example .env
 docker compose up -d
 docker compose ps
 ```
 
-Services:
-
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- RabbitMQ AMQP: `localhost:5672`
-- RabbitMQ management UI: `http://localhost:15672`
-
-The containers share the private `guidora` network. Persistent data is stored in named Docker volumes. The application will be connected to these services in the next migration step; this file intentionally does not run database migrations automatically.
+Do not commit `.env` or production credentials.

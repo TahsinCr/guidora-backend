@@ -8,7 +8,6 @@ COPY ["Entities/Entities.csproj", "Entities/"]
 COPY ["DataAccess/DataAccess.csproj", "DataAccess/"]
 COPY ["Business/Business.csproj", "Business/"]
 COPY ["WebAPI/WebAPI.csproj", "WebAPI/"]
-COPY ["ConsoleUI/ConsoleUI.csproj", "ConsoleUI/"]
 RUN dotnet restore "WebAPI/WebAPI.csproj"
 
 COPY . .

@@ -6,6 +6,8 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Added the missing Redis configuration and infrastructure documentation
+  referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to
   `GuidoraDbContext` across the data-access and API layers.
 - Switched the EF Core data access provider from SQL Server LocalDB to
@@ -51,6 +53,8 @@ All notable changes to the Guidora backend are documented here.
   be migrated without an unsafe breaking change.
 - Kept startup migration disabled by default until the first reviewed migration
   exists.
+- Removed the obsolete ConsoleUI project from the solution and backend image
+  build path.
 - Kept PostgreSQL as the cache source of truth; the homepage popular-products
   cache remains reserved until the views/metrics domain is designed.
 
