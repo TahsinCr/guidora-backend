@@ -181,7 +181,7 @@ namespace WebAPI
         {
             using IServiceScope scope = services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<DataAccess.Concrete.Entityframework.Contexts.GuidoraDbContext>();
-            var migrations = await context.Database.GetMigrationsAsync();
+            var migrations = context.Database.GetMigrations();
 
             if (!migrations.Any())
             {

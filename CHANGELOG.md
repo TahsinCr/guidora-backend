@@ -29,6 +29,10 @@ All notable changes to the Guidora backend are documented here.
 - Added Product create/update command DTOs, JWT-derived creator assignment,
   category aggregate validation, and transactional category replacement.
 - Removed the obsolete ConsoleUI source project from the repository.
+- Corrected the PostgreSQL EF Core provider reference to the available and
+  EF Core 10-compatible Npgsql 10.0.3 release.
+- Added the ASP.NET Core framework reference required by Core HTTP abstractions
+  and fixed build-blocking DTO, cache namespace, and EF migration metadata calls.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to

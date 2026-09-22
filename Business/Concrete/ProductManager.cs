@@ -8,6 +8,7 @@ using Business.Constants;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
 using Core.Aspects.Caching;
+using Core.CrossCuttingConcerns.Caching;
 using Core.Business;
 using Core.Entities;
 using Core.Utilities.Results;
@@ -62,7 +63,7 @@ namespace Business.Concrete
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Add(Product product)
         {
-            IResult? result = BusinessRules.Run(CheckIfProductNameAlreadyExists(product.Name));
+            IResult? result = CheckIfProductNameAlreadyExists(product.Name);
             if (result != null) return result;
 
             var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
