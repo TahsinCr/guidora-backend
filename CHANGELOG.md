@@ -16,6 +16,10 @@ All notable changes to the Guidora backend are documented here.
 - Added deterministic identity, status, reporting, and verification lookup
   seeds. New registrations now receive the seeded `User` role rather than a
   copied direct claim.
+- Replaced new-password HMAC hashing with PBKDF2-SHA512 and constant-time
+  verification while retaining a temporary legacy verification path.
+- Added 403 handling for authorization failures and redacted sensitive
+  password, token, secret, and authorization parameters from technical logs.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to

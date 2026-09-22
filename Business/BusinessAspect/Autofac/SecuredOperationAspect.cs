@@ -6,6 +6,7 @@ using System;
 using Core.Extensions;
 using Core.Utilities.IoC;
 using Microsoft.Extensions.DependencyInjection;
+using Core.Utilities.Security.Authorization;
 
 namespace Business.BusinessAspect.Autofac
 {
@@ -31,7 +32,7 @@ namespace Business.BusinessAspect.Autofac
                     return;
                 }
             }
-            throw new Exception(Messages.AuthorizationDenied);
+            throw new AuthorizationDeniedException(Messages.AuthorizationDenied);
         }
     }
 }

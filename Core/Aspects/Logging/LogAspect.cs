@@ -36,10 +36,11 @@ namespace Core.Aspects.Logging
             var logParameters = new List<LogParameter>();
             for (int i = 0; i < invocation.Arguments.Length; i++)
             {
+                var parameterName = invocation.GetConcreteMethod().GetParameters()[i].Name ?? $"arg{i}";
                 logParameters.Add(new LogParameter
                 {
-                    Name = invocation.GetConcreteMethod().GetParameters()[i].Name ?? $"arg{i}",
-                    Value = invocation.Arguments[i],
+                    Name = parameterName,
+                    Value = LogParameterRedactor.Redact(parameterName, invocation.Arguments[i]),
                     Type = invocation.Arguments[i]?.GetType().Name ?? "<Null>"
                 });
             }

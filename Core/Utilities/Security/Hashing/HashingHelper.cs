@@ -1,35 +1,37 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Core.Utilities.Security.Hashing
 {
     public class HashingHelper
     {
-        public static void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt) 
+        private const int SaltSize = 16;
+        private const int HashSize = 32;
+        private const int Iterations = 600_000;
+
+        public static void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
         {
-            using (var hmac = new System.Security.Cryptography.HMACSHA512())
-            {
-                passwordSalt = hmac.Key;
-                passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-            }
+            passwordSalt = RandomNumberGenerator.GetBytes(SaltSize);
+            passwordHash = Rfc2898DeriveBytes.Pbkdf2(password, passwordSalt, Iterations,
+                HashAlgorithmName.SHA512, HashSize);
         }
 
         public static bool VerifyPasswordHash(string password, byte[] passwordHash, byte[] passwordSalt)
         {
-            using (var hmac = new System.Security.Cryptography.HMACSHA512(passwordSalt))
+            if (passwordSalt.Length == SaltSize && passwordHash.Length == HashSize)
             {
-                var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-                for (int i = 0; i < computedHash.Length; i++)
-                {
-                    if (computedHash[i]!=passwordHash[i])
-                    {
-                        return false;
-                    }
-                }
+                var computedHash = Rfc2898DeriveBytes.Pbkdf2(password, passwordSalt, Iterations,
+                    HashAlgorithmName.SHA512, HashSize);
+                return CryptographicOperations.FixedTimeEquals(computedHash, passwordHash);
             }
 
-            return true;
+            // Existing accounts created before the PBKDF2 upgrade retain a
+            // temporary login path. Rehash the password on the next successful
+            // credential update and remove this branch after the migration window.
+            using var legacyHmac = new HMACSHA512(passwordSalt);
+            var legacyHash = legacyHmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+            return CryptographicOperations.FixedTimeEquals(legacyHash, passwordHash);
         }
     }
 }

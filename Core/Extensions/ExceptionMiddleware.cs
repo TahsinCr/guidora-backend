@@ -7,6 +7,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using FluentValidation.Results;
+using Core.Utilities.Security.Authorization;
 
 namespace Core.Extensions
 {
@@ -48,6 +49,16 @@ namespace Core.Extensions
                     StatusCode = httpContext.Response.StatusCode,
                     Message = "Validate Error",
                     Errors = errors
+                }.ToString());
+            }
+
+            if (e is AuthorizationDeniedException)
+            {
+                httpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                return httpContext.Response.WriteAsync(new ErrorDetails
+                {
+                    StatusCode = httpContext.Response.StatusCode,
+                    Message = e.Message
                 }.ToString());
             }
 
