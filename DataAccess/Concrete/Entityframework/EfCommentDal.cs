@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfCommentDal : EfEntityRepositoryBase<Comment, NorthwindContext>, ICommentDal
+    public class EfCommentDal : EfEntityRepositoryBase<Comment, GuidoraDbContext>, ICommentDal
     {
-        public EfCommentDal(NorthwindContext context) : base(context) { }
+        public EfCommentDal(GuidoraDbContext context) : base(context) { }
     }
 }

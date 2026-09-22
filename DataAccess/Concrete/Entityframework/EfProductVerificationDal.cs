@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfProductVerificationDal : EfEntityRepositoryBase<ProductVerification, NorthwindContext>, IProductVerificationDal
+    public class EfProductVerificationDal : EfEntityRepositoryBase<ProductVerification, GuidoraDbContext>, IProductVerificationDal
     {
-        public EfProductVerificationDal(NorthwindContext context) : base(context) { }
+        public EfProductVerificationDal(GuidoraDbContext context) : base(context) { }
     }
 }

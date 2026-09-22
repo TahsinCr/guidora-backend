@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfAuditLogDal : EfEntityRepositoryBase<AuditLog, NorthwindContext>, IAuditLogDal
+    public class EfAuditLogDal : EfEntityRepositoryBase<AuditLog, GuidoraDbContext>, IAuditLogDal
     {
-        public EfAuditLogDal(NorthwindContext context) : base(context) { }
+        public EfAuditLogDal(GuidoraDbContext context) : base(context) { }
     }
 }

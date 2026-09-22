@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfReportStatusDal : EfEntityRepositoryBase<ReportStatus, NorthwindContext>, IReportStatusDal
+    public class EfReportStatusDal : EfEntityRepositoryBase<ReportStatus, GuidoraDbContext>, IReportStatusDal
     {
-        public EfReportStatusDal(NorthwindContext context) : base(context) { }
+        public EfReportStatusDal(GuidoraDbContext context) : base(context) { }
     }
 }

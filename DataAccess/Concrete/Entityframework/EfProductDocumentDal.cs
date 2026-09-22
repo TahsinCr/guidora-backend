@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfProductDocumentDal : EfEntityRepositoryBase<ProductDocument, NorthwindContext>, IProductDocumentDal
+    public class EfProductDocumentDal : EfEntityRepositoryBase<ProductDocument, GuidoraDbContext>, IProductDocumentDal
     {
-        public EfProductDocumentDal(NorthwindContext context) : base(context) { }
+        public EfProductDocumentDal(GuidoraDbContext context) : base(context) { }
     }
 }

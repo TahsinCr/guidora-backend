@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfFavoriteDal : EfEntityRepositoryBase<Favorite, NorthwindContext>, IFavoriteDal
+    public class EfFavoriteDal : EfEntityRepositoryBase<Favorite, GuidoraDbContext>, IFavoriteDal
     {
-        public EfFavoriteDal(NorthwindContext context) : base(context) { }
+        public EfFavoriteDal(GuidoraDbContext context) : base(context) { }
     }
 }

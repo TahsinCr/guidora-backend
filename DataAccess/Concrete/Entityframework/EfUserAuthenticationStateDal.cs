@@ -6,8 +6,8 @@ using Entities;
 namespace DataAccess.Concrete.Entityframework
 {
     public class EfUserAuthenticationStateDal
-        : EfEntityRepositoryBase<UserAuthenticationState, NorthwindContext>, IUserAuthenticationStateDal
+        : EfEntityRepositoryBase<UserAuthenticationState, GuidoraDbContext>, IUserAuthenticationStateDal
     {
-        public EfUserAuthenticationStateDal(NorthwindContext context) : base(context) { }
+        public EfUserAuthenticationStateDal(GuidoraDbContext context) : base(context) { }
     }
 }

@@ -5,16 +5,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DataAccess.Concrete.Entityframework.Contexts
 {
-    public class NorthwindContext : DbContext
+    public class GuidoraDbContext : DbContext
     {
-        public NorthwindContext(DbContextOptions<NorthwindContext> options)
+        public GuidoraDbContext(DbContextOptions<GuidoraDbContext> options)
             : base(options)
         {
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.ApplyConfigurationsFromAssembly(typeof(NorthwindContext).Assembly);
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(GuidoraDbContext).Assembly);
             base.OnModelCreating(modelBuilder);
         }
 

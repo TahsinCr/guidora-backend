@@ -6,15 +6,17 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Renamed the inherited `NorthwindContext` and design-time factory to
+  `GuidoraDbContext` across the data-access and API layers.
 - Switched the EF Core data access provider from SQL Server LocalDB to
   configuration-driven PostgreSQL with Npgsql.
-- Registered `NorthwindContext` through ASP.NET Core dependency injection and
+- Registered `GuidoraDbContext` through ASP.NET Core dependency injection and
   made all EF DAL implementations share the scoped context.
 - Added a multi-stage backend Dockerfile, Compose backend service, dependency
   health conditions, environment template values, and a liveness endpoint.
 - Added explicit EF Core entity configurations for keys, foreign keys, indexes,
   duplicate-prevention constraints, and delete behavior.
-- Added a design-time `NorthwindContext` factory for PostgreSQL migrations.
+- Added a design-time `GuidoraDbContext` factory for PostgreSQL migrations.
 - Removed the stale SQL Server database logger configuration; technical logs
   now remain file-based until a PostgreSQL logging contract is deliberately
   introduced.

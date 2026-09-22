@@ -5,8 +5,8 @@ using DataAccess.Concrete.Entityframework.Contexts;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfUserProfileDal : EfEntityRepositoryBase<UserProfile, NorthwindContext>, IUserProfileDal
+    public class EfUserProfileDal : EfEntityRepositoryBase<UserProfile, GuidoraDbContext>, IUserProfileDal
     {
-        public EfUserProfileDal(NorthwindContext context) : base(context) { }
+        public EfUserProfileDal(GuidoraDbContext context) : base(context) { }
     }
 }

@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfUserSessionDal : EfEntityRepositoryBase<UserSession, NorthwindContext>, IUserSessionDal
+    public class EfUserSessionDal : EfEntityRepositoryBase<UserSession, GuidoraDbContext>, IUserSessionDal
     {
-        public EfUserSessionDal(NorthwindContext context) : base(context) { }
+        public EfUserSessionDal(GuidoraDbContext context) : base(context) { }
     }
 }

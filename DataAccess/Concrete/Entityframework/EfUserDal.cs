@@ -12,9 +12,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfUserDal : EfEntityRepositoryBase<User, NorthwindContext>, IUserDal
+    public class EfUserDal : EfEntityRepositoryBase<User, GuidoraDbContext>, IUserDal
     {
-        public EfUserDal(NorthwindContext context)
+        public EfUserDal(GuidoraDbContext context)
             : base(context)
         {
         }

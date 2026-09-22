@@ -5,8 +5,8 @@ using DataAccess.Concrete.Entityframework.Contexts;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfRoleDal : EfEntityRepositoryBase<Role, NorthwindContext>, IRoleDal
+    public class EfRoleDal : EfEntityRepositoryBase<Role, GuidoraDbContext>, IRoleDal
     {
-        public EfRoleDal(NorthwindContext context) : base(context) { }
+        public EfRoleDal(GuidoraDbContext context) : base(context) { }
     }
 }

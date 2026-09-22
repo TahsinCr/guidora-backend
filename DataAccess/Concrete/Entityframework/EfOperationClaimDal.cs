@@ -10,8 +10,8 @@ using DataAccess.Concrete.Entityframework.Contexts;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfOperationClaimDal : EfEntityRepositoryBase<OperationClaim, NorthwindContext>, IOperationClaimDal
+    public class EfOperationClaimDal : EfEntityRepositoryBase<OperationClaim, GuidoraDbContext>, IOperationClaimDal
     {
-        public EfOperationClaimDal(NorthwindContext context) : base(context) { }
+        public EfOperationClaimDal(GuidoraDbContext context) : base(context) { }
     }
 }

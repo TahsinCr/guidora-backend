@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfVerificationTypeDal : EfEntityRepositoryBase<VerificationType, NorthwindContext>, IVerificationTypeDal
+    public class EfVerificationTypeDal : EfEntityRepositoryBase<VerificationType, GuidoraDbContext>, IVerificationTypeDal
     {
-        public EfVerificationTypeDal(NorthwindContext context) : base(context) { }
+        public EfVerificationTypeDal(GuidoraDbContext context) : base(context) { }
     }
 }

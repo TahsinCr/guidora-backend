@@ -48,7 +48,7 @@ namespace WebAPI
 
             // Add services to the container.
             builder.Services.AddControllers();
-            builder.Services.AddDbContext<NorthwindContext>(options =>
+            builder.Services.AddDbContext<GuidoraDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("Guidora")));
             builder.Services.AddStackExchangeRedisCache(options =>
             {
@@ -179,7 +179,7 @@ namespace WebAPI
         private static async Task ApplyDatabaseMigrationsAsync(IServiceProvider services)
         {
             using IServiceScope scope = services.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<DataAccess.Concrete.Entityframework.Contexts.NorthwindContext>();
+            var context = scope.ServiceProvider.GetRequiredService<DataAccess.Concrete.Entityframework.Contexts.GuidoraDbContext>();
             var migrations = await context.Database.GetMigrationsAsync();
 
             if (!migrations.Any())

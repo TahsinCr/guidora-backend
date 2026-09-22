@@ -4,16 +4,16 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace DataAccess.Concrete.Entityframework.Contexts
 {
-    public sealed class NorthwindContextFactory : IDesignTimeDbContextFactory<NorthwindContext>
+    public sealed class GuidoraDbContextFactory : IDesignTimeDbContextFactory<GuidoraDbContext>
     {
-        public NorthwindContext CreateDbContext(string[] args)
+        public GuidoraDbContext CreateDbContext(string[] args)
         {
             var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Guidora")
                 ?? "Host=localhost;Port=5432;Database=guidora;Username=guidora;Password=change-me";
 
-            var optionsBuilder = new DbContextOptionsBuilder<NorthwindContext>();
+            var optionsBuilder = new DbContextOptionsBuilder<GuidoraDbContext>();
             optionsBuilder.UseNpgsql(connectionString);
-            return new NorthwindContext(optionsBuilder.Options);
+            return new GuidoraDbContext(optionsBuilder.Options);
         }
     }
 }

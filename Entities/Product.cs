@@ -15,7 +15,7 @@ namespace Entities
 
         public decimal UnitPrice { get; set; }
 
-        // Guidora fields. The legacy Northwind fields above remain temporarily
+        // Guidora fields. The legacy compatibility fields above remain temporarily
         // so the existing Business and API layers can be migrated safely.
         public string Name { get; set; } = string.Empty;
 

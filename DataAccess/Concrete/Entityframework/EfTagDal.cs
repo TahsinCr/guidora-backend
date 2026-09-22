@@ -5,8 +5,8 @@ using Entities;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfTagDal : EfEntityRepositoryBase<Tag, NorthwindContext>, ITagDal
+    public class EfTagDal : EfEntityRepositoryBase<Tag, GuidoraDbContext>, ITagDal
     {
-        public EfTagDal(NorthwindContext context) : base(context) { }
+        public EfTagDal(GuidoraDbContext context) : base(context) { }
     }
 }
