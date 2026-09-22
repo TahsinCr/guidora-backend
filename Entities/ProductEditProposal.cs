@@ -8,7 +8,7 @@ namespace Entities
         public int Id { get; set; }
         public int ProductId { get; set; }
         public int ProposedByUserId { get; set; }
-        public string Status { get; set; } = string.Empty;
+        public ProductEditProposalStatus Status { get; set; } = ProductEditProposalStatus.Pending;
         public string Name { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
         public string ShortDescription { get; set; } = string.Empty;

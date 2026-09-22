@@ -7,16 +7,6 @@ namespace Entities
     {
         public int ProductId { get; set; }
 
-        public int CategoryId { get; set; }
-
-        public string ProductName { get; set; } = string.Empty;
-
-        public short UnitsInStock { get; set; }
-
-        public decimal UnitPrice { get; set; }
-
-        // Guidora fields. The legacy compatibility fields above remain temporarily
-        // so the existing Business and API layers can be migrated safely.
         public string Name { get; set; } = string.Empty;
 
         public string Slug { get; set; } = string.Empty;
@@ -29,7 +19,7 @@ namespace Entities
 
         public string LogoUrl { get; set; } = string.Empty;
 
-        public int ProductStatusId { get; set; } = 1;
+        public int ProductStatusId { get; set; }
 
         public int CreatedByUserId { get; set; }
 

@@ -94,7 +94,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<ProductEditProposal> builder)
         {
             builder.HasKey(proposal => proposal.Id);
-            builder.Property(proposal => proposal.Status).HasMaxLength(80).IsRequired();
+            builder.Property(proposal => proposal.Status).HasConversion<string>().HasMaxLength(80).IsRequired();
             builder.Property(proposal => proposal.Name).HasMaxLength(200).IsRequired();
             builder.Property(proposal => proposal.Slug).HasMaxLength(220).IsRequired();
             builder.Property(proposal => proposal.WebsiteUrl).HasMaxLength(2048).IsRequired();

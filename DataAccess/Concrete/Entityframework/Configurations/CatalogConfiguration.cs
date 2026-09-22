@@ -25,12 +25,9 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(product => product.ShortDescription).HasMaxLength(500).IsRequired();
             builder.Property(product => product.WebsiteUrl).HasMaxLength(2048).IsRequired();
             builder.Property(product => product.LogoUrl).HasMaxLength(2048).IsRequired();
-            builder.Property(product => product.UnitPrice).HasPrecision(18, 2);
             builder.HasIndex(product => product.Slug).IsUnique();
             builder.HasIndex(product => product.ProductStatusId);
             builder.HasIndex(product => product.CreatedByUserId);
-            builder.HasOne<Category>().WithMany().HasForeignKey(product => product.CategoryId)
-                .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<ProductStatus>().WithMany().HasForeignKey(product => product.ProductStatusId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<Core.Entities.Concrete.User>().WithMany().HasForeignKey(product => product.CreatedByUserId)

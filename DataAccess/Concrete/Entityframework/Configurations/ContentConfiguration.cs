@@ -63,14 +63,11 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasKey(comment => comment.Id);
             builder.Property(comment => comment.Content).HasMaxLength(10000).IsRequired();
             builder.HasIndex(comment => new { comment.ProductId, comment.CreatedAt });
-            builder.HasIndex(comment => comment.ParentCommentId);
             builder.HasOne<Product>().WithMany().HasForeignKey(comment => comment.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
             builder.HasOne<User>().WithMany().HasForeignKey(comment => comment.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<CommentStatus>().WithMany().HasForeignKey(comment => comment.CommentStatusId)
-                .OnDelete(DeleteBehavior.Restrict);
-            builder.HasOne<Comment>().WithMany().HasForeignKey(comment => comment.ParentCommentId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

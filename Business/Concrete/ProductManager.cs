@@ -19,10 +19,15 @@ namespace Business.Concrete
     public class ProductManager : IProductService
     {
         private readonly IProductDal _productDal;
+        private readonly IProductCategoryDal _productCategoryDal;
+        private readonly IProductStatusDal _productStatusDal;
 
-        public ProductManager(IProductDal productDal)
+        public ProductManager(IProductDal productDal, IProductCategoryDal productCategoryDal,
+            IProductStatusDal productStatusDal)
         {
             _productDal = productDal;
+            _productCategoryDal = productCategoryDal;
+            _productStatusDal = productStatusDal;
         }
 
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
@@ -34,7 +39,11 @@ namespace Business.Concrete
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
         public IDataResult<List<Product>> GetAllByCategoryId(int id)
         {
-            return new SuccessDataResult<List<Product>>(_productDal.GetAll(product => product.CategoryId == id));
+            var productIds = _productCategoryDal.GetAll(item => item.CategoryId == id)
+                .Select(item => item.ProductId)
+                .ToHashSet();
+            return new SuccessDataResult<List<Product>>(
+                _productDal.GetAll(product => productIds.Contains(product.ProductId)));
         }
 
 
@@ -44,24 +53,28 @@ namespace Business.Concrete
             return new SuccessDataResult<Product>(_productDal.Get(product=> product.ProductId == id));
         }
 
-        [SecuredOperationAspect("product.add","admin")]
+        [SecuredOperationAspect("Product.Create")]
         [ValidationAspect(typeof(ProductValidator))]
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Add(Product product)
         {
-            IResult? result = BusinessRules.Run(new IResult[]{
-                CheckIfProductCountOfCategoryCorrect(product.CategoryId),
-                CheckIfProductNameAlreadyExists(product.ProductName),
-                CheckIfCategoryLimitExceded(product.CategoryId, limit: 10)
-            });
+            IResult? result = BusinessRules.Run(CheckIfProductNameAlreadyExists(product.Name));
             if (result != null) return result;
-            
+
+            var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
+            if (publishedStatus == null)
+            {
+                return new ErrorResult("Published product status is not configured.");
+            }
+
+            product.ProductStatusId = publishedStatus.Id;
+            product.CreatedAt = DateTime.UtcNow;
             _productDal.Add(product);
             return new SuccessResult(Messages.ProductAdded);
             
         }
 
-        [SecuredOperationAspect("product.update", "admin")]
+        [SecuredOperationAspect("Product.Update")]
         [ValidationAspect(typeof(ProductValidator))]
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Update(Product entity)
@@ -70,8 +83,7 @@ namespace Business.Concrete
             return new SuccessResult();
         }
 
-        [SecuredOperationAspect("product.delete", "admin")]
-        [ValidationAspect(typeof(ProductValidator))]
+        [SecuredOperationAspect("Product.Delete")]
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Delete(Product entity)
         {
@@ -79,34 +91,12 @@ namespace Business.Concrete
             return new SuccessResult();
         }
 
-        private IResult CheckIfProductCountOfCategoryCorrect(int categoryId)
-        {
-            int result = _productDal.GetAll(p => p.CategoryId == categoryId).Count;
-            if (result == 15)
-            {
-                return new ErrorResult(Messages.ProductCountOfCategoryError);
-            }
-
-            return new SuccessResult();
-        }
-
         private IResult CheckIfProductNameAlreadyExists(string productName)
         {
-            bool result = _productDal.GetAll(p => p.ProductName == productName).Any();
+            bool result = _productDal.GetAll(p => p.Name == productName).Any();
             if (result)
             {
                 return new ErrorResult(Messages.ProductNameAlreadyExistsError);
-            }
-
-            return new SuccessResult();
-        }
-
-        private IResult CheckIfCategoryLimitExceded(int categoryId, int limit)
-        {
-            var result = GetAllByCategoryId(categoryId);
-            if (result.Data.Count > limit)
-            {
-                return new ErrorResult(Messages.CategoryLimitExcededError);
             }
 
             return new SuccessResult();
