@@ -33,6 +33,8 @@ All notable changes to the Guidora backend are documented here.
   EF Core 10-compatible Npgsql 10.0.3 release.
 - Added the ASP.NET Core framework reference required by Core HTTP abstractions
   and fixed build-blocking DTO, cache namespace, and EF migration metadata calls.
+- Documented the pinned local .NET SDK and solution restore workflow required
+  for Rider NuGet and framework-reference resolution.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to

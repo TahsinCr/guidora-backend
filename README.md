@@ -23,6 +23,10 @@ Requirements:
 - Docker Engine
 - Docker Compose
 
+The required SDK feature band is pinned in `global.json` (currently 10.0.401).
+Run `dotnet restore NetCoreBackend.sln` after opening the solution so Rider can
+load NuGet assets and framework references correctly.
+
 Start the local infrastructure:
 
 ```bash
