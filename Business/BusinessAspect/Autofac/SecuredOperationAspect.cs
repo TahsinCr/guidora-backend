@@ -24,7 +24,13 @@ namespace Business.BusinessAspect.Autofac
 
         protected override void OnBefore(IInvocation invocation)
         {
-            var roleClaims = _httpContextAccessor.HttpContext?.User.ClaimRoles() ?? new System.Collections.Generic.List<string>();
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                throw new AuthenticationRequiredException("Authentication is required.");
+            }
+
+            var roleClaims = user.ClaimRoles();
             foreach (var role in _roles)
             {
                 if (roleClaims.Contains(role))

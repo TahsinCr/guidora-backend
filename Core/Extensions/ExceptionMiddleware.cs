@@ -62,6 +62,16 @@ namespace Core.Extensions
                 }.ToString());
             }
 
+            if (e is AuthenticationRequiredException)
+            {
+                httpContext.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                return httpContext.Response.WriteAsync(new ErrorDetails
+                {
+                    StatusCode = httpContext.Response.StatusCode,
+                    Message = e.Message
+                }.ToString());
+            }
+
             return httpContext.Response.WriteAsync(new ErrorDetails
             {
                 StatusCode = httpContext.Response.StatusCode,
