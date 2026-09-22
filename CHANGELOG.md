@@ -24,6 +24,8 @@ All notable changes to the Guidora backend are documented here.
   Product and Category update/delete HTTP verbs.
 - Distinguished unauthenticated requests as 401 from authenticated but
   unauthorized requests as 403.
+- Recorded the foundation-cleanup state and deferred work in the Turkish
+  project memory.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to
