@@ -43,6 +43,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(status => status.Code).HasMaxLength(80).IsRequired();
             builder.Property(status => status.Name).HasMaxLength(120).IsRequired();
             builder.HasIndex(status => status.Code).IsUnique();
+            builder.HasData(
+                new ProductStatus { Id = 1, Code = "published", Name = "Published", IsVisible = true },
+                new ProductStatus { Id = 2, Code = "hidden", Name = "Hidden", IsVisible = false },
+                new ProductStatus { Id = 3, Code = "deleted", Name = "Deleted", IsVisible = false });
         }
     }
 

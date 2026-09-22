@@ -5,8 +5,6 @@ using Core.Utilities.Results;
 using Core.Utilities.Security.JWT;
 using Entities.DTOs;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Core.Business;
@@ -22,21 +20,22 @@ namespace Business.Concrete
     public class AuthManager : IAuthService
     {
         private readonly IUserService _userService;
-        private readonly IOperationClaimService _operationClaimService;
+        private readonly IRoleDal _roleDal;
+        private readonly IUserRoleDal _userRoleDal;
         private readonly ITokenHelper _tokenHelper;
         private readonly IUserAuthenticationStateDal _authenticationStateDal;
         private readonly IUserSessionDal _userSessionDal;
         private readonly TokenOptions _tokenOptions;
         private readonly IDistributedCache _distributedCache;
         private readonly IUserSessionInvalidationService _sessionInvalidationService;
-        private readonly List<string> defultUserOperationClaimNames = new List<string> {"user"};
 
-        public AuthManager(IUserService userService, IOperationClaimService operationClaimService, ITokenHelper tokenHelper,
-            IUserAuthenticationStateDal authenticationStateDal, IUserSessionDal userSessionDal, IConfiguration configuration,
+        public AuthManager(IUserService userService, IRoleDal roleDal, IUserRoleDal userRoleDal,
+            ITokenHelper tokenHelper, IUserAuthenticationStateDal authenticationStateDal, IUserSessionDal userSessionDal, IConfiguration configuration,
             IDistributedCache distributedCache, IUserSessionInvalidationService sessionInvalidationService)
         {
             _userService = userService;
-            _operationClaimService = operationClaimService;
+            _roleDal = roleDal;
+            _userRoleDal = userRoleDal;
             _tokenHelper = tokenHelper;
             _authenticationStateDal = authenticationStateDal;
             _userSessionDal = userSessionDal;
@@ -62,15 +61,22 @@ namespace Business.Concrete
             };
 
 
-            IResult ? result = BusinessRules.Run(new IResult[]
-                {
-                    _userService.Add(user)
-                },
-                defultUserOperationClaimNames.Select(operationClaimName => 
-                    _userService.AddClaim(user, _operationClaimService.GetByName(operationClaimName).Data)
-                ).ToArray()
-            );
-            if (result != null) return new ErrorDataResult<User>(result.Message);
+            var addResult = _userService.Add(user);
+            if (!addResult.Success) return new ErrorDataResult<User>(addResult.Message);
+
+            var defaultRole = _roleDal.Get(role => role.Code == "user" && role.IsActive);
+            if (defaultRole == null)
+            {
+                return new ErrorDataResult<User>("Default user role is not configured.");
+            }
+
+            _userRoleDal.Add(new UserRole { UserId = user.Id, RoleId = defaultRole.Id });
+            _authenticationStateDal.Add(new UserAuthenticationState
+            {
+                UserId = user.Id,
+                AuthorizationVersion = 1,
+                UpdatedAt = DateTime.UtcNow
+            });
 
             return new SuccessDataResult<User>(user, Messages.UserRegistered);
         }

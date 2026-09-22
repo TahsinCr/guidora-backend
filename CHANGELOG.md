@@ -13,6 +13,9 @@ All notable changes to the Guidora backend are documented here.
   `ProductCategories` only.
 - Added typed Product edit-proposal workflow states and removed unsupported
   comment reply persistence from V1.
+- Added deterministic identity, status, reporting, and verification lookup
+  seeds. New registrations now receive the seeded `User` role rather than a
+  copied direct claim.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to

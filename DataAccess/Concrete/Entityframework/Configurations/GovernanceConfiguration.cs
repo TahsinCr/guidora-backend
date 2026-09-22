@@ -13,6 +13,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(reason => reason.Code).HasMaxLength(80).IsRequired();
             builder.Property(reason => reason.Name).HasMaxLength(150).IsRequired();
             builder.HasIndex(reason => reason.Code).IsUnique();
+            builder.HasData(
+                new ReportReason { Id = 1, Code = "spam", Name = "Spam", IsActive = true },
+                new ReportReason { Id = 2, Code = "inappropriate", Name = "Inappropriate content", IsActive = true },
+                new ReportReason { Id = 3, Code = "inaccurate", Name = "Inaccurate information", IsActive = true });
         }
     }
 
@@ -24,6 +28,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(status => status.Code).HasMaxLength(80).IsRequired();
             builder.Property(status => status.Name).HasMaxLength(120).IsRequired();
             builder.HasIndex(status => status.Code).IsUnique();
+            builder.HasData(
+                new ReportStatus { Id = 1, Code = "open", Name = "Open" },
+                new ReportStatus { Id = 2, Code = "resolved", Name = "Resolved" },
+                new ReportStatus { Id = 3, Code = "dismissed", Name = "Dismissed" });
         }
     }
 
@@ -69,6 +77,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(type => type.Code).HasMaxLength(80).IsRequired();
             builder.Property(type => type.Name).HasMaxLength(120).IsRequired();
             builder.HasIndex(type => type.Code).IsUnique();
+            builder.HasData(
+                new VerificationType { Id = 1, Code = "admin", Name = "Admin verified" },
+                new VerificationType { Id = 2, Code = "community", Name = "Community verified" },
+                new VerificationType { Id = 3, Code = "bot", Name = "Bot verified" });
         }
     }
 

@@ -53,6 +53,11 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(status => status.Code).HasMaxLength(80).IsRequired();
             builder.Property(status => status.Name).HasMaxLength(120).IsRequired();
             builder.HasIndex(status => status.Code).IsUnique();
+            builder.HasData(
+                new CommentStatus { Id = 1, Code = "active", Name = "Active", IsVisible = true },
+                new CommentStatus { Id = 2, Code = "hidden", Name = "Hidden", IsVisible = false },
+                new CommentStatus { Id = 3, Code = "deleted", Name = "Deleted", IsVisible = false },
+                new CommentStatus { Id = 4, Code = "blocked", Name = "Blocked", IsVisible = false });
         }
     }
 

@@ -25,6 +25,13 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasKey(claim => claim.Id);
             builder.Property(claim => claim.Name).HasMaxLength(150).IsRequired();
             builder.HasIndex(claim => claim.Name).IsUnique();
+            builder.HasData(
+                new OperationClaim { Id = 1, Name = "Product.Create" },
+                new OperationClaim { Id = 2, Name = "Product.Update" },
+                new OperationClaim { Id = 3, Name = "Product.Delete" },
+                new OperationClaim { Id = 4, Name = "Category.Manage" },
+                new OperationClaim { Id = 5, Name = "Product.Verify" },
+                new OperationClaim { Id = 6, Name = "Product.Proposal.Review" });
         }
     }
 
@@ -36,6 +43,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(role => role.Name).HasMaxLength(100).IsRequired();
             builder.Property(role => role.Code).HasMaxLength(100).IsRequired();
             builder.HasIndex(role => role.Code).IsUnique();
+            builder.HasData(
+                new Role { Id = 1, Name = "User", Code = "user", IsActive = true },
+                new Role { Id = 2, Name = "Moderator", Code = "moderator", IsActive = true },
+                new Role { Id = 3, Name = "Admin", Code = "admin", IsActive = true });
         }
     }
 
@@ -86,6 +97,17 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<OperationClaim>().WithMany().HasForeignKey(item => item.OperationClaimId)
                 .OnDelete(DeleteBehavior.Restrict);
+            builder.HasData(
+                new RoleOperationClaim { Id = 1, RoleId = 1, OperationClaimId = 1 },
+                new RoleOperationClaim { Id = 2, RoleId = 2, OperationClaimId = 2 },
+                new RoleOperationClaim { Id = 3, RoleId = 2, OperationClaimId = 5 },
+                new RoleOperationClaim { Id = 4, RoleId = 2, OperationClaimId = 6 },
+                new RoleOperationClaim { Id = 5, RoleId = 3, OperationClaimId = 1 },
+                new RoleOperationClaim { Id = 6, RoleId = 3, OperationClaimId = 2 },
+                new RoleOperationClaim { Id = 7, RoleId = 3, OperationClaimId = 3 },
+                new RoleOperationClaim { Id = 8, RoleId = 3, OperationClaimId = 4 },
+                new RoleOperationClaim { Id = 9, RoleId = 3, OperationClaimId = 5 },
+                new RoleOperationClaim { Id = 10, RoleId = 3, OperationClaimId = 6 });
         }
     }
 }
