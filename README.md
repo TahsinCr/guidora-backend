@@ -52,6 +52,11 @@ Compose services:
 
 See [infra/README.md](infra/README.md) for infrastructure details.
 
+The Compose configuration targets PostgreSQL 18 and mounts its named volume at
+`/var/lib/postgresql`, as required by the PostgreSQL 18 image layout. Do not
+reuse a volume created with an older major PostgreSQL image without a planned
+`pg_upgrade` migration.
+
 ## Database schema lifecycle
 
 The application uses EF Core migrations for schema changes. `EnsureCreated` is

@@ -42,6 +42,10 @@ All notable changes to the Guidora backend are documented here.
   Product delete command to a status-based soft delete.
 - Added a scoped Unit of Work and asynchronous repository read/write contract;
   repository mutations now stage EF changes and command handlers own commits.
+- Added the EF Core design-time dependency required to generate and review the
+  initial PostgreSQL migration from the WebAPI startup project.
+- Corrected the PostgreSQL 18 Compose data-volume mount so a fresh local
+  database can initialize successfully.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to
