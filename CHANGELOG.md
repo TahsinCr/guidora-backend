@@ -28,6 +28,7 @@ All notable changes to the Guidora backend are documented here.
   project memory.
 - Added Product create/update command DTOs, JWT-derived creator assignment,
   category aggregate validation, and transactional category replacement.
+- Removed the obsolete ConsoleUI source project from the repository.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to
