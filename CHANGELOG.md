@@ -54,6 +54,8 @@ All notable changes to the Guidora backend are documented here.
   second test solution or project.
 - Moved the sole test project directly to `Tests/Tests.csproj`; no product-
   prefixed test project or nested test-project directory remains.
+- Documented the immutable single-project test layout and its layer/integration
+  folder ownership rules in the project memory.
 - Corrected the PostgreSQL 18 Compose data-volume mount so a fresh local
   database can initialize successfully.
 - Added the missing Redis configuration and infrastructure documentation
