@@ -18,6 +18,10 @@ using Microsoft.IdentityModel.Tokens;
 using DataAccess.Concrete.Entityframework.Contexts;
 using Business.Abstract;
 using System.Security.Claims;
+using StackExchange.Redis;
+using Core.CrossCuttingConcerns.Messaging;
+using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
 
 namespace WebAPI
 {
@@ -51,6 +55,31 @@ namespace WebAPI
                 options.Configuration = builder.Configuration.GetSection("Redis")["Configuration"];
                 options.InstanceName = "guidora:";
             });
+            builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+            {
+                string configuration = builder.Configuration.GetSection("Redis")["Configuration"]
+                    ?? throw new InvalidOperationException("Redis configuration is missing.");
+                var options = ConfigurationOptions.Parse(configuration);
+                options.AbortOnConnectFail = false;
+                options.ClientName = "guidora-api";
+                return ConnectionMultiplexer.Connect(options);
+            });
+            builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
+            builder.Services.AddSingleton<IConnection>(serviceProvider =>
+            {
+                var options = serviceProvider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+                var factory = new ConnectionFactory
+                {
+                    HostName = options.HostName,
+                    Port = options.Port,
+                    UserName = options.UserName,
+                    Password = options.Password,
+                    VirtualHost = options.VirtualHost,
+                    ClientProvidedName = options.ClientProvidedName
+                };
+                return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+            });
+            builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 
             //builder.Services.AddSingleton<IProductDal,EfProductDal>();
             //builder.Services.AddSingleton<IProductService,ProductManager>();

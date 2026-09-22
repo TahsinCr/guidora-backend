@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Core.CrossCuttingConcerns.Caching
 {
-    internal interface ICacheManager
+    public interface ICacheManager
     {
         T Get<T>(string key);
         object? Get(string key);

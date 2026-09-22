@@ -34,6 +34,10 @@ All notable changes to the Guidora backend are documented here.
   new entity foundations.
 - Added an opt-in EF Core startup migration switch through
   `Database:ApplyMigrationsOnStartup`.
+- Added profile-driven Redis cache aspects for public catalog navigation,
+  listings, and product details, with write-side cache invalidation.
+- Added a RabbitMQ durable-topic publisher abstraction and Compose-to-API
+  configuration binding without coupling V1 commands to a worker or consumer.
 
 ### Architecture
 
@@ -45,6 +49,8 @@ All notable changes to the Guidora backend are documented here.
   be migrated without an unsafe breaking change.
 - Kept startup migration disabled by default until the first reviewed migration
   exists.
+- Kept PostgreSQL as the cache source of truth; the homepage popular-products
+  cache remains reserved until the views/metrics domain is designed.
 
 ### Verification
 

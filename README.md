@@ -70,6 +70,27 @@ overridden with the `postgres` service hostname. Redis and RabbitMQ are
 provisioned as infrastructure dependencies; feature-specific integrations are
 added only when their application contracts are defined.
 
+## Redis cache and RabbitMQ
+
+Redis is the shared cache provider for public catalog reads. Cache policy is
+declared through `CacheAspect` profiles and configured under `Caching:Profiles`:
+catalog navigation (60 minutes), catalog listings (10 minutes), and individual
+product details (15 minutes). Product and category writes invalidate their
+related profiles. Cache values are JSON envelopes with their concrete result
+type; PostgreSQL remains the source of truth. Authentication session validation
+uses a separate, one-minute distributed Redis entry.
+
+The `popular-products` five-minute profile is reserved for the homepage once a
+view-event and aggregation model is approved; it is intentionally not populated
+from an invented metric. Per-user state, authorization, favorites, reports,
+and mutable moderation data are not catalog-cached.
+
+RabbitMQ is configured as a durable topic exchange named `guidora.events`.
+`IEventPublisher` publishes JSON events with persistent delivery mode. No
+consumer, worker, scheduler, or synchronous Product workflow is coupled to the
+broker in V1; commands must first persist their canonical transaction, then a
+future outbox-backed integration can publish an event safely.
+
 The EF design-time factory reads `ConnectionStrings__Guidora` when creating
 migrations. With the .NET SDK installed, create the first migration with:
 

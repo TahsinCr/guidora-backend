@@ -25,20 +25,20 @@ namespace Business.Concrete
             _productDal = productDal;
         }
 
-        [CacheAspect(duration: 60)]
+        [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
         public IDataResult<List<Product>> GetAll()
         {
             return new SuccessDataResult<List<Product>>(_productDal.GetAll(), Messages.ProductsListed);
         }
 
-        [CacheAspect(duration: 60)]
+        [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
         public IDataResult<List<Product>> GetAllByCategoryId(int id)
         {
             return new SuccessDataResult<List<Product>>(_productDal.GetAll(product => product.CategoryId == id));
         }
 
 
-        [CacheAspect(duration: 30)]
+        [CacheAspect(CacheProfiles.ProductDetail, duration: 15)]
         public IDataResult<Product> GetById(int id)
         {
             return new SuccessDataResult<Product>(_productDal.Get(product=> product.ProductId == id));
@@ -46,7 +46,7 @@ namespace Business.Concrete
 
         [SecuredOperationAspect("product.add","admin")]
         [ValidationAspect(typeof(ProductValidator))]
-        [CacheRemoveAspect("IProductService.Get")]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Add(Product product)
         {
             IResult? result = BusinessRules.Run(new IResult[]{
@@ -63,7 +63,7 @@ namespace Business.Concrete
 
         [SecuredOperationAspect("product.update", "admin")]
         [ValidationAspect(typeof(ProductValidator))]
-        [CacheRemoveAspect("IProductService.Get")]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Update(Product entity)
         {
             _productDal.Update(entity);
@@ -72,7 +72,7 @@ namespace Business.Concrete
 
         [SecuredOperationAspect("product.delete", "admin")]
         [ValidationAspect(typeof(ProductValidator))]
-        [CacheRemoveAspect("IProductService.Get")]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Delete(Product entity)
         {
             _productDal.Delete(entity);

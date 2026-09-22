@@ -13,18 +13,21 @@ namespace Core.Aspects.Caching
 {
     public class CacheRemoveAspect : MethodInterception
     {
-        private readonly string _pattern;
+        private readonly string[] _profiles;
         private readonly ICacheManager _cacheManager;
 
-        public CacheRemoveAspect(string pattern)
+        public CacheRemoveAspect(params string[] profiles)
         {
-            _pattern = pattern;
+            _profiles = profiles;
             _cacheManager = ServiceTool.ServiceProvider.GetRequiredService<ICacheManager>();
         }
 
         protected override void OnSuccess(IInvocation invocation)
         {
-            _cacheManager.RemoveByPattern(_pattern);
+            foreach (string profile in _profiles)
+            {
+                _cacheManager.RemoveByPattern($"{profile}:*");
+            }
         }
     }
 }
