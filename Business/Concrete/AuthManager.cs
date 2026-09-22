@@ -15,6 +15,7 @@ using DataAccess.Abstract;
 using Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Distributed;
+using Core.Aspects.Transaction;
 
 namespace Business.Concrete
 {
@@ -45,6 +46,7 @@ namespace Business.Concrete
             _sessionInvalidationService = sessionInvalidationService;
         }
 
+        [TransactionScopeAspect]
         public IDataResult<User> Register(UserForRegisterDto userForRegisterDto, string password)
         {
             byte[] passwordHash, passwordSalt;
@@ -69,13 +71,6 @@ namespace Business.Concrete
                 ).ToArray()
             );
             if (result != null) return new ErrorDataResult<User>(result.Message);
-
-            _authenticationStateDal.Add(new UserAuthenticationState
-            {
-                UserId = user.Id,
-                AuthorizationVersion = 1,
-                UpdatedAt = DateTime.UtcNow
-            });
 
             return new SuccessDataResult<User>(user, Messages.UserRegistered);
         }

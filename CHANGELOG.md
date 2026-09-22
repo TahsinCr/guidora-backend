@@ -44,6 +44,10 @@ All notable changes to the Guidora backend are documented here.
 - Made performance timing invocation-local and ensured interception cleanup
   runs even when the intercepted operation throws.
 - Enabled async-flow propagation for transaction scopes.
+- Fixed registration creating a duplicate authentication-state row by making
+  state creation single-sourced through session invalidation.
+- Wrapped user registration in the existing transaction aspect so user,
+  claim, and authentication-state writes commit atomically.
 - Added profile-driven Redis cache aspects for public catalog navigation,
   listings, and product details, with write-side cache invalidation.
 - Added a RabbitMQ durable-topic publisher abstraction and Compose-to-API
