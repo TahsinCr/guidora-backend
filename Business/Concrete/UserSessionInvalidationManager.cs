@@ -4,6 +4,7 @@ using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
 using Microsoft.Extensions.Caching.Distributed;
+using Core.DataAccess;
 
 namespace Business.Concrete
 {
@@ -12,13 +13,15 @@ namespace Business.Concrete
         private readonly IUserAuthenticationStateDal _authenticationStateDal;
         private readonly IUserSessionDal _userSessionDal;
         private readonly IDistributedCache _distributedCache;
+        private readonly IUnitOfWork _unitOfWork;
 
         public UserSessionInvalidationManager(IUserAuthenticationStateDal authenticationStateDal,
-            IUserSessionDal userSessionDal, IDistributedCache distributedCache)
+            IUserSessionDal userSessionDal, IDistributedCache distributedCache, IUnitOfWork unitOfWork)
         {
             _authenticationStateDal = authenticationStateDal;
             _userSessionDal = userSessionDal;
             _distributedCache = distributedCache;
+            _unitOfWork = unitOfWork;
         }
 
         public IResult InvalidateUserSessions(int userId)
@@ -36,6 +39,8 @@ namespace Business.Concrete
                 _userSessionDal.Update(session);
                 _distributedCache.Remove($"auth-session:{session.Id}");
             }
+
+            _unitOfWork.SaveChanges();
 
             return new SuccessResult();
         }

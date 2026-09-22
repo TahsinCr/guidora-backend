@@ -40,6 +40,8 @@ All notable changes to the Guidora backend are documented here.
   indexes, proposal description limits, and validated `jsonb` audit payloads.
 - Excluded inactive roles from effective-permission resolution and changed the
   Product delete command to a status-based soft delete.
+- Added a scoped Unit of Work and asynchronous repository read/write contract;
+  repository mutations now stage EF changes and command handlers own commits.
 - Added the missing Redis configuration and infrastructure documentation
   referenced by Docker Compose.
 - Renamed the inherited `NorthwindContext` and design-time factory to

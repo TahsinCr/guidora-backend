@@ -14,6 +14,7 @@ using Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Distributed;
 using Core.Aspects.Transaction;
+using Core.DataAccess;
 
 namespace Business.Concrete
 {
@@ -28,10 +29,12 @@ namespace Business.Concrete
         private readonly TokenOptions _tokenOptions;
         private readonly IDistributedCache _distributedCache;
         private readonly IUserSessionInvalidationService _sessionInvalidationService;
+        private readonly IUnitOfWork _unitOfWork;
 
         public AuthManager(IUserService userService, IRoleDal roleDal, IUserRoleDal userRoleDal,
             ITokenHelper tokenHelper, IUserAuthenticationStateDal authenticationStateDal, IUserSessionDal userSessionDal, IConfiguration configuration,
-            IDistributedCache distributedCache, IUserSessionInvalidationService sessionInvalidationService)
+            IDistributedCache distributedCache, IUserSessionInvalidationService sessionInvalidationService,
+            IUnitOfWork unitOfWork)
         {
             _userService = userService;
             _roleDal = roleDal;
@@ -43,6 +46,7 @@ namespace Business.Concrete
                 ?? throw new InvalidOperationException("TokenOptions configuration is missing.");
             _distributedCache = distributedCache;
             _sessionInvalidationService = sessionInvalidationService;
+            _unitOfWork = unitOfWork;
         }
 
         [TransactionScopeAspect]
@@ -77,6 +81,7 @@ namespace Business.Concrete
                 AuthorizationVersion = 1,
                 UpdatedAt = DateTime.UtcNow
             });
+            _unitOfWork.SaveChanges();
 
             return new SuccessDataResult<User>(user, Messages.UserRegistered);
         }
@@ -133,6 +138,7 @@ namespace Business.Concrete
             };
 
             _userSessionDal.Add(session);
+            _unitOfWork.SaveChanges();
             var accessToken = _tokenHelper.CreateToken(user, claims, session.Id, authenticationState.AuthorizationVersion);
             return new SuccessDataResult<AuthenticationResultDto>(new AuthenticationResultDto
             {
@@ -187,6 +193,8 @@ namespace Business.Concrete
                 }
             }
 
+            _unitOfWork.SaveChanges();
+
             return newResult;
         }
 
@@ -200,6 +208,7 @@ namespace Business.Concrete
 
             session.RevokedAt = DateTime.UtcNow;
             _userSessionDal.Update(session);
+            _unitOfWork.SaveChanges();
             RemoveSessionValidationCache(session.Id);
             return new SuccessResult();
         }
@@ -219,6 +228,7 @@ namespace Business.Concrete
                 UpdatedAt = DateTime.UtcNow
             };
             _authenticationStateDal.Add(state);
+            _unitOfWork.SaveChanges();
             return state;
         }
 

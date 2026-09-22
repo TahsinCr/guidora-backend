@@ -10,6 +10,7 @@ using Core.Business;
 using Core.DataAccess.EntityFramework;
 using Core.Utilities.Results;
 using Business.Constants;
+using Core.DataAccess;
 
 namespace Business.Concrete
 {
@@ -17,11 +18,14 @@ namespace Business.Concrete
     {
         private readonly IUserDal _userDal;
         private readonly IUserSessionInvalidationService _sessionInvalidationService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public UserManager(IUserDal userDal, IUserSessionInvalidationService sessionInvalidationService)
+        public UserManager(IUserDal userDal, IUserSessionInvalidationService sessionInvalidationService,
+            IUnitOfWork unitOfWork)
         {
             _userDal = userDal;
             _sessionInvalidationService = sessionInvalidationService;
+            _unitOfWork = unitOfWork;
         }
 
         public IDataResult<List<User>> GetAll()
@@ -37,6 +41,7 @@ namespace Business.Concrete
         public IResult AddClaim(User user, OperationClaim operationClaim)
         {
             _userDal.AddClaim(user, operationClaim);
+            _unitOfWork.SaveChanges();
             return _sessionInvalidationService.InvalidateUserSessions(user.Id);
         }
 
@@ -59,19 +64,20 @@ namespace Business.Concrete
         public IResult Add(User user)
         {
             _userDal.Add(user);
+            _unitOfWork.SaveChanges();
             return new SuccessResult();
         }
 
         public IResult Update(User user)
         {
             _userDal.Update(user);
+            _unitOfWork.SaveChanges();
             return new SuccessResult();
         }
 
         public IResult Delete(User user)
         {
-            _userDal.Delete(user);
-            return new SuccessResult();
+            return new ErrorResult("Physical user deletion is not supported.");
         }
     }
 }

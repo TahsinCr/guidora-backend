@@ -7,16 +7,19 @@ using System.Collections.Generic;
 using Core.Aspects.Caching;
 using Core.CrossCuttingConcerns.Caching;
 using Business.BusinessAspect.Autofac;
+using Core.DataAccess;
 
 namespace Business.Concrete
 {
     public class CategoryManager : ICategoryService
     {
         private readonly ICategoryDal _categoryDal;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CategoryManager(ICategoryDal categoryDal)
+        public CategoryManager(ICategoryDal categoryDal, IUnitOfWork unitOfWork)
         {
             _categoryDal = categoryDal;
+            _unitOfWork = unitOfWork;
         }
 
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
@@ -28,7 +31,10 @@ namespace Business.Concrete
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
         public IDataResult<Category> GetById(int id)
         {
-            return new SuccessDataResult<Category>(_categoryDal.Get(category => category.CategoryId == id));
+            var category = _categoryDal.Get(category => category.CategoryId == id);
+            return category == null
+                ? new ErrorDataResult<Category>("Category was not found.")
+                : new SuccessDataResult<Category>(category);
         }
 
         [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
@@ -36,6 +42,7 @@ namespace Business.Concrete
         public IResult Add(Category category)
         {
             _categoryDal.Add(category);
+            _unitOfWork.SaveChanges();
             return new SuccessResult();
         }
 
@@ -44,6 +51,7 @@ namespace Business.Concrete
         public IResult Update(Category category)
         {
             _categoryDal.Update(category);
+            _unitOfWork.SaveChanges();
             return new SuccessResult();
         }
 
@@ -52,6 +60,7 @@ namespace Business.Concrete
         public IResult Delete(Category category)
         {
             _categoryDal.Delete(category);
+            _unitOfWork.SaveChanges();
             return new SuccessResult();
         }
     }

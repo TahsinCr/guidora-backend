@@ -16,6 +16,7 @@ using DataAccess.Abstract;
 using Entities;
 using Entities.DTOs;
 using Core.Aspects.Transaction;
+using Core.DataAccess;
 
 namespace Business.Concrete
 {
@@ -25,14 +26,16 @@ namespace Business.Concrete
         private readonly IProductCategoryDal _productCategoryDal;
         private readonly IProductStatusDal _productStatusDal;
         private readonly ICategoryDal _categoryDal;
+        private readonly IUnitOfWork _unitOfWork;
 
         public ProductManager(IProductDal productDal, IProductCategoryDal productCategoryDal,
-            IProductStatusDal productStatusDal, ICategoryDal categoryDal)
+            IProductStatusDal productStatusDal, ICategoryDal categoryDal, IUnitOfWork unitOfWork)
         {
             _productDal = productDal;
             _productCategoryDal = productCategoryDal;
             _productStatusDal = productStatusDal;
             _categoryDal = categoryDal;
+            _unitOfWork = unitOfWork;
         }
 
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
@@ -55,7 +58,10 @@ namespace Business.Concrete
         [CacheAspect(CacheProfiles.ProductDetail, duration: 15)]
         public IDataResult<Product> GetById(int id)
         {
-            return new SuccessDataResult<Product>(_productDal.Get(product=> product.ProductId == id));
+            var product = _productDal.Get(product => product.ProductId == id);
+            return product == null
+                ? new ErrorDataResult<Product>("Product was not found.")
+                : new SuccessDataResult<Product>(product);
         }
 
         [SecuredOperationAspect("Product.Create")]
@@ -75,6 +81,7 @@ namespace Business.Concrete
             product.ProductStatusId = publishedStatus.Id;
             product.CreatedAt = DateTime.UtcNow;
             _productDal.Add(product);
+            _unitOfWork.SaveChanges();
             return new SuccessResult(Messages.ProductAdded);
             
         }
@@ -102,7 +109,14 @@ namespace Business.Concrete
                 return result;
             }
 
-            return ReplaceCategories(product.ProductId, request.CategoryIds);
+            var categoryResult = ReplaceCategories(product.ProductId, request.CategoryIds);
+            if (!categoryResult.Success)
+            {
+                return categoryResult;
+            }
+
+            _unitOfWork.SaveChanges();
+            return categoryResult;
         }
 
         [TransactionScopeAspect]
@@ -132,7 +146,14 @@ namespace Business.Concrete
             }
 
             _productDal.Update(product);
-            return ReplaceCategories(product.ProductId, request.CategoryIds);
+            var categoryResult = ReplaceCategories(product.ProductId, request.CategoryIds);
+            if (!categoryResult.Success)
+            {
+                return categoryResult;
+            }
+
+            _unitOfWork.SaveChanges();
+            return categoryResult;
         }
 
         [TransactionScopeAspect]
@@ -155,6 +176,7 @@ namespace Business.Concrete
             product.ProductStatusId = deletedStatus.Id;
             product.UpdatedAt = DateTime.UtcNow;
             _productDal.Update(product);
+            _unitOfWork.SaveChanges();
             return new SuccessResult();
         }
 
@@ -164,6 +186,7 @@ namespace Business.Concrete
         public IResult Update(Product entity)
         {
             _productDal.Update(entity);
+            _unitOfWork.SaveChanges();
             return new SuccessResult();
         }
 
@@ -171,8 +194,7 @@ namespace Business.Concrete
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
         public IResult Delete(Product entity)
         {
-            _productDal.Delete(entity);
-            return new SuccessResult();
+            return new ErrorResult("Physical product deletion is not supported.");
         }
 
         private IResult CheckIfProductNameAlreadyExists(string productName, int? excludingProductId = null)

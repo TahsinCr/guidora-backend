@@ -7,6 +7,7 @@ using Core.Utilities.Interceptors.Autofac;
 using Core.Utilities.Security.JWT;
 using DataAccess.Abstract;
 using DataAccess.Concrete.Entityframework;
+using Core.DataAccess;
 
 namespace Business.DependencyResolvers.Autofac
 {
@@ -14,6 +15,7 @@ namespace Business.DependencyResolvers.Autofac
     {
         protected override void Load(ContainerBuilder builder)
         {
+            builder.RegisterType<GuidoraUnitOfWork>().As<IUnitOfWork>().InstancePerLifetimeScope();
             builder.RegisterType<ProductManager>().As<IProductService>();
             builder.RegisterType<EfProductDal>().As<IProductDal>();
 

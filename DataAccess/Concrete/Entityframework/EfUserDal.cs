@@ -48,7 +48,6 @@ namespace DataAccess.Concrete.Entityframework
                 OperationClaimId = operationClaim.Id
             });
             addedEntity.State = EntityState.Added;
-            Context.SaveChanges();
         }
     }
 }
