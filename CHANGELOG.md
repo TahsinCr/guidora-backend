@@ -6,6 +6,14 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Added user-scoped, idempotent Product favorites and Product comments with
+  database-paginated reads, author-only status-based deletion, moderator
+  visibility controls, public visibility filtering against Product and User
+  status, audit records, and seeded OperationClaim permissions.
+- Added Product Documents (Markdown content), Media metadata (validated HTTP(S)
+  URL references), append-only versioned Changelogs, and Contributor credit
+  workflows with validation, audit records, and Product-scoped APIs. Binary
+  media upload/storage remains intentionally unselected.
 - Completed async Product and Category write commands with cancellation support,
   actor-attributed JSONB audit records, and validated Product Category/Tag
   association replacement.

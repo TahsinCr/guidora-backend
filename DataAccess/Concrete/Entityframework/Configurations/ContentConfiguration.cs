@@ -83,6 +83,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         {
             builder.HasKey(favorite => favorite.Id);
             builder.HasIndex(favorite => new { favorite.UserId, favorite.ProductId }).IsUnique();
+            builder.HasIndex(favorite => new { favorite.UserId, favorite.CreatedAt });
             builder.HasOne<User>().WithMany().HasForeignKey(favorite => favorite.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<Product>().WithMany().HasForeignKey(favorite => favorite.ProductId)

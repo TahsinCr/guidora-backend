@@ -32,7 +32,12 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new OperationClaim { Id = 4, Name = "Category.Manage" },
                 new OperationClaim { Id = 5, Name = "Product.Verify" },
                 new OperationClaim { Id = 6, Name = "Product.Proposal.Review" },
-                new OperationClaim { Id = 7, Name = "ProductReport.Review" });
+                new OperationClaim { Id = 7, Name = "ProductReport.Review" },
+                new OperationClaim { Id = 8, Name = "Favorite.Manage" },
+                new OperationClaim { Id = 9, Name = "Comment.Create" },
+                new OperationClaim { Id = 10, Name = "Comment.Moderate" },
+                new OperationClaim { Id = 11, Name = "Product.Content.Manage" },
+                new OperationClaim { Id = 12, Name = "Product.Contributor.Manage" });
         }
     }
 
@@ -118,7 +123,17 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new RoleOperationClaim { Id = 9, RoleId = 3, OperationClaimId = 5 },
                 new RoleOperationClaim { Id = 10, RoleId = 3, OperationClaimId = 6 },
                 new RoleOperationClaim { Id = 11, RoleId = 2, OperationClaimId = 7 },
-                new RoleOperationClaim { Id = 12, RoleId = 3, OperationClaimId = 7 });
+                new RoleOperationClaim { Id = 12, RoleId = 3, OperationClaimId = 7 },
+                new RoleOperationClaim { Id = 13, RoleId = 1, OperationClaimId = 8 },
+                new RoleOperationClaim { Id = 14, RoleId = 1, OperationClaimId = 9 },
+                new RoleOperationClaim { Id = 15, RoleId = 1, OperationClaimId = 11 },
+                new RoleOperationClaim { Id = 16, RoleId = 1, OperationClaimId = 12 },
+                new RoleOperationClaim { Id = 17, RoleId = 2, OperationClaimId = 10 },
+                new RoleOperationClaim { Id = 18, RoleId = 2, OperationClaimId = 11 },
+                new RoleOperationClaim { Id = 19, RoleId = 2, OperationClaimId = 12 },
+                new RoleOperationClaim { Id = 20, RoleId = 3, OperationClaimId = 10 },
+                new RoleOperationClaim { Id = 21, RoleId = 3, OperationClaimId = 11 },
+                new RoleOperationClaim { Id = 22, RoleId = 3, OperationClaimId = 12 });
         }
     }
 }

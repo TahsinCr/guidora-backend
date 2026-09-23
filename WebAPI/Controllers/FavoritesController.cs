@@ -1,0 +1,44 @@
+using System.Security.Claims;
+using Business.Abstract;
+using Entities.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace WebAPI.Controllers;
+
+[ApiController]
+[Route("api/favorites")]
+public sealed class FavoritesController : ControllerBase
+{
+    private readonly IFavoriteService _favoriteService;
+
+    public FavoritesController(IFavoriteService favoriteService) => _favoriteService = favoriteService;
+
+    [HttpGet("mine")]
+    public async Task<IActionResult> GetMine([FromQuery] PageRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var result = await _favoriteService.GetForUserAsync(userId, request, cancellationToken);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPost("products/{productId:int}")]
+    public async Task<IActionResult> Add(int productId, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var result = await _favoriteService.AddAsync(productId, userId, cancellationToken);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("products/{productId:int}")]
+    public async Task<IActionResult> Remove(int productId, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var result = await _favoriteService.RemoveAsync(productId, userId, cancellationToken);
+        return result.Success ? Ok(result) : BadRequest(result);
+    }
+
+    private bool TryGetUserId(out int userId) =>
+        int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
+}

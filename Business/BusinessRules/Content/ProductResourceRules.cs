@@ -1,0 +1,42 @@
+using Core.Utilities.Results;
+using DataAccess.Abstract;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Business.BusinessRules.Content;
+
+public sealed class ProductResourceRules : IProductResourceRules
+{
+    private readonly IProductDal _productDal;
+    private readonly IProductStatusDal _statusDal;
+    private readonly IProductVerificationDal _verificationDal;
+
+    public ProductResourceRules(IProductDal productDal, IProductStatusDal statusDal,
+        IProductVerificationDal verificationDal)
+    {
+        _productDal = productDal;
+        _statusDal = statusDal;
+        _verificationDal = verificationDal;
+    }
+
+    public async Task<IResult> EnsurePublishedAsync(int productId, CancellationToken cancellationToken = default)
+    {
+        var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
+        if (product is null) return new ErrorResult("Product was not found.");
+        var status = await _statusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
+        return status?.Code == "published"
+            ? new SuccessResult()
+            : new ErrorResult("Product is not published.");
+    }
+
+    public async Task<IResult> EnsureDirectContentChangeAllowedAsync(int productId,
+        CancellationToken cancellationToken = default)
+    {
+        var publishedResult = await EnsurePublishedAsync(productId, cancellationToken);
+        if (!publishedResult.Success) return publishedResult;
+        if (await _verificationDal.AnyAsync(item => item.ProductId == productId && item.RevokedAt == null,
+                cancellationToken))
+            return new ErrorResult("Verified Product content changes require a review proposal; this resource is not proposal-enabled in V1.");
+        return new SuccessResult();
+    }
+}

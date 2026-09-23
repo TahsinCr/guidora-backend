@@ -142,6 +142,32 @@ verification commands are implemented in V1; Community verification remains a
 feature without a voting threshold/eligibility algorithm, so no vote workflow is
 invented or exposed yet. Bot verification remains future scope.
 
+## Community and Product content
+
+Authenticated users can page through their saved Products with
+`GET /api/favorites/mine?page=1&pageSize=50`; they can use
+`POST /api/favorites/products/{productId}` and
+`DELETE /api/favorites/products/{productId}` to add or remove one.
+Product comments can be listed with
+`GET /api/products/{productId}/comments?page=1&pageSize=50` and created at
+`/api/products/{productId}/comments`; authors delete their comments by changing
+them to the domain's `deleted` status, while moderators can hide or restore
+eligible comments. Public comment reads include only active comments on
+published Products whose authors remain active; closing a User account does not
+rewrite that User's comment rows. Comment replies are not part of V1.
+
+Product Documents, Media metadata, Changelogs, and Contributors use separate
+Product-scoped resources under `/api/products/{productId}/documents`,
+`/media`, `/changelogs`, and `/contributors`. Documents store Markdown/text
+content in PostgreSQL. Media currently stores validated HTTP(S) references and
+metadata only: binary upload and its physical storage provider remain an open
+infrastructure decision. Changelog entries are version-unique and append-only.
+Contributor records credit a User once per Product; users may add/remove their
+own credit, while the Product creator can manage other credits. Direct Document
+and Media mutations are rejected for actively verified Products because those
+resource kinds do not yet participate in edit proposals. All write workflows
+use operation claims, validation, transaction boundaries, and audit records.
+
 The EF design-time factory reads `ConnectionStrings__Guidora` when creating
 migrations. Add each schema change as a reviewed migration, for example:
 

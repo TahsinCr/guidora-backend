@@ -78,6 +78,31 @@ namespace DataAccess.Migrations
                         {
                             Id = 7,
                             Name = "ProductReport.Review"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Name = "Favorite.Manage"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Name = "Comment.Create"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Name = "Comment.Moderate"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Name = "Product.Content.Manage"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Name = "Product.Contributor.Manage"
                         });
                 });
 
@@ -227,6 +252,66 @@ namespace DataAccess.Migrations
                         {
                             Id = 12,
                             OperationClaimId = 7,
+                            RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 13,
+                            OperationClaimId = 8,
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 14,
+                            OperationClaimId = 9,
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 15,
+                            OperationClaimId = 11,
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 16,
+                            OperationClaimId = 12,
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 17,
+                            OperationClaimId = 10,
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 18,
+                            OperationClaimId = 11,
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 19,
+                            OperationClaimId = 12,
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 20,
+                            OperationClaimId = 10,
+                            RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 21,
+                            OperationClaimId = 11,
+                            RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 22,
+                            OperationClaimId = 12,
                             RoleId = 3
                         });
                 });
@@ -589,6 +674,8 @@ namespace DataAccess.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("UserId", "CreatedAt");
 
                     b.HasIndex("UserId", "ProductId")
                         .IsUnique();
