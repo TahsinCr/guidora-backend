@@ -6,6 +6,16 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Completed async Product and Category write commands with cancellation support,
+  actor-attributed JSONB audit records, and validated Product Category/Tag
+  association replacement.
+- Added the V1 governance use cases: verified Product edits become scalar,
+  Category, and Tag proposals; moderators can accept/reject proposals, grant or
+  revoke Admin verification, and process Product reports.
+- Added database-paginated pending-proposal and open-report queues, plus
+  `ProductReport.Review` permission seed/migration for Moderator and Admin.
+- Added Business, validation, API, and governance workflow tests in the single
+  Tests project; Community verification voting remains intentionally undefined.
 - Consolidated business-rule execution into one null-safe sequential/concurrent
   runner and removed the generic CRUD Business contract.
 - Added test-covered Catalog business rules for duplicate category/product

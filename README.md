@@ -116,6 +116,32 @@ consumer, worker, scheduler, or synchronous Product workflow is coupled to the
 broker in V1; commands must first persist their canonical transaction, then a
 future outbox-backed integration can publish an event safely.
 
+## Catalog governance in V1
+
+Product create/update requests carry Category and Tag IDs. Business rules check
+that Categories and Tags are active and that each TagCategory's single/multiple
+selection and exclusive-tag constraints are respected. Unverified Products can
+be updated directly; edits to actively verified Products are stored as separate
+pending proposals containing the scalar, Category, and Tag snapshot. Proposal
+acceptance revalidates the snapshot before atomically applying it; rejection
+leaves the canonical Product unchanged. Document and media edits are not part of
+the V1 proposal snapshot.
+
+Moderators and Admins can page through the oldest pending proposal and open
+report queues (`GET /api/product-edit-proposals/pending` and
+`GET /api/product-reports/open`; `pageSize` is capped at 100). They can accept
+or reject proposals, resolve or dismiss reports, and grant or revoke Admin
+verification through the corresponding governance controllers. These actions
+use OperationClaims (`Product.Proposal.Review`, `ProductReport.Review`, and
+`Product.Verify`), not frontend role checks. Product reports are submitted by
+an authenticated user. Audit entries for Product, Category, proposal,
+verification, and report changes are append-only JSONB old/new snapshots.
+
+Admin and Community verification are separate verification types. Admin
+verification commands are implemented in V1; Community verification remains a
+feature without a voting threshold/eligibility algorithm, so no vote workflow is
+invented or exposed yet. Bot verification remains future scope.
+
 The EF design-time factory reads `ConnectionStrings__Guidora` when creating
 migrations. Add each schema change as a reviewed migration, for example:
 

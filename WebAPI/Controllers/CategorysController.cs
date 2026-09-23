@@ -1,6 +1,9 @@
 ﻿using Business.Abstract;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace WebAPI.Controllers
 {
@@ -15,10 +18,12 @@ namespace WebAPI.Controllers
             _categoryService = categoryService;
         }
 
-        [HttpPost("add")]
-        public IActionResult Add(CategoryRequest request)
+        [HttpPost]
+        public async Task<IActionResult> Add(CategoryRequest request, CancellationToken cancellationToken)
         {
-            var result = _categoryService.Create(request);
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
+                return Unauthorized();
+            var result = await _categoryService.CreateAsync(request, actorId, cancellationToken);
             if (result.Success)
             {
                 return Ok(result);
@@ -28,9 +33,11 @@ namespace WebAPI.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
         {
-            var result = _categoryService.Deactivate(id);
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
+                return Unauthorized();
+            var result = await _categoryService.DeactivateAsync(id, actorId, cancellationToken);
             if (result.Success)
             {
                 return Ok(result);
@@ -64,9 +71,11 @@ namespace WebAPI.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public IActionResult Update(int id, CategoryRequest request)
+        public async Task<IActionResult> Update(int id, CategoryRequest request, CancellationToken cancellationToken)
         {
-            var result = _categoryService.Update(id, request);
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
+                return Unauthorized();
+            var result = await _categoryService.UpdateAsync(id, request, actorId, cancellationToken);
             if (result.Success)
             {
                 return Ok(result);

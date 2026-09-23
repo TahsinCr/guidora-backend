@@ -16,6 +16,7 @@ namespace Business.ValidationRules.FluentValidation
             RuleFor(request => request.LogoUrl).NotEmpty().MaximumLength(2048)
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
             RuleFor(request => request.CategoryIds).NotEmpty();
+            RuleFor(request => request.TagIds).NotNull();
         }
     }
 
@@ -31,6 +32,7 @@ namespace Business.ValidationRules.FluentValidation
             RuleFor(request => request.LogoUrl).NotEmpty().MaximumLength(2048)
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
             RuleFor(request => request.CategoryIds).NotEmpty();
+            RuleFor(request => request.TagIds).NotNull();
         }
     }
 }

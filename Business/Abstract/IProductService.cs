@@ -2,6 +2,8 @@
 using Core.Utilities.Results;
 using Entities;
 using Entities.DTOs;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Business.Abstract
 {
@@ -10,9 +12,12 @@ namespace Business.Abstract
         IDataResult<List<Product>> GetAll();
         public IDataResult<List<Product>> GetAllByCategoryId(int id);
         public IDataResult<Product> GetById(int id);
-        IResult Create(CreateProductRequest request, int createdByUserId);
-        IResult Update(int productId, UpdateProductRequest request);
-        IResult Delete(int productId);
+        Task<IResult> CreateAsync(CreateProductRequest request, int createdByUserId,
+            CancellationToken cancellationToken = default);
+        Task<IResult> UpdateAsync(int productId, UpdateProductRequest request, int updatedByUserId,
+            CancellationToken cancellationToken = default);
+        Task<IResult> DeleteAsync(int productId, int deletedByUserId,
+            CancellationToken cancellationToken = default);
 
     }
 }

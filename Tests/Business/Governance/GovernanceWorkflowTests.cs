@@ -1,0 +1,285 @@
+using Business.BusinessRules.Catalog;
+using Business.Concrete;
+using Core.Utilities.Results;
+using DataAccess.Abstract;
+using Entities;
+using Entities.DTOs;
+using Tests.Core.TestDoubles;
+
+namespace Tests.Business.Governance;
+
+public sealed class GovernanceWorkflowTests
+{
+    [Fact]
+    public async Task AcceptingPendingProposalAppliesSnapshotAndWritesAuditAtomically()
+    {
+        var product = new Product { ProductId = 5, Name = "Old", Slug = "old" };
+        var proposal = new ProductEditProposal
+        {
+            Id = 12, ProductId = 5, Status = ProductEditProposalStatus.Pending,
+            Name = "New", Slug = "new", ShortDescription = "short", Description = "details",
+            WebsiteUrl = "https://new.test", LogoUrl = "https://new.test/logo"
+        };
+        var products = new ProductDal([product]);
+        var productCategories = new ProductCategoryDal([new ProductCategory { ProductId = 5, CategoryId = 2 }]);
+        var productTags = new ProductTagDal([new ProductTag { ProductId = 5, TagId = 10 }]);
+        var proposalDal = new ProposalDal([proposal]);
+        var proposalCategories = new ProposalCategoryDal([new ProductEditProposalCategory
+            { ProductEditProposalId = 12, CategoryId = 4 }]);
+        var proposalTags = new ProposalTagDal([new ProductEditProposalTag { ProductEditProposalId = 12, TagId = 22 }]);
+        var categories = new CategoryDal([new Category { CategoryId = 4, IsActive = true }]);
+        var tags = new TagDal([new Tag { Id = 22, TagCategoryId = 3, IsActive = true }]);
+        var tagCategories = new TagCategoryDal([new TagCategory { Id = 3, IsActive = true, AllowsMultipleSelection = true }]);
+        var audit = new AuditDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new ProductEditProposalManager(proposalDal, products, productCategories, productTags,
+            proposalCategories, proposalTags, tags, tagCategories,
+            new ProductBusinessRules(products, categories), new TagBusinessRules(), audit, unitOfWork);
+
+        var result = await manager.AcceptAsync(12, 99, new ReviewNoteRequest { Note = "Reviewed" });
+
+        Assert.True(result.Success);
+        Assert.Equal("New", product.Name);
+        Assert.Equal(ProductEditProposalStatus.Accepted, proposal.Status);
+        Assert.Equal(99, proposal.ReviewedByUserId);
+        Assert.Equal([4], productCategories.GetAll().Select(item => item.CategoryId));
+        Assert.Equal([22], productTags.GetAll().Select(item => item.TagId));
+        Assert.Equal(2, audit.Entries.Count);
+        var auditEntry = Assert.Single(audit.Entries, entry => entry.Action == "EditProposalAccepted");
+        Assert.Equal("EditProposalAccepted", auditEntry.Action);
+        Assert.Equal(99, auditEntry.ActorUserId);
+        Assert.Contains(audit.Entries, entry => entry.Action == "Accepted");
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task RejectingProposalDoesNotChangeCanonicalProductAndCannotBeRepeated()
+    {
+        var product = new Product { ProductId = 5, Name = "Canonical" };
+        var proposal = new ProductEditProposal { Id = 12, ProductId = 5, Status = ProductEditProposalStatus.Pending };
+        var audit = new AuditDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = CreateProposalManager(product, proposal, audit, unitOfWork);
+
+        var first = await manager.RejectAsync(12, 99, new ReviewNoteRequest { Note = "Insufficient evidence" });
+        var repeated = await manager.RejectAsync(12, 100, new ReviewNoteRequest());
+
+        Assert.True(first.Success);
+        Assert.False(repeated.Success);
+        Assert.Equal("Canonical", product.Name);
+        Assert.Equal(ProductEditProposalStatus.Rejected, proposal.Status);
+        Assert.Equal(1, unitOfWork.SaveCount);
+        Assert.Single(audit.Entries);
+    }
+
+    [Fact]
+    public async Task ProposalAcceptanceWithMissingCategoryLeavesBothRecordsUnchanged()
+    {
+        var product = new Product { ProductId = 5, Name = "Canonical" };
+        var proposal = new ProductEditProposal { Id = 12, ProductId = 5, Status = ProductEditProposalStatus.Pending };
+        var audit = new AuditDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = CreateProposalManager(product, proposal, audit, unitOfWork);
+
+        var result = await manager.AcceptAsync(12, 99, new ReviewNoteRequest());
+
+        Assert.False(result.Success);
+        Assert.Equal("Canonical", product.Name);
+        Assert.Equal(ProductEditProposalStatus.Pending, proposal.Status);
+        Assert.Empty(audit.Entries);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task AdminVerificationCanBeRevokedAndReactivatedWithoutDuplicateRows()
+    {
+        var verification = new ProductVerification { Id = 8, ProductId = 5, VerificationTypeId = 1,
+            VerifiedAt = DateTime.UtcNow.AddDays(-1), RevokedAt = DateTime.UtcNow.AddHours(-1) };
+        var verificationDal = new VerificationDal([verification]);
+        var audit = new AuditDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
+            new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
+            audit, unitOfWork);
+
+        var restored = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest { Note = "Checked" });
+        var revoked = await manager.RevokeAdminVerificationAsync(5, 99, new ReviewNoteRequest { Note = "Outdated" });
+
+        Assert.True(restored.Success);
+        Assert.True(revoked.Success);
+        Assert.Single(verificationDal.GetAll());
+        Assert.NotNull(verification.RevokedAt);
+        Assert.Equal(99, verification.VerifiedByUserId);
+        Assert.Equal(2, audit.Entries.Count);
+        Assert.Equal(2, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task DuplicateActiveAdminVerificationIsRejectedWithoutWriting()
+    {
+        var verificationDal = new VerificationDal([new ProductVerification
+            { Id = 8, ProductId = 5, VerificationTypeId = 1, VerifiedAt = DateTime.UtcNow }]);
+        var audit = new AuditDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
+            new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
+            audit, unitOfWork);
+
+        var result = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest());
+
+        Assert.False(result.Success);
+        Assert.Single(verificationDal.GetAll());
+        Assert.Empty(audit.Entries);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task ReportsStartOpenAndCanBeResolvedOnlyOnce()
+    {
+        var reportDal = new ReportDal();
+        var audit = new AuditDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new ProductReportManager(reportDal,
+            new ProductDal([new Product { ProductId = 5 }]),
+            new ReportReasonDal([new ReportReason { Id = 2, Code = "inaccurate", IsActive = true }]),
+            new ReportStatusDal([
+                new ReportStatus { Id = 1, Code = "open" },
+                new ReportStatus { Id = 2, Code = "resolved" },
+                new ReportStatus { Id = 3, Code = "dismissed" }]), audit, unitOfWork);
+
+        var submitted = await manager.SubmitAsync(5, 44,
+            new ProductReportRequest { ReasonId = 2, Description = "Bad URL" });
+        var resolved = await manager.ResolveAsync(70, 99, new ReviewNoteRequest { Note = "Corrected" });
+        var repeated = await manager.DismissAsync(70, 99, new ReviewNoteRequest());
+
+        Assert.True(submitted.Success);
+        Assert.True(resolved.Success);
+        Assert.False(repeated.Success);
+        var report = Assert.Single(reportDal.GetAll());
+        Assert.Equal(2, report.ReportStatusId);
+        Assert.Equal(99, report.ResolvedByUserId);
+        Assert.Equal(2, audit.Entries.Count);
+        Assert.Equal(3, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task ProposalReviewQueueReturnsOldestPendingItemsWithPageMetadata()
+    {
+        var proposalDal = new ProposalDal([
+            new ProductEditProposal { Id = 1, Status = ProductEditProposalStatus.Pending,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-2) },
+            new ProductEditProposal { Id = 2, Status = ProductEditProposalStatus.Pending,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-1) },
+            new ProductEditProposal { Id = 3, Status = ProductEditProposalStatus.Accepted }
+        ]);
+        var products = new ProductDal();
+        var manager = new ProductEditProposalManager(proposalDal, products, new ProductCategoryDal(),
+            new ProductTagDal(), new ProposalCategoryDal(), new ProposalTagDal(), new TagDal(),
+            new TagCategoryDal(), new ProductBusinessRules(products, new CategoryDal()), new TagBusinessRules(),
+            new AuditDal(), new UnitOfWorkStub());
+
+        var result = await manager.GetPendingAsync(new PageRequest { Page = 2, PageSize = 1 });
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data!.Items.Single().Id);
+        Assert.Equal(2, result.Data.TotalCount);
+        Assert.Equal(2, result.Data.Page);
+    }
+
+    [Fact]
+    public async Task ReportReviewQueueContainsOnlyOpenReportsInStableOrder()
+    {
+        var reports = new ReportDal([
+            new ProductReport { Id = 9, ReportStatusId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-1) },
+            new ProductReport { Id = 8, ReportStatusId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-2) },
+            new ProductReport { Id = 7, ReportStatusId = 2 }
+        ]);
+        var manager = new ProductReportManager(reports, new ProductDal(), new ReportReasonDal(),
+            new ReportStatusDal([new ReportStatus { Id = 1, Code = "open" }]), new AuditDal(),
+            new UnitOfWorkStub());
+
+        var result = await manager.GetOpenAsync(new PageRequest { Page = 1, PageSize = 10 });
+
+        Assert.True(result.Success);
+        Assert.Equal([8, 9], result.Data!.Items.Select(report => report.Id));
+        Assert.Equal(2, result.Data.TotalCount);
+    }
+
+    private static ProductEditProposalManager CreateProposalManager(Product product, ProductEditProposal proposal,
+        AuditDal audit, UnitOfWorkStub unitOfWork)
+    {
+        var products = new ProductDal([product]);
+        return new ProductEditProposalManager(new ProposalDal([proposal]), products, new ProductCategoryDal(),
+            new ProductTagDal(), new ProposalCategoryDal(), new ProposalTagDal(), new TagDal(),
+            new TagCategoryDal(), new ProductBusinessRules(products, new CategoryDal()), new TagBusinessRules(),
+            audit, unitOfWork);
+    }
+
+    private sealed class ProductDal(IEnumerable<Product>? values = null) : EntityRepositoryStub<Product>(values), IProductDal;
+    private sealed class ProposalDal(IEnumerable<ProductEditProposal>? values = null) : EntityRepositoryStub<ProductEditProposal>(values), IProductEditProposalDal;
+    private sealed class CategoryDal(IEnumerable<Category>? values = null) : EntityRepositoryStub<Category>(values), ICategoryDal;
+    private sealed class TagDal(IEnumerable<Tag>? values = null) : EntityRepositoryStub<Tag>(values), ITagDal;
+    private sealed class TagCategoryDal(IEnumerable<TagCategory>? values = null) : EntityRepositoryStub<TagCategory>(values), ITagCategoryDal;
+    private sealed class ProposalCategoryDal(IEnumerable<ProductEditProposalCategory>? values = null) : EntityRepositoryStub<ProductEditProposalCategory>(values), IProductEditProposalCategoryDal;
+    private sealed class ProposalTagDal(IEnumerable<ProductEditProposalTag>? values = null) : EntityRepositoryStub<ProductEditProposalTag>(values), IProductEditProposalTagDal;
+
+    private sealed class ProductCategoryDal(IEnumerable<ProductCategory>? values = null)
+        : EntityRepositoryStub<ProductCategory>(values), IProductCategoryDal
+    {
+        public override void DeleteRange(IEnumerable<ProductCategory> entities)
+        {
+            var removed = entities.ToArray();
+            foreach (var entity in removed) Delete(entity);
+        }
+        public override void Delete(ProductCategory entity)
+        {
+            base.Delete(entity);
+            Entities.Remove(entity);
+        }
+    }
+
+    private sealed class ProductTagDal(IEnumerable<ProductTag>? values = null)
+        : EntityRepositoryStub<ProductTag>(values), IProductTagDal
+    {
+        public override void DeleteRange(IEnumerable<ProductTag> entities)
+        {
+            var removed = entities.ToArray();
+            foreach (var entity in removed) Delete(entity);
+        }
+        public override void Delete(ProductTag entity)
+        {
+            base.Delete(entity);
+            Entities.Remove(entity);
+        }
+    }
+
+    private sealed class VerificationDal(IEnumerable<ProductVerification>? values = null) : EntityRepositoryStub<ProductVerification>(values), IProductVerificationDal;
+    private sealed class VerificationTypeDal(IEnumerable<VerificationType>? values = null) : EntityRepositoryStub<VerificationType>(values), IVerificationTypeDal;
+    private sealed class ReportReasonDal(IEnumerable<ReportReason>? values = null) : EntityRepositoryStub<ReportReason>(values), IReportReasonDal;
+    private sealed class ReportStatusDal(IEnumerable<ReportStatus>? values = null) : EntityRepositoryStub<ReportStatus>(values), IReportStatusDal;
+
+    private sealed class ReportDal(IEnumerable<ProductReport>? values = null)
+        : EntityRepositoryStub<ProductReport>(values), IProductReportDal
+    {
+        public override void Add(ProductReport entity)
+        {
+            entity.Id = 70;
+            base.Add(entity);
+        }
+    }
+
+    private sealed class AuditDal : IAuditLogDal
+    {
+        public List<AuditLog> Entries { get; } = [];
+        public void Add(AuditLog auditLog) => Entries.Add(auditLog);
+        public Task AddAsync(AuditLog auditLog, CancellationToken cancellationToken = default)
+        {
+            Add(auditLog);
+            return Task.CompletedTask;
+        }
+        public IReadOnlyList<AuditLog> GetByEntity(string entityType, string entityId) =>
+            Entries.Where(entry => entry.EntityType == entityType && entry.EntityId == entityId).ToArray();
+        public Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, string entityId,
+            CancellationToken cancellationToken = default) => Task.FromResult(GetByEntity(entityType, entityId));
+    }
+}

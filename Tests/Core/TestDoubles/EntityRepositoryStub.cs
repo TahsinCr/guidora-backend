@@ -25,7 +25,7 @@ public abstract class EntityRepositoryStub<TEntity> : IEntityRepository<TEntity>
         Task.FromResult(Entities.AsQueryable().Any(filter));
     public Task<int> CountAsync(Expression<Func<TEntity, bool>>? filter = null, CancellationToken cancellationToken = default) =>
         Task.FromResult(filter is null ? Entities.Count : Entities.AsQueryable().Count(filter));
-    public void Add(TEntity entity) => Entities.Add(entity);
+    public virtual void Add(TEntity entity) => Entities.Add(entity);
     public Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         Add(entity);
@@ -38,8 +38,8 @@ public abstract class EntityRepositoryStub<TEntity> : IEntityRepository<TEntity>
         return Task.CompletedTask;
     }
     public void Update(TEntity entity) => UpdateCount++;
-    public void Delete(TEntity entity) => DeleteCount++;
-    public void DeleteRange(IEnumerable<TEntity> entities) => DeleteCount += entities.Count();
+    public virtual void Delete(TEntity entity) => DeleteCount++;
+    public virtual void DeleteRange(IEnumerable<TEntity> entities) => DeleteCount += entities.Count();
 }
 
 public sealed class UnitOfWorkStub : IUnitOfWork

@@ -12,5 +12,6 @@ namespace Entities.DTOs
         public string WebsiteUrl { get; set; } = string.Empty;
         public string LogoUrl { get; set; } = string.Empty;
         public List<int> CategoryIds { get; set; } = new();
+        public List<int> TagIds { get; set; } = new();
     }
 }

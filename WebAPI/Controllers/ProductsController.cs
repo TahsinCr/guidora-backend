@@ -3,6 +3,8 @@ using Entities;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace WebAPI.Controllers
 {
@@ -17,8 +19,8 @@ namespace WebAPI.Controllers
             _productService = productService;
         }
 
-        [HttpPost("add")]
-        public IActionResult Add(CreateProductRequest request)
+        [HttpPost]
+        public async Task<IActionResult> Add(CreateProductRequest request, CancellationToken cancellationToken)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!int.TryParse(userId, out var createdByUserId))
@@ -26,7 +28,7 @@ namespace WebAPI.Controllers
                 return Unauthorized();
             }
 
-            var result = _productService.Create(request, createdByUserId);
+            var result = await _productService.CreateAsync(request, createdByUserId, cancellationToken);
             if (result.Success)
             {
                 return Ok(result);
@@ -35,10 +37,16 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpDelete("delete")]
-        public IActionResult Delete(int id)
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
         {
-            var result = _productService.Delete(id);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userId, out var deletedByUserId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _productService.DeleteAsync(id, deletedByUserId, cancellationToken);
             if (result.Success)
             {
                 return Ok(result);
@@ -47,7 +55,7 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpGet("getbyid")]
+        [HttpGet("{id:int}")]
         public IActionResult GetById(int id)
         {
             var result = _productService.GetById(id);
@@ -59,7 +67,7 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpGet("getallbycategoryid")]
+        [HttpGet("by-category/{id:int}")]
         public IActionResult GetAllByCategoryId(int id)
         {
             var result = _productService.GetAllByCategoryId(id);
@@ -71,7 +79,7 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpGet("getall")]
+        [HttpGet]
         public IActionResult GetAll()
         {
             var result = _productService.GetAll();
@@ -83,10 +91,16 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpPut("update")]
-        public IActionResult Update(int id, UpdateProductRequest request)
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, UpdateProductRequest request, CancellationToken cancellationToken)
         {
-            var result = _productService.Update(id, request);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userId, out var updatedByUserId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _productService.UpdateAsync(id, request, updatedByUserId, cancellationToken);
             if (result.Success)
             {
                 return Ok(result);

@@ -1,0 +1,125 @@
+using System;
+using Business.Abstract;
+using Business.BusinessAspect.Autofac;
+using Business.Utilities;
+using Business.ValidationRules.FluentValidation;
+using Core.Aspects.Autofac.Validation;
+using Core.Aspects.Caching;
+using Core.Aspects.Transaction;
+using Core.CrossCuttingConcerns.Caching;
+using Core.DataAccess;
+using Core.Utilities.Results;
+using DataAccess.Abstract;
+using Entities;
+using Entities.DTOs;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Business.Concrete;
+
+public sealed class ProductVerificationManager : IProductVerificationService
+{
+    private readonly IProductDal _productDal;
+    private readonly IVerificationTypeDal _verificationTypeDal;
+    private readonly IProductVerificationDal _verificationDal;
+    private readonly IAuditLogDal _auditLogDal;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public ProductVerificationManager(IProductDal productDal, IVerificationTypeDal verificationTypeDal,
+        IProductVerificationDal verificationDal, IAuditLogDal auditLogDal, IUnitOfWork unitOfWork)
+    {
+        _productDal = productDal;
+        _verificationTypeDal = verificationTypeDal;
+        _verificationDal = verificationDal;
+        _auditLogDal = auditLogDal;
+        _unitOfWork = unitOfWork;
+    }
+
+    [TransactionScopeAspect]
+    [SecuredOperationAspect("Product.Verify")]
+    [ValidationAspect(typeof(ReviewNoteRequestValidator))]
+    [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+    public async Task<IResult> VerifyAsAdminAsync(int productId, int verifierUserId, ReviewNoteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
+        if (product is null) return new ErrorResult("Product was not found.");
+        var type = await _verificationTypeDal.GetAsync(item => item.Code == "admin", cancellationToken);
+        if (type is null) return new ErrorResult("Admin verification type is not configured.");
+
+        var verification = await _verificationDal.GetAsync(item =>
+            item.ProductId == productId && item.VerificationTypeId == type.Id, cancellationToken);
+        if (verification is { RevokedAt: null })
+            return new ErrorResult("Product already has an active admin verification.");
+
+        object oldValues = verification is null
+            ? new { Status = "None", VerifiedByUserId = (int?)null, VerifiedAt = (DateTime?)null,
+                RevokedAt = (DateTime?)null, Note = "" }
+            : new
+            {
+                Status = "Revoked", verification.VerifiedByUserId,
+                verification.VerifiedAt, verification.RevokedAt, verification.Note
+            };
+        if (verification is null)
+        {
+            verification = new ProductVerification
+            {
+                ProductId = productId,
+                VerificationTypeId = type.Id
+            };
+            await _verificationDal.AddAsync(verification, cancellationToken);
+        }
+        else
+        {
+            verification.RevokedAt = null;
+            verification.VerifiedAt = DateTime.UtcNow;
+            verification.VerifiedByUserId = verifierUserId;
+            verification.Note = request.Note;
+            _verificationDal.Update(verification);
+        }
+
+        verification.VerifiedAt = DateTime.UtcNow;
+        verification.VerifiedByUserId = verifierUserId;
+        verification.Note = request.Note;
+        await _auditLogDal.AddAsync(AuditLogFactory.Create(verifierUserId, nameof(ProductVerification), productId.ToString(),
+            "AdminVerified", oldValues, new
+            {
+                Status = "Active", verification.VerifiedByUserId,
+                verification.VerifiedAt, verification.RevokedAt, verification.Note
+            }), cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return new SuccessResult("Product verified by an administrator.");
+    }
+
+    [TransactionScopeAspect]
+    [SecuredOperationAspect("Product.Verify")]
+    [ValidationAspect(typeof(ReviewNoteRequestValidator))]
+    [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+    public async Task<IResult> RevokeAdminVerificationAsync(int productId, int actorUserId, ReviewNoteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var type = await _verificationTypeDal.GetAsync(item => item.Code == "admin", cancellationToken);
+        if (type is null) return new ErrorResult("Admin verification type is not configured.");
+        var verification = await _verificationDal.GetAsync(item =>
+            item.ProductId == productId && item.VerificationTypeId == type.Id && item.RevokedAt == null,
+            cancellationToken);
+        if (verification is null) return new ErrorResult("Product has no active admin verification.");
+
+        var oldValues = new
+        {
+            Status = "Active", verification.Note, verification.VerifiedByUserId,
+            verification.VerifiedAt, verification.RevokedAt
+        };
+        verification.RevokedAt = DateTime.UtcNow;
+        verification.Note = request.Note;
+        _verificationDal.Update(verification);
+        await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(ProductVerification), productId.ToString(),
+            "AdminVerificationRevoked", oldValues, new
+            {
+                Status = "Revoked", verification.Note, verification.VerifiedByUserId,
+                verification.VerifiedAt, verification.RevokedAt
+            }), cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return new SuccessResult("Admin verification revoked.");
+    }
+}

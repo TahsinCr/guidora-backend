@@ -1,5 +1,7 @@
 using Core.Utilities.Results;
 using DataAccess.Abstract;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Business.BusinessRules.Catalog;
 
@@ -14,6 +16,17 @@ public sealed class CategoryBusinessRules : ICategoryBusinessRules
         var duplicate = _categoryDal.Get(category =>
             category.Slug == slug && (!excludingCategoryId.HasValue || category.CategoryId != excludingCategoryId));
 
+        return duplicate is null
+            ? new SuccessResult()
+            : new ErrorResult("A category with this slug already exists.");
+    }
+
+    public async Task<IResult> EnsureSlugIsAvailableAsync(string slug, int? excludingCategoryId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var duplicate = await _categoryDal.GetAsync(category =>
+            category.Slug == slug && (!excludingCategoryId.HasValue || category.CategoryId != excludingCategoryId),
+            cancellationToken);
         return duplicate is null
             ? new SuccessResult()
             : new ErrorResult("A category with this slug already exists.");

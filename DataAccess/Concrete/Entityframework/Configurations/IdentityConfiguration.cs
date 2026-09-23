@@ -31,7 +31,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new OperationClaim { Id = 3, Name = "Product.Delete" },
                 new OperationClaim { Id = 4, Name = "Category.Manage" },
                 new OperationClaim { Id = 5, Name = "Product.Verify" },
-                new OperationClaim { Id = 6, Name = "Product.Proposal.Review" });
+                new OperationClaim { Id = 6, Name = "Product.Proposal.Review" },
+                new OperationClaim { Id = 7, Name = "ProductReport.Review" });
         }
     }
 
@@ -115,7 +116,9 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new RoleOperationClaim { Id = 7, RoleId = 3, OperationClaimId = 3 },
                 new RoleOperationClaim { Id = 8, RoleId = 3, OperationClaimId = 4 },
                 new RoleOperationClaim { Id = 9, RoleId = 3, OperationClaimId = 5 },
-                new RoleOperationClaim { Id = 10, RoleId = 3, OperationClaimId = 6 });
+                new RoleOperationClaim { Id = 10, RoleId = 3, OperationClaimId = 6 },
+                new RoleOperationClaim { Id = 11, RoleId = 2, OperationClaimId = 7 },
+                new RoleOperationClaim { Id = 12, RoleId = 3, OperationClaimId = 7 });
         }
     }
 }

@@ -73,6 +73,11 @@ namespace DataAccess.Migrations
                         {
                             Id = 6,
                             Name = "Product.Proposal.Review"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "ProductReport.Review"
                         });
                 });
 
@@ -210,6 +215,18 @@ namespace DataAccess.Migrations
                         {
                             Id = 10,
                             OperationClaimId = 6,
+                            RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 11,
+                            OperationClaimId = 7,
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 12,
+                            OperationClaimId = 7,
                             RoleId = 3
                         });
                 });
