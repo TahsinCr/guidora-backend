@@ -6,6 +6,23 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Consolidated business-rule execution into one null-safe sequential/concurrent
+  runner and removed the generic CRUD Business contract.
+- Added test-covered Catalog business rules for duplicate category/product
+  names, active category assignments, and TagCategory selection constraints;
+  Category commands now accept DTOs and deactivate without physical deletion.
+- Added additive, idempotent OperationClaim discovery with an opt-in startup
+  synchronization setting; legacy seeded permission names remain stable and
+  stale claims are not automatically pruned.
+- Added result-aware transaction commit/rollback and cache invalidation, stable
+  interceptor ordering, post-operation logging, and convention-based secured
+  operation claim names.
+- Made CacheAspect TTL explicit at the use case; absent TTL has no time-based
+  expiry. Redis now uses disposable allkeys-LFU caching with separate data and
+  container memory limits and persistence disabled.
+- Added focused Core, Business, DataAccess, and WebAPI tests inside the sole
+  `Tests/Tests.csproj` project.
+
 - Added Turkish `MEMORY.md` as the project-local source for durable
   architecture decisions, active priorities, and deferred work.
 - Removed inherited Product inventory fields and the duplicate scalar Product

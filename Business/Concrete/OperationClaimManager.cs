@@ -14,17 +14,10 @@ namespace Business.Concrete
     public class OperationClaimManager : IOperationClaimService
     {
         private readonly IOperationClaimDal _operationClaimDal;
-        private readonly IUnitOfWork _unitOfWork;
 
-        public OperationClaimManager(IOperationClaimDal operationClaimDal, IUnitOfWork unitOfWork)
+        public OperationClaimManager(IOperationClaimDal operationClaimDal)
         {
             _operationClaimDal = operationClaimDal;
-            _unitOfWork = unitOfWork;
-        }
-
-        public IDataResult<List<OperationClaim>> GetAll()
-        {
-            return new SuccessDataResult<List<OperationClaim>>(_operationClaimDal.GetAll());
         }
 
         public IDataResult<OperationClaim> GetByName(string name)
@@ -35,25 +28,5 @@ namespace Business.Concrete
                 : new SuccessDataResult<OperationClaim>(operationClaim);
         }
 
-        public IResult Add(OperationClaim operationClaim)
-        {
-            _operationClaimDal.Add(operationClaim);
-            _unitOfWork.SaveChanges();
-            return new SuccessResult();
-        }
-
-        public IResult Delete(OperationClaim operationClaim)
-        {
-            _operationClaimDal.Delete(operationClaim);
-            _unitOfWork.SaveChanges();
-            return new SuccessResult();
-        }
-
-        public IResult Update(OperationClaim operationClaim)
-        {
-            _operationClaimDal.Update(operationClaim);
-            _unitOfWork.SaveChanges();
-            return new SuccessResult();
-        }
     }
 }

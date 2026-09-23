@@ -18,15 +18,16 @@ namespace Core.Aspects.Caching
         private readonly int _duration;
         private readonly string _profile;
         private readonly ICacheManager _cacheManager;
-        private readonly ICachePolicyProvider _cachePolicyProvider;
 
-        public CacheAspect(string profile, int duration = 60)
+        public CacheAspect(string profile, int duration = 0)
         {
             _duration = duration;
             _profile = profile;
             _cacheManager = ServiceTool.ServiceProvider.GetRequiredService<ICacheManager>();
-            _cachePolicyProvider = ServiceTool.ServiceProvider.GetRequiredService<ICachePolicyProvider>();
+            Priority = InterceptorPriority;
         }
+
+        public const int InterceptorPriority = 300;
 
         public override void Intercept(IInvocation invocation)
         {
@@ -78,7 +79,7 @@ namespace Core.Aspects.Caching
                 return;
             }
 
-            _cacheManager.Add(key, value, _cachePolicyProvider.GetDurationMinutes(_profile, _duration));
+            _cacheManager.Add(key, value, _duration > 0 ? _duration : null);
         }
 
         private static bool IsGenericTask(Type returnType) =>

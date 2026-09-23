@@ -25,7 +25,7 @@ namespace Business.Concrete
             }
 
             userResult.Data.Status = false;
-            var updateResult = _userService.Update(userResult.Data);
+            var updateResult = _userService.UpdateUser(userResult.Data);
             if (!updateResult.Success)
             {
                 return updateResult;
@@ -44,7 +44,7 @@ namespace Business.Concrete
             }
 
             userResult.Data.Status = true;
-            var updateResult = _userService.Update(userResult.Data);
+            var updateResult = _userService.UpdateUser(userResult.Data);
             if (!updateResult.Success)
             {
                 return updateResult;

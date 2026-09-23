@@ -13,10 +13,12 @@ namespace Core.Aspects.Logging
 {
     public class LogAspect : MethodInterception
     {
+        public const int InterceptorPriority = 50;
         private readonly LoggerServiceBase _loggerServiceBase;
 
         public LogAspect(Type loggerService)
         {
+            Priority = InterceptorPriority;
             if (!typeof(LoggerServiceBase).IsAssignableFrom(loggerService))
             {
                 throw new System.Exception(AspectMessages.WrongLoggerType);
@@ -26,7 +28,7 @@ namespace Core.Aspects.Logging
                 ?? throw new InvalidOperationException(AspectMessages.WrongLoggerType);
         }
 
-        protected override void OnBefore(IInvocation invocation)
+        protected override void OnAfter(IInvocation invocation)
         {
             _loggerServiceBase.Info(GetLogDetail(invocation));
         }

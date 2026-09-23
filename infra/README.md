@@ -1,9 +1,11 @@
 # Local infrastructure
 
 The Compose stack provisions PostgreSQL, Redis, and RabbitMQ for local
-development. Redis uses the checked-in configuration for durable AOF writes and
-an `allkeys-lru` eviction policy; cache entries remain disposable because
-PostgreSQL is the source of truth.
+development. Redis is a disposable cache: AOF and RDB persistence are disabled,
+and the eviction policy is `allkeys-lfu`. PostgreSQL is the source of truth.
+Compose gives Redis 256 MiB of cache data by default and a 320 MiB container
+limit; set `REDIS_MAXMEMORY` lower than `REDIS_CONTAINER_MEMORY_LIMIT` when
+overriding them.
 
 Copy `.env.example` to `.env`, replace the placeholder secrets, and start the
 stack with:

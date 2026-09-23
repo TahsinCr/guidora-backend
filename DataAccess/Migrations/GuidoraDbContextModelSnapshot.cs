@@ -1392,7 +1392,7 @@ namespace DataAccess.Migrations
                     b.HasOne("Core.Entities.Concrete.OperationClaim", null)
                         .WithMany()
                         .HasForeignKey("OperationClaimId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Core.Entities.Concrete.Role", null)
@@ -1407,7 +1407,7 @@ namespace DataAccess.Migrations
                     b.HasOne("Core.Entities.Concrete.OperationClaim", null)
                         .WithMany()
                         .HasForeignKey("OperationClaimId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Core.Entities.Concrete.User", null)

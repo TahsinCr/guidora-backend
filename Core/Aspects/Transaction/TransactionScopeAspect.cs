@@ -2,16 +2,26 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Transactions;
 using Castle.DynamicProxy;
+using Core.Utilities.Results;
 using Core.Utilities.Interceptors.Autofac;
 
 namespace Core.Aspects.Transaction
 {
     public class TransactionScopeAspect : MethodInterception
     {
+        public const int InterceptorPriority = 400;
+
+        public TransactionScopeAspect() => Priority = InterceptorPriority;
+
         public override void Intercept(IInvocation invocation)
         {
             var transactionScope = new TransactionScope(
                 TransactionScopeOption.Required,
+                new TransactionOptions
+                {
+                    IsolationLevel = IsolationLevel.ReadCommitted,
+                    Timeout = TransactionManager.DefaultTimeout
+                },
                 TransactionScopeAsyncFlowOption.Enabled);
             try
             {
@@ -29,7 +39,7 @@ namespace Core.Aspects.Transaction
                     return;
                 }
 
-                transactionScope.Complete();
+                CompleteIfSuccessful(invocation.ReturnValue, transactionScope);
                 transactionScope.Dispose();
             }
             catch
@@ -66,12 +76,20 @@ namespace Core.Aspects.Transaction
             try
             {
                 var result = await ((Task<T>)task).ConfigureAwait(false);
-                transactionScope.Complete();
+                CompleteIfSuccessful(result, transactionScope);
                 return result;
             }
             finally
             {
                 transactionScope.Dispose();
+            }
+        }
+
+        private static void CompleteIfSuccessful(object? result, TransactionScope transactionScope)
+        {
+            if (result is not IResult operationResult || operationResult.Success)
+            {
+                transactionScope.Complete();
             }
         }
     }

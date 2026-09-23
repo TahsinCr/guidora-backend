@@ -1,23 +1,70 @@
-﻿using Core.Utilities.Results;
+using Core.Utilities.Results;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace Core.Utilities.Business
+namespace Core.Utilities.Business;
+
+public static class BusinessRules
 {
-    public class BusinessRules
+    public static IResult Run(params Func<IResult>[] rules)
     {
-        public static IResult? Run(params IResult[] logics)
+        ArgumentNullException.ThrowIfNull(rules);
+
+        foreach (var rule in rules)
         {
-            foreach (var result in logics)
+            ArgumentNullException.ThrowIfNull(rule);
+            var result = rule() ?? throw new InvalidOperationException("A business rule returned null.");
+            if (!result.Success)
             {
-                if (!result.Success)
-                {
-                    return result;
-                }
+                return result;
+            }
+        }
+
+        return new SuccessResult();
+    }
+
+    public static async Task<IResult> RunAsync(params Func<Task<IResult>>[] rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+
+        foreach (var rule in rules)
+        {
+            ArgumentNullException.ThrowIfNull(rule);
+            var result = await rule().ConfigureAwait(false)
+                         ?? throw new InvalidOperationException("A business rule returned null.");
+            if (!result.Success)
+            {
+                return result;
+            }
+        }
+
+        return new SuccessResult();
+    }
+
+    public static async Task<IResult> RunConcurrentAsync(params Func<Task<IResult>>[] rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+
+        var results = await Task.WhenAll(rules.Select(rule =>
+        {
+            ArgumentNullException.ThrowIfNull(rule);
+            return rule();
+        })).ConfigureAwait(false);
+
+        foreach (var result in results)
+        {
+            if (result is null)
+            {
+                throw new InvalidOperationException("A business rule returned null.");
             }
 
-            return null;
+            if (!result.Success)
+            {
+                return result;
+            }
         }
+
+        return new SuccessResult();
     }
 }

@@ -15,6 +15,7 @@ services:
       RabbitMq__UserName: ${RABBITMQ_USER:-guidora}
       RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}
       Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}
+      Authorization__SyncOperationClaimsOnStartup: ${AUTHORIZATION_SYNC_OPERATION_CLAIMS_ON_STARTUP:-false}
       TokenOptions__SecurityKey: ${TOKEN_OPTIONS__SECURITYKEY:?TOKEN_OPTIONS__SECURITYKEY must be set in .env}
     ports:
       - "${WEBAPI_PORT:-8080}:8080"
@@ -48,11 +49,11 @@ services:
   redis:
     image: redis:8.10.1-alpine3.23
     restart: unless-stopped
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}"]
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lfu"]
+    mem_limit: ${REDIS_CONTAINER_MEMORY_LIMIT:-320m}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - guidora-redis-data:/data
       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"${REDIS_PASSWORD}\" ping | grep PONG"]
@@ -81,7 +82,6 @@ services:
 
 volumes:
   guidora-postgres-data:
-  guidora-redis-data:
   guidora-rabbitmq-data:
 
 networks:

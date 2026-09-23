@@ -78,7 +78,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasOne<User>().WithMany().HasForeignKey(item => item.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<OperationClaim>().WithMany().HasForeignKey(item => item.OperationClaimId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 
@@ -104,7 +104,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasOne<Role>().WithMany().HasForeignKey(item => item.RoleId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<OperationClaim>().WithMany().HasForeignKey(item => item.OperationClaimId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
             builder.HasData(
                 new RoleOperationClaim { Id = 1, RoleId = 1, OperationClaimId = 1 },
                 new RoleOperationClaim { Id = 2, RoleId = 2, OperationClaimId = 2 },

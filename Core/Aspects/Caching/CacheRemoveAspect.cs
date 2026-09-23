@@ -3,27 +3,30 @@ using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Interceptors.Autofac;
 using Core.Utilities.IoC;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Core.Utilities.Results;
 
 namespace Core.Aspects.Caching
 {
     public class CacheRemoveAspect : MethodInterception
     {
+        public const int InterceptorPriority = 300;
         private readonly string[] _profiles;
         private readonly ICacheManager _cacheManager;
 
         public CacheRemoveAspect(params string[] profiles)
         {
+            Priority = InterceptorPriority;
             _profiles = profiles;
             _cacheManager = ServiceTool.ServiceProvider.GetRequiredService<ICacheManager>();
         }
 
-        protected override void OnSuccess(IInvocation invocation)
+        protected override void OnSuccess(IInvocation invocation, object? result)
         {
+            if (result is IResult operationResult && !operationResult.Success)
+            {
+                return;
+            }
+
             foreach (string profile in _profiles)
             {
                 _cacheManager.RemoveByPattern($"{profile}:*");

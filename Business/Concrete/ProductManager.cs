@@ -9,7 +9,6 @@ using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
 using Core.Aspects.Caching;
 using Core.CrossCuttingConcerns.Caching;
-using Core.Business;
 using Core.Entities;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
@@ -17,6 +16,7 @@ using Entities;
 using Entities.DTOs;
 using Core.Aspects.Transaction;
 using Core.DataAccess;
+using Business.BusinessRules.Catalog;
 
 namespace Business.Concrete
 {
@@ -25,17 +25,18 @@ namespace Business.Concrete
         private readonly IProductDal _productDal;
         private readonly IProductCategoryDal _productCategoryDal;
         private readonly IProductStatusDal _productStatusDal;
-        private readonly ICategoryDal _categoryDal;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IProductBusinessRules _businessRules;
 
         public ProductManager(IProductDal productDal, IProductCategoryDal productCategoryDal,
-            IProductStatusDal productStatusDal, ICategoryDal categoryDal, IUnitOfWork unitOfWork)
+            IProductStatusDal productStatusDal, IUnitOfWork unitOfWork,
+            IProductBusinessRules businessRules)
         {
             _productDal = productDal;
             _productCategoryDal = productCategoryDal;
             _productStatusDal = productStatusDal;
-            _categoryDal = categoryDal;
             _unitOfWork = unitOfWork;
+            _businessRules = businessRules;
         }
 
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
@@ -66,8 +67,8 @@ namespace Business.Concrete
 
         private IResult AddNewProduct(Product product)
         {
-            IResult? result = CheckIfProductNameAlreadyExists(product.Name);
-            if (result != null) return result;
+            IResult result = _businessRules.EnsureNameIsAvailable(product.Name);
+            if (!result.Success) return result;
 
             var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
             if (publishedStatus == null)
@@ -136,7 +137,7 @@ namespace Business.Concrete
             product.LogoUrl = request.LogoUrl;
             product.UpdatedAt = DateTime.UtcNow;
 
-            var duplicateResult = CheckIfProductNameAlreadyExists(product.Name, product.ProductId);
+            var duplicateResult = _businessRules.EnsureNameIsAvailable(product.Name, product.ProductId);
             if (!duplicateResult.Success)
             {
                 return duplicateResult;
@@ -177,33 +178,13 @@ namespace Business.Concrete
             return new SuccessResult();
         }
 
-        private IResult CheckIfProductNameAlreadyExists(string productName, int? excludingProductId = null)
-        {
-            bool result = _productDal.GetAll(p => p.Name == productName &&
-                (!excludingProductId.HasValue || p.ProductId != excludingProductId.Value)).Any();
-            if (result)
-            {
-                return new ErrorResult(Messages.ProductNameAlreadyExistsError);
-            }
-
-            return new SuccessResult();
-        }
-
         private IResult ReplaceCategories(int productId, IEnumerable<int> categoryIds)
         {
             var normalizedCategoryIds = categoryIds.Distinct().ToList();
-            if (normalizedCategoryIds.Count == 0)
+            var categoryRule = _businessRules.EnsureCategoriesAreActive(normalizedCategoryIds);
+            if (!categoryRule.Success)
             {
-                return new ErrorResult("At least one category is required.");
-            }
-
-            var knownCategoryIds = _categoryDal.GetAll(category =>
-                normalizedCategoryIds.Contains(category.CategoryId))
-                .Select(category => category.CategoryId)
-                .ToHashSet();
-            if (knownCategoryIds.Count != normalizedCategoryIds.Count)
-            {
-                return new ErrorResult("One or more categories do not exist.");
+                return categoryRule;
             }
 
             foreach (var existing in _productCategoryDal.GetAll(item => item.ProductId == productId))

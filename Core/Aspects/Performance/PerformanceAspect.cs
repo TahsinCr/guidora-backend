@@ -8,8 +8,13 @@ namespace Core.Aspects.Performance
 {
     public class PerformanceAspect : MethodInterception
     {
+        public const int InterceptorPriority = 500;
         private readonly int _interval;
-        public PerformanceAspect(int interval) => _interval = interval;
+        public PerformanceAspect(int interval)
+        {
+            Priority = InterceptorPriority;
+            _interval = interval;
+        }
 
         public override void Intercept(IInvocation invocation)
         {

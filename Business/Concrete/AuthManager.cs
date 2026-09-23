@@ -7,7 +7,6 @@ using Entities.DTOs;
 using System;
 using System.Text;
 using System.Threading.Tasks;
-using Core.Business;
 using Core.Utilities.Security.Hashing;
 using DataAccess.Abstract;
 using Entities;
@@ -65,7 +64,7 @@ namespace Business.Concrete
             };
 
 
-            var addResult = _userService.Add(user);
+            var addResult = _userService.RegisterUser(user);
             if (!addResult.Success) return new ErrorDataResult<User>(addResult.Message);
 
             var defaultRole = _roleDal.Get(role => role.Code == "user" && role.IsActive);

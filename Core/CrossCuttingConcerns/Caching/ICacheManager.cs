@@ -11,7 +11,7 @@ namespace Core.CrossCuttingConcerns.Caching
         T Get<T>(string key);
         object? Get(string key);
 
-        void Add(string key, object? value, int duration);
+        void Add(string key, object? value, int? durationMinutes);
 
         bool IsExists(string key);
 

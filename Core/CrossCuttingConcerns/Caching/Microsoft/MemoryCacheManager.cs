@@ -28,9 +28,15 @@ namespace Core.CrossCuttingConcerns.Caching.Microsoft
             return _memoryCache.Get(key);
         }
 
-        public void Add(string key, object? value, int duration)
+        public void Add(string key, object? value, int? durationMinutes)
         {
-            _memoryCache.Set(key, value, TimeSpan.FromMinutes(duration));
+            if (durationMinutes is > 0)
+            {
+                _memoryCache.Set(key, value, TimeSpan.FromMinutes(durationMinutes.Value));
+                return;
+            }
+
+            _memoryCache.Set(key, value);
         }
 
         public bool IsExists(string key)

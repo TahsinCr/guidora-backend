@@ -1,10 +1,10 @@
 ﻿using Business.Abstract;
-using Entities;
+using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/categories")]
     [ApiController]
     public class CategorysController : ControllerBase
     {
@@ -16,9 +16,9 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost("add")]
-        public IActionResult Add(Category category)
+        public IActionResult Add(CategoryRequest request)
         {
-            var result = _categoryService.Add(category);
+            var result = _categoryService.Create(request);
             if (result.Success)
             {
                 return Ok(result);
@@ -27,10 +27,10 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpDelete("delete")]
-        public IActionResult Delete(Category category)
+        [HttpDelete("{id:int}")]
+        public IActionResult Delete(int id)
         {
-            var result = _categoryService.Delete(category);
+            var result = _categoryService.Deactivate(id);
             if (result.Success)
             {
                 return Ok(result);
@@ -39,7 +39,7 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpGet("getbyid")]
+        [HttpGet("{id:int}")]
         public IActionResult GetById(int id)
         {
             var result = _categoryService.GetById(id);
@@ -51,7 +51,7 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpGet("getall")]
+        [HttpGet]
         public IActionResult GetAll()
         {
             var result = _categoryService.GetAll();
@@ -63,10 +63,10 @@ namespace WebAPI.Controllers
             return BadRequest(result);
         }
 
-        [HttpPut("update")]
-        public IActionResult Update(Category category)
+        [HttpPut("{id:int}")]
+        public IActionResult Update(int id, CategoryRequest request)
         {
-            var result = _categoryService.Update(category);
+            var result = _categoryService.Update(id, request);
             if (result.Success)
             {
                 return Ok(result);

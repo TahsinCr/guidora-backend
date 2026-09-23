@@ -22,6 +22,9 @@ using StackExchange.Redis;
 using Core.CrossCuttingConcerns.Messaging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using Business.Security;
+using DataAccess.Abstract;
+using Core.DataAccess;
 
 namespace WebAPI
 {
@@ -152,6 +155,14 @@ namespace WebAPI
             if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
             {
                 await ApplyDatabaseMigrationsAsync(app.Services);
+            }
+
+            if (builder.Configuration.GetValue<bool>("Authorization:SyncOperationClaimsOnStartup"))
+            {
+                using var scope = app.Services.CreateScope();
+                SecurityOperationTool.SyncOperationClaims(
+                    scope.ServiceProvider.GetRequiredService<IOperationClaimDal>(),
+                    scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
             }
 
             // Configure the HTTP request pipeline.

@@ -4,8 +4,8 @@ Guidora Backend is a .NET platform designed to run on Docker and evolve into ind
 
 ## Development principles
 
-- Read and maintain [MEMORY.md](MEMORY.md) before architectural or
-  implementation work; it records active decisions and deferred work in Turkish.
+- Keep project-local planning notes private; they are intentionally excluded
+  from the repository and do not replace this committed architecture guidance.
 - Services must be able to run as independent Docker containers.
 - Each service must own its domain model, `DbContext`, and migrations.
 - Services must not access each other's tables directly.
@@ -84,12 +84,26 @@ added only when their application contracts are defined.
 ## Redis cache and RabbitMQ
 
 Redis is the shared cache provider for public catalog reads. Cache policy is
-declared through `CacheAspect` profiles and configured under `Caching:Profiles`:
-catalog navigation (60 minutes), catalog listings (10 minutes), and individual
-product details (15 minutes). Product and category writes invalidate their
-related profiles. Cache values are JSON envelopes with their concrete result
-type; PostgreSQL remains the source of truth. Authentication session validation
-uses a separate, one-minute distributed Redis entry.
+declared on each use-case with `CacheAspect(profile, durationMinutes)`. An
+omitted/non-positive duration means no time-based expiration; Redis may still
+evict the entry under memory pressure. Product and category writes invalidate
+their related profiles only after a successful business result and, when used,
+after the database transaction commits. Cache values are JSON envelopes with
+their concrete result type; PostgreSQL remains the source of truth.
+Authentication session validation uses a separate, one-minute distributed
+Redis entry.
+
+Redis is configured as disposable cache infrastructure: AOF and RDB persistence
+are disabled, and the global eviction policy is `allkeys-lfu`. Compose defaults
+to `REDIS_MAXMEMORY=256mb` and `REDIS_CONTAINER_MEMORY_LIMIT=320m`; override
+these deployment settings through `.env` after measuring the target host.
+
+Secured-operation claims are discovered from Business aspects. Startup
+synchronization is additive and idempotent: it creates missing claims but never
+prunes existing catalog entries. Enable
+`Authorization:SyncOperationClaimsOnStartup` only after the PostgreSQL schema is
+available (Compose setting: `AUTHORIZATION_SYNC_OPERATION_CLAIMS_ON_STARTUP`);
+role assignments remain explicit seed/admin-managed data.
 
 The `popular-products` five-minute profile is reserved for the homepage once a
 view-event and aggregation model is approved; it is intentionally not populated
@@ -103,11 +117,11 @@ broker in V1; commands must first persist their canonical transaction, then a
 future outbox-backed integration can publish an event safely.
 
 The EF design-time factory reads `ConnectionStrings__Guidora` when creating
-migrations. With the .NET SDK installed, create the first migration with:
+migrations. Add each schema change as a reviewed migration, for example:
 
 ```bash
 ConnectionStrings__Guidora='Host=localhost;Port=5432;Database=guidora;Username=guidora;Password=your-password' \
-  dotnet ef migrations add InitialGuidoraSchema \
+  dotnet ef migrations add AddReviewedSchemaChange \
   --project DataAccess --startup-project WebAPI \
   --output-dir Migrations
 ```
@@ -143,6 +157,22 @@ infra/       Local Docker infrastructure
 ```
 
 The first architectural split will separate the Identity and Catalog bounded contexts. Every new service must have its own application, data access, migrations, and test boundaries.
+
+Tests remain one project and follow the production layer boundaries:
+
+```text
+Tests/Tests.csproj
+├── Core/       shared test doubles plus Core tests
+├── Entities/
+├── DataAccess/
+├── Business/
+├── WebAPI/
+└── Integration/  cross-layer tests against configured infrastructure
+```
+
+PostgreSQL, Redis, and RabbitMQ integration checks use explicit
+`GUIDORA_TEST_*` environment variables and are skipped when those are not set.
+They are not separate projects or solutions.
 
 Repository mutations only stage EF Core changes. A scoped `IUnitOfWork` owns
 the commit boundary, while `TransactionScopeAspect` supports synchronous,

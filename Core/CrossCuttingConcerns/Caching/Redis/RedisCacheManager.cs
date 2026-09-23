@@ -38,7 +38,7 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
             return valueType == null ? null : JsonConvert.DeserializeObject(envelope.Payload, valueType);
         }
 
-        public void Add(string key, object? value, int duration)
+        public void Add(string key, object? value, int? durationMinutes)
         {
             if (value == null)
             {
@@ -52,8 +52,11 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
                 Payload = JsonConvert.SerializeObject(value)
             };
 
-            GetDatabase().StringSet(ToRedisKey(key), JsonConvert.SerializeObject(envelope),
-                TimeSpan.FromMinutes(duration));
+            TimeSpan? expiration = durationMinutes is > 0
+                ? TimeSpan.FromMinutes(durationMinutes.Value)
+                : null;
+            GetDatabase().StringSet(ToRedisKey(key), JsonConvert.SerializeObject(envelope), expiration,
+                keepTtl: false, when: When.Always);
         }
 
         public bool IsExists(string key)
