@@ -81,6 +81,41 @@ public sealed class InfrastructureIntegrationTests
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task CommunityUserReceivesProductUpdatePermissionFromSeededRole()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        await using var context = new GuidoraDbContext(options);
+        await using var transaction = await context.Database.BeginTransactionAsync();
+
+        var role = await context.Roles.SingleAsync(item => item.Code == "user" && item.IsActive);
+        var updateClaim = await context.OperationClaims.SingleAsync(item => item.Name == "Product.Update");
+        Assert.True(await context.RoleOperationClaims.AnyAsync(assignment =>
+            assignment.RoleId == role.Id && assignment.OperationClaimId == updateClaim.Id));
+
+        var suffix = Guid.NewGuid().ToString("N");
+        var user = new User
+        {
+            FirstName = "Integration",
+            LastName = "Community",
+            Email = $"community-update-{suffix}@example.test",
+            PasswordHash = [1],
+            PasswordSalt = [1],
+            Status = true
+        };
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        context.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+        await context.SaveChangesAsync();
+
+        var effectiveClaims = await new EfUserDal(context).GetClaimsAsync(user);
+
+        Assert.Contains(effectiveClaims, claim => claim.Name == "Product.Update");
+        await transaction.RollbackAsync();
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
     public async Task GenericRepositoryListReadsDoNotTrackEntities()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()
