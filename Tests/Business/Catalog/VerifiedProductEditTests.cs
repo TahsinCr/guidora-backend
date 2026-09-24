@@ -2,6 +2,7 @@ using Business.BusinessRules.Catalog;
 using Business.Concrete;
 using Business.BusinessRules.Moderation;
 using Business.Constants;
+using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -31,6 +32,7 @@ public sealed class VerifiedProductEditTests
         var result = await manager.UpdateAsync(30, request, updatedByUserId: 99);
 
         Assert.True(result.Success);
+        Assert.IsNotAssignableFrom<ICacheInvalidationDirective>(result);
         Assert.Equal("Original", product.Name);
         Assert.Equal(0, productDal.UpdateCount);
         var proposal = Assert.Single(proposalDal.GetAll());
@@ -63,6 +65,15 @@ public sealed class VerifiedProductEditTests
 
         Assert.True(result.Success);
         Assert.Equal(Messages.ProductUpdated, result.Message);
+        var invalidation = Assert.IsAssignableFrom<ICacheInvalidationDirective>(result);
+        Assert.Collection(invalidation.CacheInvalidations,
+            target => Assert.Equal(CacheProfiles.CatalogListing, target.Profile),
+            target =>
+            {
+                Assert.Equal(CacheProfiles.ProductDetail, target.Profile);
+                Assert.Equal(0, target.ArgumentIndex);
+                Assert.Equal(30, target.ArgumentValue);
+            });
         Assert.Equal("new-name", product.Name);
         Assert.Equal(1, productDal.UpdateCount);
         Assert.Empty(proposalDal.GetAll());
