@@ -6,6 +6,8 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Removed the unused synchronous OperationClaim service surface; permission
+  synchronization remains owned by the dedicated startup security tool.
 - Made the trusted forwarded-header proxy configurable in Docker Compose without
   trusting arbitrary forwarded headers by default.
 
