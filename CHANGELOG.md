@@ -16,6 +16,8 @@ All notable changes to the Guidora backend are documented here.
 - Added the reviewed `ProductIdentityConstraints` migration; it enforces
   case-insensitive Product name uniqueness without imposing an unapproved
   WebsiteUrl uniqueness constraint.
+- Enabled administrative Redis commands only in the infrastructure test client
+  so it can verify the configured LFU policy and disabled persistence.
 - Added user-scoped, idempotent Product favorites and Product comments with
   database-paginated reads, author-only status-based deletion, moderator
   visibility controls, public visibility filtering against Product and User
