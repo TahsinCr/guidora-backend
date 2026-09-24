@@ -290,7 +290,11 @@ public sealed class ProductBusinessRulesTests
     private sealed class CategoryDalStub(IEnumerable<Category>? categories = null) : EntityRepositoryStub<Category>(categories), ICategoryDal;
     private sealed class ProductStatusDalStub(IEnumerable<ProductStatus>? statuses = null) : EntityRepositoryStub<ProductStatus>(statuses), IProductStatusDal;
     private sealed class ProductCategoryDalStub(IEnumerable<ProductCategory>? links = null) : EntityRepositoryStub<ProductCategory>(links), IProductCategoryDal;
-    private sealed class ProductTagDalStub(IEnumerable<ProductTag>? links = null) : EntityRepositoryStub<ProductTag>(links), IProductTagDal;
+    private sealed class ProductTagDalStub(IEnumerable<ProductTag>? links = null) : EntityRepositoryStub<ProductTag>(links), IProductTagDal
+    {
+        public Task<bool> HasOtherTagInSameCategoryForAssignedProductsAsync(int tagId, int tagCategoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
+    }
     private sealed class TagDalStub(IEnumerable<Tag>? tags = null) : EntityRepositoryStub<Tag>(tags), ITagDal;
     private sealed class TagCategoryDalStub(IEnumerable<TagCategory>? categories = null) : EntityRepositoryStub<TagCategory>(categories), ITagCategoryDal;
     private sealed class ProductVerificationDalStub(IEnumerable<ProductVerification>? items = null) : EntityRepositoryStub<ProductVerification>(items), IProductVerificationDal;

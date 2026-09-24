@@ -257,6 +257,9 @@ public sealed class GovernanceWorkflowTests
     private sealed class ProductTagDal(IEnumerable<ProductTag>? values = null)
         : EntityRepositoryStub<ProductTag>(values), IProductTagDal
     {
+        public Task<bool> HasOtherTagInSameCategoryForAssignedProductsAsync(int tagId, int tagCategoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
+
         public override void PurgeRange(IEnumerable<ProductTag> entities)
         {
             var removed = entities.ToArray();

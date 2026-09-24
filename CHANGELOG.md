@@ -25,6 +25,8 @@ All notable changes to the Guidora backend are documented here.
   concurrent requests cannot bypass the exact-URL duplicate rule.
 - Product updates now return a dedicated localized success message instead of
   leaking the empty success result from the internal category-replacement step.
+- Tag management now rejects making a Tag exclusive only when an existing
+  Product selection would become invalid; safe exclusive changes remain allowed.
 - Cache invalidation for Product edits now runs only when the canonical Product
   changes; submitting a verified Product proposal leaves catalog caches intact.
   Result directives are consumed by the post-commit CacheRemoveAspect, so the

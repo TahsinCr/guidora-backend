@@ -146,6 +146,9 @@ public sealed class VerifiedProductEditTests
     private sealed class ProductTagDalStub(IEnumerable<ProductTag>? values = null)
         : EntityRepositoryStub<ProductTag>(values), IProductTagDal
     {
+        public Task<bool> HasOtherTagInSameCategoryForAssignedProductsAsync(int tagId, int tagCategoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
+
         public override void PurgeRange(IEnumerable<ProductTag> entities)
         {
             foreach (var entity in entities.ToArray()) Purge(entity);

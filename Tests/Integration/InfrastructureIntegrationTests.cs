@@ -98,6 +98,87 @@ public sealed class InfrastructureIntegrationTests
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task ProductTagDalDetectsOnlyExclusiveChangesThatWouldBreakCurrentSelections()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        await using var context = new GuidoraDbContext(options);
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        var suffix = Guid.NewGuid().ToString("N");
+        var user = new User
+        {
+            FirstName = "Tag",
+            LastName = "Invariant",
+            Email = $"tag-invariant-{suffix}@example.test",
+            PasswordHash = [1],
+            PasswordSalt = [1],
+            Status = true
+        };
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var conflictingCategory = new TagCategory
+        {
+            Name = $"Conflicting-{suffix}", Slug = $"conflicting-{suffix}", AllowsMultipleSelection = true,
+            IsActive = true
+        };
+        var safeCategory = new TagCategory
+        {
+            Name = $"Safe-{suffix}", Slug = $"safe-{suffix}", AllowsMultipleSelection = true, IsActive = true
+        };
+        context.TagCategories.AddRange(conflictingCategory, safeCategory);
+        await context.SaveChangesAsync();
+
+        var targetTag = new Tag
+        {
+            TagCategoryId = conflictingCategory.Id, Name = $"Target-{suffix}", Slug = $"target-{suffix}",
+            IsActive = true
+        };
+        var siblingTag = new Tag
+        {
+            TagCategoryId = conflictingCategory.Id, Name = $"Sibling-{suffix}", Slug = $"sibling-{suffix}",
+            IsActive = true
+        };
+        var soloTag = new Tag
+        {
+            TagCategoryId = safeCategory.Id, Name = $"Solo-{suffix}", Slug = $"solo-{suffix}", IsActive = true
+        };
+        context.Tags.AddRange(targetTag, siblingTag, soloTag);
+        var firstProduct = new Product
+        {
+            Name = $"Conflicting product {suffix}", Slug = $"conflicting-product-{suffix}",
+            ShortDescription = "Tag invariant", Description = "Integration query test",
+            WebsiteUrl = $"https://tag-invariant-{suffix}.example.test/conflicting",
+            LogoUrl = "https://example.test/logo.png", ProductStatusId = 1, CreatedByUserId = user.Id,
+            CreatedAt = DateTime.UtcNow
+        };
+        var secondProduct = new Product
+        {
+            Name = $"Safe product {suffix}", Slug = $"safe-product-{suffix}",
+            ShortDescription = "Tag invariant", Description = "Integration query test",
+            WebsiteUrl = $"https://tag-invariant-{suffix}.example.test/safe",
+            LogoUrl = "https://example.test/logo.png", ProductStatusId = 1, CreatedByUserId = user.Id,
+            CreatedAt = DateTime.UtcNow
+        };
+        context.Products.AddRange(firstProduct, secondProduct);
+        await context.SaveChangesAsync();
+        context.ProductTags.AddRange(
+            new ProductTag { ProductId = firstProduct.ProductId, TagId = targetTag.Id },
+            new ProductTag { ProductId = firstProduct.ProductId, TagId = siblingTag.Id },
+            new ProductTag { ProductId = secondProduct.ProductId, TagId = soloTag.Id });
+        await context.SaveChangesAsync();
+
+        var dal = new EfProductTagDal(context);
+        Assert.True(await dal.HasOtherTagInSameCategoryForAssignedProductsAsync(
+            targetTag.Id, conflictingCategory.Id));
+        Assert.False(await dal.HasOtherTagInSameCategoryForAssignedProductsAsync(
+            soloTag.Id, safeCategory.Id));
+
+        await transaction.RollbackAsync();
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
     public async Task PostgreSqlAllowsOnlyOneConcurrentProductWithTheSameNormalizedWebsiteUrl()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()

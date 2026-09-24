@@ -80,6 +80,10 @@ public sealed class TagManager : ITagService
         if (entity.TagCategoryId != request.TagCategoryId &&
             await _productTagDal.AnyAsync(item => item.TagId == id, cancellationToken))
             return new ConflictResult("A Tag assigned to Products cannot be moved to another TagCategory.");
+        if (!entity.IsExclusive && request.IsExclusive &&
+            await _productTagDal.HasOtherTagInSameCategoryForAssignedProductsAsync(
+                id, entity.TagCategoryId, cancellationToken))
+            return new ConflictResult("A Product-assigned Tag cannot become exclusive because existing selections may become invalid.");
         if (!await _categoryDal.AnyAsync(item => item.Id == request.TagCategoryId && item.IsActive, cancellationToken))
             return new ErrorResult("Active TagCategory was not found.");
         var slug = ProductIdentityNormalizer.NormalizeSlug(request.Slug);

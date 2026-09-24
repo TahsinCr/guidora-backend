@@ -1,5 +1,6 @@
 using Business.Concrete;
 using Core.DataAccess;
+using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
 using Entities.DTOs;
@@ -66,6 +67,57 @@ public sealed class TagCatalogManagerTests
     }
 
     [Fact]
+    public async Task MakingProductAssignedTagExclusiveIsRejectedWithoutMutation()
+    {
+        var tag = new Tag { Id = 8, TagCategoryId = 4, Name = "Linux", Slug = "linux", IsExclusive = false };
+        var tags = new TagDalStub([tag]);
+        var categories = new TagCategoryDalStub([new TagCategory { Id = 4, IsActive = true }]);
+        var assignments = new ProductTagDalStub([new ProductTag { ProductId = 2, TagId = 8 }])
+        {
+            HasConflictingSameCategoryTag = true
+        };
+        var audit = new CommunityAuditDalStub();
+        var manager = new TagManager(tags, categories, assignments, audit, new UnitOfWorkStub());
+
+        var result = await manager.UpdateAsync(8,
+            new TagRequest
+            {
+                TagCategoryId = 4,
+                Name = "Linux",
+                Slug = "linux",
+                IsExclusive = true
+            }, actorUserId: 99);
+
+        Assert.IsAssignableFrom<IConflictResult>(result);
+        Assert.False(tag.IsExclusive);
+        Assert.Empty(audit.Entries);
+    }
+
+    [Fact]
+    public async Task MakingAssignedTagExclusiveIsAllowedWhenNoProductHasAnotherTagInItsCategory()
+    {
+        var tag = new Tag { Id = 8, TagCategoryId = 4, Name = "Linux", Slug = "linux", IsExclusive = false };
+        var tags = new TagDalStub([tag]);
+        var categories = new TagCategoryDalStub([new TagCategory { Id = 4, IsActive = true }]);
+        var assignments = new ProductTagDalStub([new ProductTag { ProductId = 2, TagId = 8 }]);
+        var audit = new CommunityAuditDalStub();
+        var manager = new TagManager(tags, categories, assignments, audit, new UnitOfWorkStub());
+
+        var result = await manager.UpdateAsync(8,
+            new TagRequest
+            {
+                TagCategoryId = 4,
+                Name = "Linux",
+                Slug = "linux",
+                IsExclusive = true
+            }, actorUserId: 99);
+
+        Assert.True(result.Success);
+        Assert.True(tag.IsExclusive);
+        Assert.Equal("Updated", Assert.Single(audit.Entries).Action);
+    }
+
+    [Fact]
     public async Task SelectionModeCannotBecomeSingleWhileProductsHaveMultipleCategoryTags()
     {
         var category = new TagCategory { Id = 4, Name = "Platforms", Slug = "platforms", AllowsMultipleSelection = true };
@@ -88,5 +140,11 @@ public sealed class TagCatalogManagerTests
     private sealed class TagCategoryDalStub(IEnumerable<TagCategory>? values = null)
         : EntityRepositoryStub<TagCategory>(values), ITagCategoryDal;
     private sealed class ProductTagDalStub(IEnumerable<ProductTag>? values = null)
-        : EntityRepositoryStub<ProductTag>(values), IProductTagDal;
+        : EntityRepositoryStub<ProductTag>(values), IProductTagDal
+    {
+        public bool HasConflictingSameCategoryTag { get; init; }
+
+        public Task<bool> HasOtherTagInSameCategoryForAssignedProductsAsync(int tagId, int tagCategoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(HasConflictingSameCategoryTag);
+    }
 }

@@ -218,7 +218,9 @@ The public tag catalog is exposed by `GET /api/tag-categories` and
 `GET /api/tags?tagCategoryId={id}`. Both return active entries only. Moderator
 and Admin management operations create, update, and deactivate tags and tag
 categories. Deactivating a TagCategory also deactivates its Tags so they cannot
-remain selectable through the public catalog.
+remain selectable through the public catalog. Management rejects moving a Tag
+already used by a Product or making it exclusive when that would invalidate an
+existing same-category Product selection; safe changes remain allowed.
 
 User-submitted Product text, comments, document/changelog content, media alt
 text, and contributor labels pass through a local deterministic moderation
