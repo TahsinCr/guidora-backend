@@ -9,6 +9,7 @@ using Core.Entities.Concrete;
 using DataAccess.Abstract;
 using DataAccess.Concrete.Entityframework.Contexts;
 using Microsoft.EntityFrameworkCore;
+using System.Threading;
 
 namespace DataAccess.Concrete.Entityframework
 {
@@ -19,7 +20,7 @@ namespace DataAccess.Concrete.Entityframework
         {
         }
 
-        public List<OperationClaim> GetClaims(User user)
+        public async Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default)
         {
             var directClaims = from operationClaim in Context.OperationClaims
                 join userOperationClaim in Context.UserOperationClaims
@@ -30,14 +31,12 @@ namespace DataAccess.Concrete.Entityframework
             var roleClaims = from operationClaim in Context.OperationClaims
                 join roleOperationClaim in Context.RoleOperationClaims
                     on operationClaim.Id equals roleOperationClaim.OperationClaimId
-                join role in Context.Roles
-                    on roleOperationClaim.RoleId equals role.Id
-                join userRole in Context.UserRoles
-                    on role.Id equals userRole.RoleId
+                join role in Context.Roles on roleOperationClaim.RoleId equals role.Id
+                join userRole in Context.UserRoles on role.Id equals userRole.RoleId
                 where userRole.UserId == user.Id && role.IsActive
                 select new OperationClaim { Id = operationClaim.Id, Name = operationClaim.Name };
 
-            return directClaims.Concat(roleClaims).Distinct().ToList();
+            return await directClaims.Concat(roleClaims).Distinct().ToListAsync(cancellationToken);
         }
 
         public void AddClaim(User user, OperationClaim operationClaim)

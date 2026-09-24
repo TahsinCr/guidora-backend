@@ -73,7 +73,7 @@ public sealed class RoleManager : IRoleService
         await _audit.AddAsync(AuditLogFactory.Create(actorUserId, nameof(UserRole), $"{userId}:{roleId}",
             "Assigned", new { }, new { UserId = userId, RoleId = roleId }), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        var invalidation = _sessionInvalidation.InvalidateUserSessions(userId);
+        var invalidation = await _sessionInvalidation.InvalidateUserSessionsAsync(userId, cancellationToken);
         return invalidation.Success ? new SuccessResult("Role assigned and user sessions invalidated.") : invalidation;
     }
 
@@ -98,7 +98,7 @@ public sealed class RoleManager : IRoleService
         await _audit.AddAsync(AuditLogFactory.Create(actorUserId, nameof(UserRole), $"{userId}:{roleId}",
             "Removed", new { UserId = userId, RoleId = roleId }, new { }), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        var invalidation = _sessionInvalidation.InvalidateUserSessions(userId);
+        var invalidation = await _sessionInvalidation.InvalidateUserSessionsAsync(userId, cancellationToken);
         return invalidation.Success ? new SuccessResult("Role removed and user sessions invalidated.") : invalidation;
     }
 
@@ -148,7 +148,7 @@ public sealed class RoleManager : IRoleService
         var userIds = (await _userRoleDal.GetAllAsync(item => item.RoleId == roleId, cancellationToken))
             .Select(item => item.UserId).Distinct().ToArray();
         if (userIds.Length == 0) return new SuccessResult("Role permission updated; no assigned users required invalidation.");
-        var invalidation = _sessionInvalidation.InvalidateUsersSessions(userIds);
+        var invalidation = await _sessionInvalidation.InvalidateUsersSessionsAsync(userIds, cancellationToken);
         return invalidation.Success ? new SuccessResult("Role permission updated and affected sessions invalidated.") : invalidation;
     }
 }

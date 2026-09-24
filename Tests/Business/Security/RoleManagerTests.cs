@@ -4,6 +4,8 @@ using Core.Entities.Concrete;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Tests.Core.TestDoubles;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Tests.Business.Security;
 
@@ -35,7 +37,7 @@ public sealed class RoleManagerTests
     private sealed class RoleDalStub(IEnumerable<Role>? values = null) : EntityRepositoryStub<Role>(values), IRoleDal;
     private sealed class UserDalStub(IEnumerable<User>? values = null) : EntityRepositoryStub<User>(values), IUserDal
     {
-        public List<OperationClaim> GetClaims(User user) => [];
+        public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) => Task.FromResult(new List<OperationClaim>());
         public void AddClaim(User user, OperationClaim operationClaim) { }
     }
     private sealed class UserRoleDalStub(IEnumerable<UserRole>? values = null)
@@ -56,15 +58,15 @@ public sealed class RoleManagerTests
     private sealed class SessionInvalidationStub : IUserSessionInvalidationService
     {
         public List<int> InvalidatedUserIds { get; } = [];
-        public IResult InvalidateUserSessions(int userId)
+        public Task<IResult> InvalidateUserSessionsAsync(int userId, CancellationToken cancellationToken = default)
         {
             InvalidatedUserIds.Add(userId);
-            return new SuccessResult();
+            return Task.FromResult<IResult>(new SuccessResult());
         }
-        public IResult InvalidateUsersSessions(IReadOnlyCollection<int> userIds)
+        public Task<IResult> InvalidateUsersSessionsAsync(IReadOnlyCollection<int> userIds, CancellationToken cancellationToken = default)
         {
             InvalidatedUserIds.AddRange(userIds);
-            return new SuccessResult();
+            return Task.FromResult<IResult>(new SuccessResult());
         }
     }
 }

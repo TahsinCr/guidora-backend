@@ -93,7 +93,7 @@ public sealed class ProductBusinessRulesTests
     }
 
     [Fact]
-    public void PublicProductQueriesExcludeHiddenAndDeletedStatuses()
+    public async Task PublicProductQueriesExcludeHiddenAndDeletedStatuses()
     {
         var productDal = new ProductDalStub([
             new Product { ProductId = 1, ProductStatusId = 1 },
@@ -111,11 +111,11 @@ public sealed class ProductBusinessRulesTests
                 new ProductCategory { ProductId = 3, CategoryId = 7 }
             ]));
 
-        Assert.Equal([1], manager.GetAll().Data!.Select(product => product.ProductId));
-        Assert.Equal([1], manager.GetAllByCategoryId(7).Data!.Select(product => product.ProductId));
-        Assert.True(manager.GetById(1).Success);
-        Assert.False(manager.GetById(2).Success);
-        Assert.False(manager.GetById(3).Success);
+        var page = await manager.GetPageAsync(new PageRequest { Page = 1, PageSize = 10 });
+        Assert.Equal([1], page.Data!.Items.Select(product => product.ProductId));
+        Assert.True((await manager.GetByIdAsync(1)).Success);
+        Assert.False((await manager.GetByIdAsync(2)).Success);
+        Assert.False((await manager.GetByIdAsync(3)).Success);
     }
 
     [Fact]

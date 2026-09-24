@@ -11,16 +11,6 @@ public sealed class CategoryBusinessRules : ICategoryBusinessRules
 
     public CategoryBusinessRules(ICategoryDal categoryDal) => _categoryDal = categoryDal;
 
-    public IResult EnsureSlugIsAvailable(string slug, int? excludingCategoryId = null)
-    {
-        var duplicate = _categoryDal.Get(category =>
-            category.Slug == slug && (!excludingCategoryId.HasValue || category.CategoryId != excludingCategoryId));
-
-        return duplicate is null
-            ? new SuccessResult()
-            : new ErrorResult("A category with this slug already exists.");
-    }
-
     public async Task<IResult> EnsureSlugIsAvailableAsync(string slug, int? excludingCategoryId = null,
         CancellationToken cancellationToken = default)
     {

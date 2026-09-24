@@ -10,6 +10,7 @@ using Core.DataAccess.EntityFramework;
 using Core.Utilities.Results;
 using Business.Constants;
 using Core.DataAccess;
+using System.Threading;
 
 namespace Business.Concrete
 {
@@ -27,45 +28,45 @@ namespace Business.Concrete
             _unitOfWork = unitOfWork;
         }
 
-        public IDataResult<List<OperationClaim>> GetClaims(User user)
+        public async Task<IDataResult<List<OperationClaim>>> GetClaimsAsync(User user, CancellationToken cancellationToken = default)
         {
-            return new SuccessDataResult<List<OperationClaim>>(_userDal.GetClaims(user));
+            return new SuccessDataResult<List<OperationClaim>>(await _userDal.GetClaimsAsync(user, cancellationToken));
         }
 
-        public IResult GrantOperationClaim(User user, OperationClaim operationClaim)
+        public async Task<IResult> GrantOperationClaimAsync(User user, OperationClaim operationClaim, CancellationToken cancellationToken = default)
         {
             _userDal.AddClaim(user, operationClaim);
-            _unitOfWork.SaveChanges();
-            return _sessionInvalidationService.InvalidateUserSessions(user.Id);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return await _sessionInvalidationService.InvalidateUserSessionsAsync(user.Id, cancellationToken);
         }
 
-        public IDataResult<User> GetByMail(string email)
+        public async Task<IDataResult<User>> GetByMailAsync(string email, CancellationToken cancellationToken = default)
         {
-            User? result = _userDal.Get(u => u.Email == email);
+            User? result = await _userDal.GetAsync(u => u.Email == email, cancellationToken);
 
             if (result != null) return new SuccessDataResult<User>(result);
             else return new ErrorDataResult<User>(Messages.UserNotFound);
         }
 
-        public IDataResult<User> GetById(int id)
+        public async Task<IDataResult<User>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            User? result = _userDal.Get(user => user.Id == id);
+            User? result = await _userDal.GetAsync(user => user.Id == id, cancellationToken);
 
             if (result != null) return new SuccessDataResult<User>(result);
             return new ErrorDataResult<User>(Messages.UserNotFound);
         }
 
-        public IResult RegisterUser(User user)
+        public async Task<IResult> RegisterUserAsync(User user, CancellationToken cancellationToken = default)
         {
-            _userDal.Add(user);
-            _unitOfWork.SaveChanges();
+            await _userDal.AddAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             return new SuccessResult();
         }
 
-        public IResult UpdateUser(User user)
+        public async Task<IResult> UpdateUserAsync(User user, CancellationToken cancellationToken = default)
         {
             _userDal.Update(user);
-            _unitOfWork.SaveChanges();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             return new SuccessResult();
         }
     }

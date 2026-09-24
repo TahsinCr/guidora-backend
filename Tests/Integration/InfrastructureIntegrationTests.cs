@@ -66,7 +66,7 @@ public sealed class InfrastructureIntegrationTests
             new RoleOperationClaim { RoleId = activeRole.Id, OperationClaimId = activeRoleClaim.Id });
         await context.SaveChangesAsync();
 
-        var claims = new EfUserDal(context).GetClaims(user).Select(claim => claim.Name).ToArray();
+        var claims = (await new EfUserDal(context).GetClaimsAsync(user)).Select(claim => claim.Name).ToArray();
 
         Assert.Contains(directClaim.Name, claims);
         Assert.Contains(activeRoleClaim.Name, claims);
@@ -89,6 +89,116 @@ public sealed class InfrastructureIntegrationTests
         _ = await dal.GetAllAsync();
 
         Assert.Empty(context.ChangeTracker.Entries());
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task RefreshTokenRotationAllowsOnlyOneConcurrentConsumer()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING")).Options;
+        var sessionId = Guid.NewGuid();
+        var firstReplacementId = Guid.NewGuid();
+        var secondReplacementId = Guid.NewGuid();
+        int userId;
+
+        await using (var setup = new GuidoraDbContext(options))
+        {
+            var user = new User
+            {
+                FirstName = "Concurrent", LastName = "Refresh", Email = $"refresh-{Guid.NewGuid():N}@example.test",
+                PasswordHash = [1], PasswordSalt = [1], Status = true
+            };
+            setup.Users.Add(user);
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+            setup.UserSessions.Add(new UserSession
+            {
+                Id = sessionId, UserId = userId, RefreshTokenHash = Guid.NewGuid().ToString("N"),
+                CreatedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(1), DeviceName = "test"
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        try
+        {
+            var revokedAt = DateTime.UtcNow;
+            async Task<bool> TryRotateAsync(Guid replacementId)
+            {
+                await using var context = new GuidoraDbContext(options);
+                return await new EfUserSessionDal(context).TryRotateAsync(sessionId, replacementId, revokedAt);
+            }
+
+            var outcomes = await Task.WhenAll(TryRotateAsync(firstReplacementId), TryRotateAsync(secondReplacementId));
+            Assert.Single(outcomes, success => success);
+            Assert.Single(outcomes, success => !success);
+
+            await using var verify = new GuidoraDbContext(options);
+            var rotated = await verify.UserSessions.SingleAsync(item => item.Id == sessionId);
+            Assert.InRange(Math.Abs((rotated.RevokedAt!.Value - revokedAt).Ticks), 0, 10);
+            Assert.True(rotated.ReplacedBySessionId == firstReplacementId ||
+                        rotated.ReplacedBySessionId == secondReplacementId);
+        }
+        finally
+        {
+            await using var cleanup = new GuidoraDbContext(options);
+            var session = await cleanup.UserSessions.SingleOrDefaultAsync(item => item.Id == sessionId);
+            if (session is not null) cleanup.UserSessions.Remove(session);
+            var user = await cleanup.Users.SingleOrDefaultAsync(item => item.Id == userId);
+            if (user is not null) cleanup.Users.Remove(user);
+            await cleanup.SaveChangesAsync();
+        }
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task ConcurrentLogoutRevokesAndConsumesAnActiveSessionOnlyOnce()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING")).Options;
+        var sessionId = Guid.NewGuid();
+        int userId;
+        await using (var setup = new GuidoraDbContext(options))
+        {
+            var user = new User
+            {
+                FirstName = "Concurrent", LastName = "Logout", Email = $"logout-{Guid.NewGuid():N}@example.test",
+                PasswordHash = [1], PasswordSalt = [1], Status = true
+            };
+            setup.Users.Add(user);
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+            setup.UserSessions.Add(new UserSession
+            {
+                Id = sessionId, UserId = userId, RefreshTokenHash = Guid.NewGuid().ToString("N"),
+                CreatedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(1), DeviceName = "test"
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        try
+        {
+            var revokedAt = DateTime.UtcNow;
+            async Task<bool> TryRevokeAsync()
+            {
+                await using var context = new GuidoraDbContext(options);
+                return await new EfUserSessionDal(context).TryRevokeAsync(sessionId, revokedAt);
+            }
+
+            var outcomes = await Task.WhenAll(TryRevokeAsync(), TryRevokeAsync());
+            Assert.Single(outcomes, success => success);
+            Assert.Single(outcomes, success => !success);
+
+            await using var verify = new GuidoraDbContext(options);
+            Assert.NotNull((await verify.UserSessions.SingleAsync(item => item.Id == sessionId)).RevokedAt);
+        }
+        finally
+        {
+            await using var cleanup = new GuidoraDbContext(options);
+            var session = await cleanup.UserSessions.SingleOrDefaultAsync(item => item.Id == sessionId);
+            if (session is not null) cleanup.UserSessions.Remove(session);
+            var user = await cleanup.Users.SingleOrDefaultAsync(item => item.Id == userId);
+            if (user is not null) cleanup.Users.Remove(user);
+            await cleanup.SaveChangesAsync();
+        }
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]

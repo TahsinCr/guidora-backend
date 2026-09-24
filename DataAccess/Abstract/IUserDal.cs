@@ -5,12 +5,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace DataAccess.Abstract
 {
     public interface IUserDal : IEntityRepository<User>
     {
-        List<OperationClaim> GetClaims(User user);
+        Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default);
 
         void AddClaim(User user, OperationClaim operationClaim);
     }

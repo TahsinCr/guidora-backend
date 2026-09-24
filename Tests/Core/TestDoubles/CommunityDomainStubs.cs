@@ -76,7 +76,8 @@ public sealed class CommunityProductStatusDalStub(IEnumerable<ProductStatus>? it
 public sealed class CommunityUserDalStub(IEnumerable<User>? items = null)
     : EntityRepositoryStub<User>(items), IUserDal
 {
-    public List<global::Core.Entities.Concrete.OperationClaim> GetClaims(User user) => [];
+    public Task<List<global::Core.Entities.Concrete.OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new List<global::Core.Entities.Concrete.OperationClaim>());
     public void AddClaim(User user, global::Core.Entities.Concrete.OperationClaim operationClaim) { }
 }
 public sealed class CommunityVerificationDalStub(IEnumerable<ProductVerification>? items = null)

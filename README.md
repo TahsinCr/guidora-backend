@@ -283,6 +283,13 @@ users' authorization versions and sessions are invalidated in the same
 transaction. The last active Admin assignment and the Admin role's
 `Role.Manage` permission are protected from removal.
 
+Authentication, user-security, Product, and Category request paths use
+cancellation-aware asynchronous database operations. Refresh rotation consumes
+the prior session with one conditional PostgreSQL update, so concurrent reuse
+cannot create multiple replacement sessions; replay invalidation happens only
+after the failed rotation transaction has rolled back. Logout uses an atomic,
+idempotent session revocation as well.
+
 ## Project structure
 
 The current solution layers will evolve toward independently deployable services:

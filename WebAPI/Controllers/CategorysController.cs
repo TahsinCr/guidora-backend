@@ -38,16 +38,16 @@ namespace WebAPI.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public IActionResult GetById(int id)
+        public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
         {
-            var result = _categoryService.GetById(id);
+            var result = await _categoryService.GetByIdAsync(id, cancellationToken);
             return this.ToHttpResult(result);
         }
 
         [HttpGet]
-        public IActionResult GetAll()
+        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
         {
-            var result = _categoryService.GetAll();
+            var result = await _categoryService.GetAllAsync(cancellationToken);
             return this.ToHttpResult(result);
         }
 

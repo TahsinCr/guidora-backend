@@ -32,6 +32,13 @@ All notable changes to the Guidora backend are documented here.
 - Converted per-request access-token session validation to async PostgreSQL and
   Redis operations. PostgreSQL unique-constraint races now map to a sanitized
   HTTP 409 response instead of leaking as an unhandled 500.
+- Converted Product, Category, authentication, user-security, and session
+  invalidation request paths to cancellation-aware async database operations.
+  Refresh rotation now atomically consumes a refresh session with a conditional
+  PostgreSQL update, invalidates replayed sessions outside the failed rotation,
+  and evicts the old validation-cache key only after a successful commit.
+  Logout revocation is also an atomic, idempotent update. Added AuthManager unit
+  coverage and live PostgreSQL concurrent-rotation/logout tests.
 
 - Restricted user ban, restore, and authorization invalidation to the
   Admin-only `User.Manage` OperationClaim; added Admin-only audit reversion for

@@ -16,7 +16,8 @@ using Microsoft.Extensions.Caching.Distributed;
 using Core.Aspects.Transaction;
 using Core.Aspects.Autofac.Validation;
 using Core.DataAccess;
-using Microsoft.EntityFrameworkCore;
+using System.Threading;
+using System.Transactions;
 
 namespace Business.Concrete
 {
@@ -53,9 +54,10 @@ namespace Business.Concrete
 
         [ValidationAspect(typeof(UserForRegisterValidator))]
         [TransactionScopeAspect]
-        public IDataResult<User> Register(UserForRegisterDto userForRegisterDto, string password)
+        public async Task<IDataResult<User>> RegisterAsync(UserForRegisterDto userForRegisterDto, string password,
+            CancellationToken cancellationToken = default)
         {
-            var existence = UserExists(userForRegisterDto.Email);
+            var existence = await UserExistsAsync(userForRegisterDto.Email, cancellationToken);
             if (!existence.Success)
             {
                 return new ConflictDataResult<User>(existence.Message);
@@ -74,31 +76,32 @@ namespace Business.Concrete
             };
 
 
-            var addResult = _userService.RegisterUser(user);
+            var addResult = await _userService.RegisterUserAsync(user, cancellationToken);
             if (!addResult.Success) return new ErrorDataResult<User>(addResult.Message);
 
-            var defaultRole = _roleDal.Get(role => role.Code == "user" && role.IsActive);
+            var defaultRole = await _roleDal.GetAsync(role => role.Code == "user" && role.IsActive, cancellationToken);
             if (defaultRole == null)
             {
                 return new ErrorDataResult<User>("Default user role is not configured.");
             }
 
-            _userRoleDal.Add(new UserRole { UserId = user.Id, RoleId = defaultRole.Id });
-            _authenticationStateDal.Add(new UserAuthenticationState
+            await _userRoleDal.AddAsync(new UserRole { UserId = user.Id, RoleId = defaultRole.Id }, cancellationToken);
+            await _authenticationStateDal.AddAsync(new UserAuthenticationState
             {
                 UserId = user.Id,
                 AuthorizationVersion = 1,
                 UpdatedAt = DateTime.UtcNow
-            });
-            _unitOfWork.SaveChanges();
+            }, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new SuccessDataResult<User>(user, Messages.UserRegistered);
         }
 
         [ValidationAspect(typeof(UserForLoginValidator))]
-        public IDataResult<User> Login(UserForLoginDto userForLoginDto)
+        public async Task<IDataResult<User>> LoginAsync(UserForLoginDto userForLoginDto,
+            CancellationToken cancellationToken = default)
         {
-            var userToCheck = _userService.GetByMail(userForLoginDto.Email);
+            var userToCheck = await _userService.GetByMailAsync(userForLoginDto.Email, cancellationToken);
             if (userToCheck.Data == null) return userToCheck;
 
             if (!userToCheck.Data.Status)
@@ -119,30 +122,32 @@ namespace Business.Concrete
                     out upgradedHash, out upgradedSalt);
                 userToCheck.Data.PasswordHash = upgradedHash;
                 userToCheck.Data.PasswordSalt = upgradedSalt;
-                _userService.UpdateUser(userToCheck.Data);
+                await _userService.UpdateUserAsync(userToCheck.Data, cancellationToken);
             }
 
             return new SuccessDataResult<User>(userToCheck.Data, Messages.SuccessfulLogin);
         }
 
-        public IResult UserExists(string email)
+        public async Task<IResult> UserExistsAsync(string email, CancellationToken cancellationToken = default)
         {
-            if (_userService.GetByMail(email).Data != null)
+            if ((await _userService.GetByMailAsync(email, cancellationToken)).Data != null)
             {
                 return new ConflictResult(Messages.UserAlreadyExists);
             }
             return new SuccessResult();
         }
 
-        public IDataResult<AuthenticationResultDto> CreateSession(User user, bool rememberMe, string deviceName)
+        [TransactionScopeAspect]
+        public async Task<IDataResult<AuthenticationResultDto>> CreateSessionAsync(User user, bool rememberMe,
+            string deviceName, CancellationToken cancellationToken = default)
         {
             if (!user.Status)
             {
                 return new ErrorDataResult<AuthenticationResultDto>("User account is inactive.");
             }
 
-            var authenticationState = GetOrCreateAuthenticationState(user.Id);
-            var claims = _userService.GetClaims(user).Data;
+            var authenticationState = await GetOrCreateAuthenticationStateAsync(user.Id, cancellationToken);
+            var claims = (await _userService.GetClaimsAsync(user, cancellationToken)).Data;
             var refreshToken = RefreshTokenHasher.CreateToken();
             var now = DateTime.UtcNow;
             var session = new UserSession
@@ -158,8 +163,8 @@ namespace Business.Concrete
                 DeviceName = deviceName
             };
 
-            _userSessionDal.Add(session);
-            _unitOfWork.SaveChanges();
+            await _userSessionDal.AddAsync(session, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             var accessToken = _tokenHelper.CreateToken(user, claims, session.Id, authenticationState.AuthorizationVersion);
             return new SuccessDataResult<AuthenticationResultDto>(new AuthenticationResultDto
             {
@@ -170,10 +175,10 @@ namespace Business.Concrete
             }, Messages.AccessTokenCreated);
         }
 
-        [TransactionScopeAspect]
-        public IDataResult<AuthenticationResultDto> RefreshSession(string refreshToken, string deviceName)
+        public async Task<IDataResult<AuthenticationResultDto>> RefreshSessionAsync(string refreshToken,
+            string deviceName, CancellationToken cancellationToken = default)
         {
-            var session = _userSessionDal.Get(item => item.RefreshTokenHash == RefreshTokenHasher.Hash(refreshToken));
+            var session = await _userSessionDal.GetAsync(item => item.RefreshTokenHash == RefreshTokenHasher.Hash(refreshToken), cancellationToken);
             if (session == null)
             {
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is invalid.");
@@ -181,71 +186,99 @@ namespace Business.Concrete
 
             if (session.RevokedAt.HasValue || session.ExpiresAt <= DateTime.UtcNow)
             {
-                _sessionInvalidationService.InvalidateUserSessions(session.UserId);
+                await _sessionInvalidationService.InvalidateUserSessionsAsync(session.UserId, cancellationToken);
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is no longer valid.");
             }
 
-            var userResult = _userService.GetById(session.UserId);
+            var userResult = await _userService.GetByIdAsync(session.UserId, cancellationToken);
             if (!userResult.Success || !userResult.Data.Status)
             {
-                _sessionInvalidationService.InvalidateUserSessions(session.UserId);
+                await _sessionInvalidationService.InvalidateUserSessionsAsync(session.UserId, cancellationToken);
                 return new ErrorDataResult<AuthenticationResultDto>("User account is inactive.");
             }
 
-            session.RevokedAt = DateTime.UtcNow;
-            RemoveSessionValidationCache(session.Id);
-            var newResult = CreateSession(userResult.Data, session.IsPersistent, deviceName);
-            if (!newResult.Success)
+            var now = DateTime.UtcNow;
+            var nextRefreshToken = RefreshTokenHasher.CreateToken();
+            var absoluteExpiration = session.CreatedAt.AddDays(_tokenOptions.SessionAbsoluteExpirationDays);
+            var configuredExpiration = now.AddDays(session.IsPersistent
+                ? _tokenOptions.RememberMeExpirationDays
+                : _tokenOptions.RefreshTokenExpirationDays);
+            var replacement = new UserSession
             {
-                return newResult;
-            }
+                Id = Guid.NewGuid(),
+                UserId = session.UserId,
+                RefreshTokenHash = RefreshTokenHasher.Hash(nextRefreshToken),
+                CreatedAt = now,
+                ExpiresAt = configuredExpiration < absoluteExpiration ? configuredExpiration : absoluteExpiration,
+                IsPersistent = session.IsPersistent,
+                DeviceName = deviceName
+            };
+            var rotationRejected = false;
+            IDataResult<AuthenticationResultDto>? result = null;
 
-            session.ReplacedBySessionId = newResult.Data.AccessToken.SessionId;
-            _userSessionDal.Update(session);
-
-            var replacementSession = _userSessionDal.Get(item => item.Id == newResult.Data.AccessToken.SessionId);
-            if (replacementSession != null)
+            using (var transaction = new TransactionScope(TransactionScopeOption.Required,
+                       new TransactionOptions
+                       {
+                           IsolationLevel = IsolationLevel.ReadCommitted,
+                           Timeout = TransactionManager.DefaultTimeout
+                       }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                var absoluteExpiration = session.CreatedAt.AddDays(_tokenOptions.SessionAbsoluteExpirationDays);
-                if (replacementSession.ExpiresAt > absoluteExpiration)
+                if (await _userSessionDal.TryRotateAsync(session.Id, replacement.Id, now, cancellationToken))
                 {
-                    replacementSession.ExpiresAt = absoluteExpiration;
-                    _userSessionDal.Update(replacementSession);
-                    newResult.Data.RefreshTokenExpiration = replacementSession.ExpiresAt;
+                    var authenticationState = await GetOrCreateAuthenticationStateAsync(session.UserId, cancellationToken);
+                    var claims = (await _userService.GetClaimsAsync(userResult.Data, cancellationToken)).Data;
+                    await _userSessionDal.AddAsync(replacement, cancellationToken);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    var accessToken = _tokenHelper.CreateToken(userResult.Data, claims, replacement.Id,
+                        authenticationState.AuthorizationVersion);
+                    result = new SuccessDataResult<AuthenticationResultDto>(new AuthenticationResultDto
+                    {
+                        AccessToken = accessToken,
+                        RefreshToken = nextRefreshToken,
+                        IsPersistentSession = replacement.IsPersistent,
+                        RefreshTokenExpiration = replacement.ExpiresAt
+                    }, Messages.AccessTokenCreated);
+                    transaction.Complete();
+                }
+                else
+                {
+                    rotationRejected = true;
+                    result = new ErrorDataResult<AuthenticationResultDto>(
+                        "Refresh session has already been rotated. Authenticate again.");
                 }
             }
 
-            try
+            if (rotationRejected)
             {
-                _unitOfWork.SaveChanges();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                return new ErrorDataResult<AuthenticationResultDto>(
-                    "Refresh session has already been rotated. Authenticate again.");
+                await _sessionInvalidationService.InvalidateUserSessionsAsync(session.UserId, cancellationToken);
+                return result!;
             }
 
-            return newResult;
+            await _distributedCache.RemoveAsync($"auth-session:{session.Id}", CancellationToken.None);
+            return result!;
         }
 
-        public IResult RevokeSession(string refreshToken)
+        public async Task<IResult> RevokeSessionAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
-            var session = _userSessionDal.Get(item => item.RefreshTokenHash == RefreshTokenHasher.Hash(refreshToken));
+            var session = await _userSessionDal.GetAsync(item => item.RefreshTokenHash == RefreshTokenHasher.Hash(refreshToken), cancellationToken);
             if (session == null || session.RevokedAt.HasValue)
             {
                 return new SuccessResult();
             }
 
-            session.RevokedAt = DateTime.UtcNow;
-            _userSessionDal.Update(session);
-            _unitOfWork.SaveChanges();
-            RemoveSessionValidationCache(session.Id);
+            if (!await _userSessionDal.TryRevokeAsync(session.Id, DateTime.UtcNow, cancellationToken))
+            {
+                return new SuccessResult();
+            }
+
+            await _distributedCache.RemoveAsync($"auth-session:{session.Id}", CancellationToken.None);
             return new SuccessResult();
         }
 
-        private UserAuthenticationState GetOrCreateAuthenticationState(int userId)
+        private async Task<UserAuthenticationState> GetOrCreateAuthenticationStateAsync(int userId,
+            CancellationToken cancellationToken)
         {
-            var state = _authenticationStateDal.Get(item => item.UserId == userId);
+            var state = await _authenticationStateDal.GetAsync(item => item.UserId == userId, cancellationToken);
             if (state != null)
             {
                 return state;
@@ -257,14 +290,9 @@ namespace Business.Concrete
                 AuthorizationVersion = 1,
                 UpdatedAt = DateTime.UtcNow
             };
-            _authenticationStateDal.Add(state);
-            _unitOfWork.SaveChanges();
+            await _authenticationStateDal.AddAsync(state, cancellationToken);
             return state;
         }
 
-        private void RemoveSessionValidationCache(Guid sessionId)
-        {
-            _distributedCache.Remove($"auth-session:{sessionId}");
-        }
     }
 }

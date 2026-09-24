@@ -68,33 +68,6 @@ namespace Business.Concrete
             _contentModerationRule = contentModerationRule;
         }
 
-        [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
-        public IDataResult<List<Product>> GetAll()
-        {
-            var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
-            return publishedStatus is null
-                ? new ErrorDataResult<List<Product>>("Published product status is not configured.")
-                : new SuccessDataResult<List<Product>>(
-                    _productDal.GetAll(product => product.ProductStatusId == publishedStatus.Id), Messages.ProductsListed);
-        }
-
-        [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
-        public IDataResult<List<Product>> GetAllByCategoryId(int id)
-        {
-            var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
-            if (publishedStatus is null)
-            {
-                return new ErrorDataResult<List<Product>>("Published product status is not configured.");
-            }
-
-            var productIds = _productCategoryDal.GetAll(item => item.CategoryId == id)
-                .Select(item => item.ProductId)
-                .ToHashSet();
-            return new SuccessDataResult<List<Product>>(
-                _productDal.GetAll(product => productIds.Contains(product.ProductId) &&
-                                               product.ProductStatusId == publishedStatus.Id));
-        }
-
         [ValidationAspect(typeof(PageRequestValidator))]
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
         public async Task<IDataResult<PagedResult<Product>>> GetPageAsync(PageRequest request, int? categoryId = null,
@@ -120,16 +93,16 @@ namespace Business.Concrete
 
 
         [CacheAspect(CacheProfiles.ProductDetail, duration: 15, VaryByArgumentIndexes = new[] { 0 })]
-        public IDataResult<Product> GetById(int id)
+        public async Task<IDataResult<Product>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
+            var publishedStatus = await _productStatusDal.GetAsync(status => status.Code == "published", cancellationToken);
             if (publishedStatus is null)
             {
                 return new ErrorDataResult<Product>("Published product status is not configured.");
             }
 
-            var product = _productDal.Get(product => product.ProductId == id &&
-                                                      product.ProductStatusId == publishedStatus.Id);
+            var product = await _productDal.GetAsync(product => product.ProductId == id &&
+                product.ProductStatusId == publishedStatus.Id, cancellationToken);
             return product == null
                 ? new NotFoundDataResult<Product>("Product was not found.")
                 : new SuccessDataResult<Product>(product);

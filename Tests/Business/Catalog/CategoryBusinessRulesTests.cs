@@ -11,14 +11,14 @@ namespace Tests.Business.Catalog;
 public sealed class CategoryBusinessRulesTests
 {
     [Fact]
-    public void DetectsExistingSlugAndAllowsCurrentCategoryDuringUpdate()
+    public async Task DetectsExistingSlugAndAllowsCurrentCategoryDuringUpdate()
     {
         var category = new Category { CategoryId = 4, Slug = "design" };
         var dal = new CategoryDalStub([category]);
         var rules = new CategoryBusinessRules(dal);
 
-        Assert.False(rules.EnsureSlugIsAvailable("design").Success);
-        Assert.True(rules.EnsureSlugIsAvailable("design", excludingCategoryId: 4).Success);
+        Assert.False((await rules.EnsureSlugIsAvailableAsync("design")).Success);
+        Assert.True((await rules.EnsureSlugIsAvailableAsync("design", excludingCategoryId: 4)).Success);
     }
 
     [Fact]

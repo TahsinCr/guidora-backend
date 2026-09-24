@@ -11,7 +11,7 @@ namespace Tests.Business.Security;
 public sealed class UserSessionInvalidationManagerTests
 {
     [Fact]
-    public void InvalidatesOnlyActiveSessionsAndEvictsTheirCacheAfterCommit()
+    public async Task InvalidatesOnlyActiveSessionsAndEvictsTheirCacheAfterCommit()
     {
         var state = new UserAuthenticationState { Id = 8, UserId = 42, AuthorizationVersion = 5 };
         var active = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
@@ -23,7 +23,7 @@ public sealed class UserSessionInvalidationManagerTests
         var unitOfWork = new CommitAwareUnitOfWork(() => cache.CommitObserved = true);
         var sut = new UserSessionInvalidationManager(stateDal, sessionDal, cache, unitOfWork);
 
-        var result = sut.InvalidateUserSessions(42);
+        var result = await sut.InvalidateUserSessionsAsync(42);
 
         Assert.True(result.Success);
         Assert.Equal(6, state.AuthorizationVersion);
@@ -38,7 +38,7 @@ public sealed class UserSessionInvalidationManagerTests
     }
 
     [Fact]
-    public void CreatesMissingAuthenticationStateWithoutMarkingItAsAnUpdate()
+    public async Task CreatesMissingAuthenticationStateWithoutMarkingItAsAnUpdate()
     {
         var stateDal = new AuthenticationStateDalStub();
         var sessionDal = new UserSessionDalStub();
@@ -46,7 +46,7 @@ public sealed class UserSessionInvalidationManagerTests
         var sut = new UserSessionInvalidationManager(stateDal, sessionDal,
             new RecordingDistributedCache(), unitOfWork);
 
-        var result = sut.InvalidateUserSessions(42);
+        var result = await sut.InvalidateUserSessionsAsync(42);
 
         Assert.True(result.Success);
         var created = Assert.Single(stateDal.Added);
@@ -57,7 +57,7 @@ public sealed class UserSessionInvalidationManagerTests
     }
 
     [Fact]
-    public void BulkInvalidationUpdatesStatesAndSessionsWithOneCommit()
+    public async Task BulkInvalidationUpdatesStatesAndSessionsWithOneCommit()
     {
         var first = new UserAuthenticationState { Id = 1, UserId = 42, AuthorizationVersion = 4 };
         var stateDal = new AuthenticationStateDalStub([first]);
@@ -68,7 +68,7 @@ public sealed class UserSessionInvalidationManagerTests
         var unitOfWork = new UnitOfWorkStub();
         var sut = new UserSessionInvalidationManager(stateDal, sessions, cache, unitOfWork);
 
-        var result = sut.InvalidateUsersSessions([42, 43, 42]);
+        var result = await sut.InvalidateUsersSessionsAsync([42, 43, 42]);
 
         Assert.True(result.Success);
         Assert.Equal(5, first.AuthorizationVersion);
@@ -80,21 +80,21 @@ public sealed class UserSessionInvalidationManagerTests
     }
 
     [Fact]
-    public void DoesNotEvictSessionCacheWhenPersistenceFails()
+    public async Task DoesNotEvictSessionCacheWhenPersistenceFails()
     {
         var session = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
         var cache = new RecordingDistributedCache();
         var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
             new UserSessionDalStub([session]), cache, new FailingUnitOfWork());
 
-        Assert.Throws<InvalidOperationException>(() => sut.InvalidateUserSessions(42));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.InvalidateUserSessionsAsync(42));
 
         Assert.Empty(cache.RemovedKeys);
         Assert.NotNull(session.RevokedAt);
     }
 
     [Fact]
-    public void DefersCacheEvictionUntilAmbientTransactionCommits()
+    public async Task DefersCacheEvictionUntilAmbientTransactionCommits()
     {
         var session = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
         var cache = new RecordingDistributedCache();
@@ -102,7 +102,7 @@ public sealed class UserSessionInvalidationManagerTests
 
         using (var transaction = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
         {
-            Assert.True(sut.InvalidateUserSessions(42).Success);
+            Assert.True((await sut.InvalidateUserSessionsAsync(42)).Success);
             Assert.Empty(cache.RemovedKeys);
             transaction.Complete();
         }
@@ -111,7 +111,7 @@ public sealed class UserSessionInvalidationManagerTests
     }
 
     [Fact]
-    public void DoesNotEvictCacheWhenAmbientTransactionRollsBack()
+    public async Task DoesNotEvictCacheWhenAmbientTransactionRollsBack()
     {
         var session = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
         var cache = new RecordingDistributedCache();
@@ -119,7 +119,7 @@ public sealed class UserSessionInvalidationManagerTests
 
         using (new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
         {
-            Assert.True(sut.InvalidateUserSessions(42).Success);
+            Assert.True((await sut.InvalidateUserSessionsAsync(42)).Success);
             Assert.Empty(cache.RemovedKeys);
         }
 
@@ -129,13 +129,13 @@ public sealed class UserSessionInvalidationManagerTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public void RejectsInvalidUserIdsWithoutWriting(int userId)
+    public async Task RejectsInvalidUserIdsWithoutWriting(int userId)
     {
         var unitOfWork = new UnitOfWorkStub();
         var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
             new UserSessionDalStub(), new RecordingDistributedCache(), unitOfWork);
 
-        var result = sut.InvalidateUserSessions(userId);
+        var result = await sut.InvalidateUserSessionsAsync(userId);
 
         Assert.False(result.Success);
         Assert.Equal(0, unitOfWork.SaveCount);
@@ -157,7 +157,25 @@ public sealed class UserSessionInvalidationManagerTests
         new(new AuthenticationStateDalStub(), new UserSessionDalStub([session]), cache, unitOfWork);
 
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? items = null)
-        : EntityRepositoryStub<UserSession>(items), IUserSessionDal;
+        : EntityRepositoryStub<UserSession>(items), IUserSessionDal
+    {
+        public Task<bool> TryRotateAsync(Guid sessionId, Guid replacementSessionId, DateTime revokedAt,
+            CancellationToken cancellationToken = default)
+        {
+            var session = Get(item => item.Id == sessionId && item.RevokedAt == null && item.ExpiresAt > revokedAt);
+            if (session is null) return Task.FromResult(false);
+            session.RevokedAt = revokedAt;
+            session.ReplacedBySessionId = replacementSessionId;
+            return Task.FromResult(true);
+        }
+        public Task<bool> TryRevokeAsync(Guid sessionId, DateTime revokedAt, CancellationToken cancellationToken = default)
+        {
+            var session = Get(item => item.Id == sessionId && item.RevokedAt == null);
+            if (session is null) return Task.FromResult(false);
+            session.RevokedAt = revokedAt;
+            return Task.FromResult(true);
+        }
+    }
 
     private sealed class CommitAwareUnitOfWork(Action onSave) : IUnitOfWork
     {

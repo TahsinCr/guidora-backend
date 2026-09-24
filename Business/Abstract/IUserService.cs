@@ -5,16 +5,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Core.Utilities.Results;
+using System.Threading;
 
 namespace Business.Abstract
 {
     public interface IUserService
     {
-        IDataResult<List<OperationClaim>> GetClaims(User user);
-        IResult GrantOperationClaim(User user, OperationClaim operationClaim);
-        IDataResult<User> GetById(int id);
-        IDataResult<User> GetByMail(string email);
-        IResult RegisterUser(User user);
-        IResult UpdateUser(User user);
+        Task<IDataResult<List<OperationClaim>>> GetClaimsAsync(User user, CancellationToken cancellationToken = default);
+        Task<IResult> GrantOperationClaimAsync(User user, OperationClaim operationClaim, CancellationToken cancellationToken = default);
+        Task<IDataResult<User>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<IDataResult<User>> GetByMailAsync(string email, CancellationToken cancellationToken = default);
+        Task<IResult> RegisterUserAsync(User user, CancellationToken cancellationToken = default);
+        Task<IResult> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
     }
 }

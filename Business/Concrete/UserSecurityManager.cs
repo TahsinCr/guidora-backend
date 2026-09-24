@@ -2,6 +2,8 @@ using Business.Abstract;
 using Business.BusinessAspect.Autofac;
 using Core.Aspects.Transaction;
 using Core.Utilities.Results;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Business.Concrete
 {
@@ -18,49 +20,49 @@ namespace Business.Concrete
 
         [SecuredOperationAspect("User.Manage")]
         [TransactionScopeAspect]
-        public IResult Ban(int userId)
+        public async Task<IResult> BanAsync(int userId, CancellationToken cancellationToken = default)
         {
-            var userResult = _userService.GetById(userId);
+            var userResult = await _userService.GetByIdAsync(userId, cancellationToken);
             if (!userResult.Success)
             {
                 return new ErrorResult(userResult.Message);
             }
 
             userResult.Data.Status = false;
-            var updateResult = _userService.UpdateUser(userResult.Data);
+            var updateResult = await _userService.UpdateUserAsync(userResult.Data, cancellationToken);
             if (!updateResult.Success)
             {
                 return updateResult;
             }
 
-            return _sessionInvalidationService.InvalidateUserSessions(userId);
+            return await _sessionInvalidationService.InvalidateUserSessionsAsync(userId, cancellationToken);
         }
 
         [SecuredOperationAspect("User.Manage")]
         [TransactionScopeAspect]
-        public IResult Restore(int userId)
+        public async Task<IResult> RestoreAsync(int userId, CancellationToken cancellationToken = default)
         {
-            var userResult = _userService.GetById(userId);
+            var userResult = await _userService.GetByIdAsync(userId, cancellationToken);
             if (!userResult.Success)
             {
                 return new ErrorResult(userResult.Message);
             }
 
             userResult.Data.Status = true;
-            var updateResult = _userService.UpdateUser(userResult.Data);
+            var updateResult = await _userService.UpdateUserAsync(userResult.Data, cancellationToken);
             if (!updateResult.Success)
             {
                 return updateResult;
             }
 
-            return _sessionInvalidationService.InvalidateUserSessions(userId);
+            return await _sessionInvalidationService.InvalidateUserSessionsAsync(userId, cancellationToken);
         }
 
         [SecuredOperationAspect("User.Manage")]
         [TransactionScopeAspect]
-        public IResult InvalidateAuthorization(int userId)
+        public Task<IResult> InvalidateAuthorizationAsync(int userId, CancellationToken cancellationToken = default)
         {
-            return _sessionInvalidationService.InvalidateUserSessions(userId);
+            return _sessionInvalidationService.InvalidateUserSessionsAsync(userId, cancellationToken);
         }
     }
 }

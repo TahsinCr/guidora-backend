@@ -36,15 +36,17 @@ namespace Business.Concrete
         }
 
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
-        public IDataResult<List<Category>> GetAll()
+        public async Task<IDataResult<List<Category>>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return new SuccessDataResult<List<Category>>(_categoryDal.GetAll(category => category.IsActive));
+            return new SuccessDataResult<List<Category>>(
+                await _categoryDal.GetAllAsync(category => category.IsActive, cancellationToken));
         }
 
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
-        public IDataResult<Category> GetById(int id)
+        public async Task<IDataResult<Category>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var category = _categoryDal.Get(category => category.CategoryId == id && category.IsActive);
+            var category = await _categoryDal.GetAsync(category => category.CategoryId == id && category.IsActive,
+                cancellationToken);
             return category == null
                 ? new NotFoundDataResult<Category>("Category was not found.")
                 : new SuccessDataResult<Category>(category);

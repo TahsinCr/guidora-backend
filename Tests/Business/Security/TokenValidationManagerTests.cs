@@ -49,13 +49,31 @@ public sealed class TokenValidationManagerTests
 
     private sealed class UserDalStub(IEnumerable<User>? values = null) : EntityRepositoryStub<User>(values), IUserDal
     {
-        public List<OperationClaim> GetClaims(User user) => [];
+        public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) => Task.FromResult(new List<OperationClaim>());
         public void AddClaim(User user, OperationClaim operationClaim) { }
     }
     private sealed class AuthenticationStateDalStub(IEnumerable<UserAuthenticationState>? values = null)
         : EntityRepositoryStub<UserAuthenticationState>(values), IUserAuthenticationStateDal;
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? values = null)
-        : EntityRepositoryStub<UserSession>(values), IUserSessionDal;
+        : EntityRepositoryStub<UserSession>(values), IUserSessionDal
+    {
+        public Task<bool> TryRotateAsync(Guid sessionId, Guid replacementSessionId, DateTime revokedAt,
+            CancellationToken cancellationToken = default)
+        {
+            var session = Get(item => item.Id == sessionId && item.RevokedAt == null && item.ExpiresAt > revokedAt);
+            if (session is null) return Task.FromResult(false);
+            session.RevokedAt = revokedAt;
+            session.ReplacedBySessionId = replacementSessionId;
+            return Task.FromResult(true);
+        }
+        public Task<bool> TryRevokeAsync(Guid sessionId, DateTime revokedAt, CancellationToken cancellationToken = default)
+        {
+            var session = Get(item => item.Id == sessionId && item.RevokedAt == null);
+            if (session is null) return Task.FromResult(false);
+            session.RevokedAt = revokedAt;
+            return Task.FromResult(true);
+        }
+    }
 
     private sealed class InMemoryDistributedCacheStub : IDistributedCache
     {

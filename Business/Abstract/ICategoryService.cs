@@ -9,8 +9,8 @@ namespace Business.Abstract
 {
     public interface ICategoryService
     {
-        IDataResult<List<Category>> GetAll();
-        IDataResult<Category> GetById(int id);
+        Task<IDataResult<List<Category>>> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<IDataResult<Category>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<IResult> CreateAsync(CategoryRequest request, int createdByUserId,
             CancellationToken cancellationToken = default);
         Task<IResult> UpdateAsync(int categoryId, CategoryRequest request, int updatedByUserId,

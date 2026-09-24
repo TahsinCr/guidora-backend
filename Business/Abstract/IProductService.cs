@@ -9,9 +9,7 @@ namespace Business.Abstract
 {
     public interface IProductService
     {
-        IDataResult<List<Product>> GetAll();
-        public IDataResult<List<Product>> GetAllByCategoryId(int id);
-        public IDataResult<Product> GetById(int id);
+        Task<IDataResult<Product>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<IDataResult<PagedResult<Product>>> GetPageAsync(PageRequest request, int? categoryId = null,
             CancellationToken cancellationToken = default);
         Task<IResult> CreateAsync(CreateProductRequest request, int createdByUserId,

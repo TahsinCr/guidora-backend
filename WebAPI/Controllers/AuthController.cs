@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using WebAPI.Utilities;
 
 namespace WebAPI.Controllers
@@ -24,15 +26,15 @@ namespace WebAPI.Controllers
 
         [HttpPost("login")]
         [EnableRateLimiting("auth-login")]
-        public IActionResult Login(UserForLoginDto userForLoginDto)
+        public async Task<IActionResult> Login(UserForLoginDto userForLoginDto, CancellationToken cancellationToken)
         {
-            var userToLogin = _authService.Login(userForLoginDto);
+            var userToLogin = await _authService.LoginAsync(userForLoginDto, cancellationToken);
             if (!userToLogin.Success)
             {
                 return Unauthorized(userToLogin);
             }
 
-            var result = _authService.CreateSession(userToLogin.Data, userForLoginDto.RememberMe, GetDeviceName());
+            var result = await _authService.CreateSessionAsync(userToLogin.Data, userForLoginDto.RememberMe, GetDeviceName(), cancellationToken);
             if (result.Success)
             {
                 WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration,
@@ -45,15 +47,15 @@ namespace WebAPI.Controllers
 
         [HttpPost("register")]
         [EnableRateLimiting("auth-register")]
-        public IActionResult Register(UserForRegisterDto userForRegisterDto)
+        public async Task<IActionResult> Register(UserForRegisterDto userForRegisterDto, CancellationToken cancellationToken)
         {
-            var registerResult = _authService.Register(userForRegisterDto,userForRegisterDto.Password);
+            var registerResult = await _authService.RegisterAsync(userForRegisterDto, userForRegisterDto.Password, cancellationToken);
             if (!registerResult.Success)
             {
                 return this.ToHttpResult(registerResult);
             }
 
-            var result = _authService.CreateSession(registerResult.Data, userForRegisterDto.RememberMe, GetDeviceName());
+            var result = await _authService.CreateSessionAsync(registerResult.Data, userForRegisterDto.RememberMe, GetDeviceName(), cancellationToken);
             if (result.Success)
             {
                 WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration,
@@ -66,14 +68,14 @@ namespace WebAPI.Controllers
 
         [HttpPost("refresh")]
         [EnableRateLimiting("auth-refresh")]
-        public IActionResult Refresh()
+        public async Task<IActionResult> Refresh(CancellationToken cancellationToken)
         {
             if (!Request.Cookies.TryGetValue("guidora_refresh", out var refreshToken))
             {
                 return Unauthorized();
             }
 
-            var result = _authService.RefreshSession(refreshToken, GetDeviceName());
+            var result = await _authService.RefreshSessionAsync(refreshToken, GetDeviceName(), cancellationToken);
             if (!result.Success)
             {
                 Response.Cookies.Delete("guidora_refresh");
@@ -86,11 +88,11 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost("logout")]
-        public ActionResult Logout()
+        public async Task<ActionResult> Logout(CancellationToken cancellationToken)
         {
             if (Request.Cookies.TryGetValue("guidora_refresh", out var refreshToken))
             {
-                _authService.RevokeSession(refreshToken);
+                await _authService.RevokeSessionAsync(refreshToken, cancellationToken);
             }
 
             Response.Cookies.Delete("guidora_refresh");
