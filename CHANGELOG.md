@@ -6,6 +6,9 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Updated `ValidationAspect` to resolve typed FluentValidation validators from
+  the current request scope, supporting validator dependencies and generic base
+  classes; added scoped-DI and validation-failure tests.
 - Removed the V1-out-of-scope Bot Verification type from the active lookup seed;
   added a reversible, reference-preserving cleanup migration and bounded Redis
   pattern invalidation to avoid materializing unbounded matching keys in memory.

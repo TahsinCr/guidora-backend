@@ -1,41 +1,49 @@
 ﻿
 using Castle.DynamicProxy;
-using Core.Entities;
 using FluentValidation;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Core.CrossCuttingConcerns.Validation;
 using Core.Utilities.Interceptors.Autofac;
+using Core.Utilities.IoC;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.Aspects.Autofac.Validation
 {
     public class ValidationAspect : MethodInterception
     {
         public const int InterceptorPriority = 200;
-        private readonly Type _validatorType;
+        private readonly Type _validatorServiceType;
+
         public ValidationAspect(Type validatorType)
         {
             Priority = InterceptorPriority;
             if (!typeof(IValidator).IsAssignableFrom(validatorType))
             {
-                throw new System.Exception("This is not the right class");
+                throw new ArgumentException("The validator type must implement FluentValidation.IValidator.",
+                    nameof(validatorType));
             }
-            _validatorType = validatorType;
+
+            _validatorServiceType = validatorType.GetInterfaces()
+                .SingleOrDefault(type => type.IsGenericType &&
+                                         type.GetGenericTypeDefinition() == typeof(IValidator<>))
+                ?? throw new ArgumentException("The validator must implement IValidator<T>.", nameof(validatorType));
         }
 
         protected override void OnBefore(IInvocation invocation)
         {
-            var validator = Activator.CreateInstance(_validatorType) as IValidator
-                ?? throw new InvalidOperationException("Unable to create the validator.");
-            var entityType = _validatorType.BaseType?.GetGenericArguments().FirstOrDefault()
-                ?? throw new InvalidOperationException("The validator must inherit from a generic validator type.");
+            var rootProvider = ServiceTool.ServiceProvider;
+            var requestServices = rootProvider.GetService<IHttpContextAccessor>()?.HttpContext?.RequestServices;
+            var validatorProvider = requestServices ?? rootProvider;
+            var validator = validatorProvider.GetRequiredService(_validatorServiceType) as IValidator
+                ?? throw new InvalidOperationException(
+                    $"Validator service '{_validatorServiceType}' is not registered.");
+            var entityType = _validatorServiceType.GetGenericArguments()[0];
             var entities = invocation.Arguments
-                .Where(t => t is not null && t.GetType() == entityType)
+                .Where(entityType.IsInstanceOfType)
                 .Select(t => t!);
-            foreach ( var entity in entities)
+            foreach (var entity in entities)
             {
                 ValidationTool.FluentValidation(validator, entity);
             }

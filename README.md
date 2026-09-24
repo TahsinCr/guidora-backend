@@ -12,6 +12,8 @@ Guidora Backend is a .NET platform designed to run on Docker and evolve into ind
 - RabbitMQ is optional in V1; introduce broker-backed events only when an
   asynchronous integration/use-case is added.
 - Redis is used for caching and temporary distributed state, not as the source of truth.
+- Validation aspects resolve closed `IValidator<T>` services from the active
+  request scope, so validators may use DI dependencies and generic base classes.
 - Secrets must never be committed to the repository.
 - Ongoing work must be recorded in the `Unreleased` section of `CHANGELOG.md`.
 - A versioned changelog section must not be created before an official release.
