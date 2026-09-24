@@ -209,9 +209,10 @@ category Product IDs in the API process.
 Only active Categories are public: listing Products by an inactive or unknown
 Category returns 404. Deactivating a Category invalidates both navigation and
 Product-listing caches after the database transaction commits.
-`GET /api/categories` exposes active Categories only. Authorized moderators and
-Admins can inspect the complete management catalog, including inactive rows,
-through `GET /api/categories/management` (`Category.Manage` claim).
+`GET /api/categories` exposes active Categories only. Admins and any role
+assigned the `Category.Manage` claim can inspect the complete management
+catalog, including inactive rows, through `GET /api/categories/management`.
+This claim is seeded to Admin by default.
 
 The public tag catalog is exposed by `GET /api/tag-categories` and
 `GET /api/tags?tagCategoryId={id}`. Both return active entries only. Moderator

@@ -79,6 +79,25 @@ public sealed class OperationClaimDeleteBehaviorTests
     }
 
     [Fact]
+    public void CategoryManagementPermissionIsSeededOnlyForAdminByDefault()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var categoryManageClaim = Assert.Single(model.FindEntityType(typeof(OperationClaim))!.GetSeedData(),
+            seed => seed["Name"] as string == "Category.Manage");
+        var claimId = Convert.ToInt32(categoryManageClaim["Id"]);
+        var roleIds = model.FindEntityType(typeof(RoleOperationClaim))!.GetSeedData()
+            .Where(seed => Convert.ToInt32(seed["OperationClaimId"]) == claimId)
+            .Select(seed => Convert.ToInt32(seed["RoleId"]))
+            .ToArray();
+
+        Assert.Equal([3], roleIds);
+    }
+
+    [Fact]
     public void ProductUpdatePermissionIsSeededForTheCommunityUserRole()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()
