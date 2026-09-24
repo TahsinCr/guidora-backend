@@ -47,8 +47,8 @@ public sealed class FavoriteManager : IFavoriteService
             new PagedResult<Favorite>(favorites, request.Page, request.PageSize, totalCount));
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Favorite.Manage")]
+    [TransactionScopeAspect]
     public async Task<IResult> AddAsync(int productId, int userId, CancellationToken cancellationToken = default)
     {
         if (!await IsActiveUserAsync(userId, cancellationToken)) return new ErrorResult("User is unavailable.");
@@ -68,8 +68,8 @@ public sealed class FavoriteManager : IFavoriteService
         return new SuccessResult("Product added to favorites.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Favorite.Manage")]
+    [TransactionScopeAspect]
     public async Task<IResult> RemoveAsync(int productId, int userId, CancellationToken cancellationToken = default)
     {
         var favorite = await _favoriteDal.GetAsync(item => item.UserId == userId && item.ProductId == productId,

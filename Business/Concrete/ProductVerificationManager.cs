@@ -35,10 +35,10 @@ public sealed class ProductVerificationManager : IProductVerificationService
         _unitOfWork = unitOfWork;
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Verify")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> VerifyAsAdminAsync(int productId, int verifierUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -91,10 +91,10 @@ public sealed class ProductVerificationManager : IProductVerificationService
         return new SuccessResult("Product verified by an administrator.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Verify")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> RevokeAdminVerificationAsync(int productId, int actorUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default)
     {

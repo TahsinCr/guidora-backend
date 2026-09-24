@@ -1,4 +1,5 @@
 using Business.BusinessAspect.Autofac;
+using Business.Concrete;
 using Castle.DynamicProxy;
 using Core.Aspects.Caching;
 using Core.Aspects.Transaction;
@@ -9,6 +10,7 @@ using IResult = Core.Utilities.Results.IResult;
 using SuccessResult = Core.Utilities.Results.SuccessResult;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using Tests.Core.TestDoubles;
 
 namespace Tests.Core.Aspects;
@@ -40,6 +42,51 @@ public sealed class AspectInterceptorSelectorTests
     public void CacheRemovalWrapsTransactionSoItRunsAfterCommit()
     {
         Assert.True(CacheRemoveAspect.InterceptorPriority < TransactionScopeAspect.InterceptorPriority);
+    }
+
+    [Fact]
+    public void BusinessManagerAspectDeclarationsMatchResolvedRuntimeOrder()
+    {
+        var services = new ServiceCollection()
+            .AddSingleton<ICacheManager>(new CacheManagerStub())
+            .AddSingleton<IHttpContextAccessor, HttpContextAccessor>()
+            .BuildServiceProvider();
+        ServiceTool.SetProvider(services);
+
+        var selector = new AspectInterceptorSelector();
+        var businessAssembly = typeof(ProductManager).Assembly;
+        var checkedMethods = 0;
+
+        foreach (var managerType in businessAssembly.GetTypes()
+                     .Where(type => type.Namespace == "Business.Concrete" && !type.IsAbstract))
+        {
+            foreach (var method in managerType.GetMethods(BindingFlags.Instance | BindingFlags.Public |
+                                                          BindingFlags.DeclaredOnly))
+            {
+                var declaredAspectTypes = method.GetCustomAttributesData()
+                    .Where(attribute => typeof(MethodInterceptionBaseAttribute)
+                        .IsAssignableFrom(attribute.AttributeType))
+                    .Select(attribute => attribute.AttributeType)
+                    .ToArray();
+
+                if (declaredAspectTypes.Length == 0)
+                {
+                    continue;
+                }
+
+                IInterceptor[] interceptors = selector.SelectInterceptors(
+                    managerType, method, Array.Empty<IInterceptor>());
+                var methodAspectTypesInRuntimeOrder = interceptors
+                    .Select(interceptor => interceptor.GetType())
+                    .Where(type => declaredAspectTypes.Contains(type))
+                    .ToArray();
+
+                Assert.Equal(declaredAspectTypes, methodAspectTypesInRuntimeOrder);
+                checkedMethods++;
+            }
+        }
+
+        Assert.True(checkedMethods > 0, "Expected to inspect production Business Manager aspects.");
     }
 }
 

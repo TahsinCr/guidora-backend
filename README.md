@@ -97,8 +97,12 @@ Aspect priorities define wrapper nesting, not the timestamp of each aspect's
 callback. Authorization and validation guard the use case; `CacheRemoveAspect`
 wraps the transaction so its success hook executes after the inner transaction
 commits. Failed business results and rollbacks do not invalidate caches.
-Operation logging runs from the post-operation hook after the wrapped pipeline
-finishes.
+Business Manager attributes are declared in the selector's outer-to-inner
+priority order, and a contract test checks every decorated public Manager
+method against the production selector. Thus cache removal is declared before
+the transaction wrapper even though its invalidation callback runs after the
+transaction commits. Operation logging runs from the post-operation hook after
+the wrapped pipeline finishes.
 
 Redis is configured as disposable cache infrastructure: AOF and RDB persistence
 are disabled, and the global eviction policy is `allkeys-lfu`. Compose defaults

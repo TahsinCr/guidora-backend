@@ -36,8 +36,8 @@ public sealed class ProductReportManager : IProductReportService
         _unitOfWork = unitOfWork;
     }
 
-    [TransactionScopeAspect]
     [ValidationAspect(typeof(ProductReportRequestValidator))]
+    [TransactionScopeAspect]
     public async Task<IResult> SubmitAsync(int productId, int reporterUserId, ProductReportRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -70,16 +70,16 @@ public sealed class ProductReportManager : IProductReportService
         return new SuccessResult("Product report submitted.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("ProductReport.Review")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
+    [TransactionScopeAspect]
     public Task<IResult> ResolveAsync(int reportId, int reviewerUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default) =>
         ChangeStatusAsync(reportId, reviewerUserId, "resolved", request.Note, cancellationToken);
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("ProductReport.Review")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
+    [TransactionScopeAspect]
     public Task<IResult> DismissAsync(int reportId, int reviewerUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default) =>
         ChangeStatusAsync(reportId, reviewerUserId, "dismissed", request.Note, cancellationToken);

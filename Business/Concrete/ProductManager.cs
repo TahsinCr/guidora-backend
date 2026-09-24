@@ -140,10 +140,10 @@ namespace Business.Concrete
             
         }
 
-        [TransactionScopeAspect]
         [SecuredOperationAspect("Product.Create")]
         [ValidationAspect(typeof(CreateProductRequestValidator))]
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        [TransactionScopeAspect]
         public async Task<IResult> CreateAsync(CreateProductRequest request, int createdByUserId,
             CancellationToken cancellationToken = default)
         {
@@ -186,10 +186,10 @@ namespace Business.Concrete
             return categoryResult;
         }
 
-        [TransactionScopeAspect]
         [SecuredOperationAspect("Product.Update")]
         [ValidationAspect(typeof(UpdateProductRequestValidator))]
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        [TransactionScopeAspect]
         public async Task<IResult> UpdateAsync(int productId, UpdateProductRequest request, int updatedByUserId,
             CancellationToken cancellationToken = default)
         {
@@ -324,9 +324,9 @@ namespace Business.Concrete
             return new SuccessResult("Edit proposal submitted for review.");
         }
 
-        [TransactionScopeAspect]
         [SecuredOperationAspect("Product.Delete")]
         [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        [TransactionScopeAspect]
         public async Task<IResult> DeleteAsync(int productId, int deletedByUserId,
             CancellationToken cancellationToken = default)
         {

@@ -46,10 +46,10 @@ public sealed class ProductChangelogManager : IProductChangelogService
             .ThenByDescending(item => item.Id).ToList());
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductChangelogRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductChangelogRequest request,
         CancellationToken cancellationToken = default)
     {

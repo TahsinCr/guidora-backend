@@ -56,10 +56,10 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         _unitOfWork = unitOfWork;
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Proposal.Review")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> AcceptAsync(int proposalId, int reviewerUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -155,9 +155,9 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         return new SuccessResult("Product edit proposal accepted.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Proposal.Review")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
+    [TransactionScopeAspect]
     public async Task<IResult> RejectAsync(int proposalId, int reviewerUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default)
     {

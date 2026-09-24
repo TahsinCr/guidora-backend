@@ -56,9 +56,9 @@ public sealed class AuditRevertManager : IAuditRevertService
         _unitOfWork = unitOfWork;
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Audit.Revert")]
     [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail, CacheProfiles.CatalogNavigation)]
+    [TransactionScopeAspect]
     public async Task<IResult> RevertAsync(long auditLogId, int actorUserId,
         CancellationToken cancellationToken = default)
     {

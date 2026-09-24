@@ -50,10 +50,10 @@ namespace Business.Concrete
                 : new SuccessDataResult<Category>(category);
         }
 
-        [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
-        [TransactionScopeAspect]
         [SecuredOperationAspect("Category.Manage")]
         [ValidationAspect(typeof(CategoryRequestValidator))]
+        [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
+        [TransactionScopeAspect]
         public async Task<IResult> CreateAsync(CategoryRequest request, int createdByUserId,
             CancellationToken cancellationToken = default)
         {
@@ -81,10 +81,10 @@ namespace Business.Concrete
             return new SuccessResult();
         }
 
-        [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
-        [TransactionScopeAspect]
         [SecuredOperationAspect("Category.Manage")]
         [ValidationAspect(typeof(CategoryRequestValidator))]
+        [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
+        [TransactionScopeAspect]
         public async Task<IResult> UpdateAsync(int categoryId, CategoryRequest request, int updatedByUserId,
             CancellationToken cancellationToken = default)
         {
@@ -114,9 +114,9 @@ namespace Business.Concrete
             return new SuccessResult();
         }
 
+        [SecuredOperationAspect("Category.Manage")]
         [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
         [TransactionScopeAspect]
-        [SecuredOperationAspect("Category.Manage")]
         public async Task<IResult> DeactivateAsync(int categoryId, int updatedByUserId,
             CancellationToken cancellationToken = default)
         {

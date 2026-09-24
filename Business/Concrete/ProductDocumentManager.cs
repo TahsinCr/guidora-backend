@@ -46,10 +46,10 @@ public sealed class ProductDocumentManager : IProductDocumentService
             .ThenBy(item => item.Title).ToList());
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductDocumentRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductDocumentRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -71,10 +71,10 @@ public sealed class ProductDocumentManager : IProductDocumentService
         return new SuccessResult("Product document created.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductDocumentRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> UpdateAsync(int productId, int documentId, int actorUserId,
         ProductDocumentRequest request, CancellationToken cancellationToken = default)
     {
@@ -98,9 +98,9 @@ public sealed class ProductDocumentManager : IProductDocumentService
         return new SuccessResult("Product document updated.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Content.Manage")]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> DeleteAsync(int productId, int documentId, int actorUserId,
         CancellationToken cancellationToken = default)
     {

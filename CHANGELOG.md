@@ -60,6 +60,9 @@ All notable changes to the Guidora backend are documented here.
   interceptor ordering, post-operation logging, and convention-based secured
   operation claim names. The cache-after-commit test now obtains interceptors
   from the production selector rather than manually arranging them.
+- Normalized Business Manager aspect declarations to the selector's actual
+  outer-to-inner order and added a contract test covering every decorated
+  public Manager method, preventing source-order drift from runtime behavior.
 - Made CacheAspect TTL explicit at the use case; absent TTL has no time-based
   expiry. Redis now uses disposable allkeys-LFU caching with separate data and
   container memory limits and persistence disabled.

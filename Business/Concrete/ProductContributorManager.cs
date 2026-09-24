@@ -49,10 +49,10 @@ public sealed class ProductContributorManager : IProductContributorService
         return new SuccessDataResult<List<ProductContributor>>(contributors.OrderBy(item => item.CreatedAt).ToList());
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Contributor.Manage")]
     [ValidationAspect(typeof(ProductContributorRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> AddAsync(int productId, int actorUserId, ProductContributorRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -98,9 +98,9 @@ public sealed class ProductContributorManager : IProductContributorService
         return new SuccessResult("Product contributor saved.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Contributor.Manage")]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> RemoveAsync(int productId, int userId, int actorUserId,
         CancellationToken cancellationToken = default)
     {

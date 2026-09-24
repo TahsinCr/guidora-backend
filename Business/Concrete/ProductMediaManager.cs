@@ -45,10 +45,10 @@ public sealed class ProductMediaManager : IProductMediaService
         return new SuccessDataResult<List<ProductMedia>>(media.OrderBy(item => item.DisplayOrder).ThenBy(item => item.Id).ToList());
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductMediaRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductMediaRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -70,10 +70,10 @@ public sealed class ProductMediaManager : IProductMediaService
         return new SuccessResult("Product media metadata created.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductMediaRequestValidator))]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> UpdateAsync(int productId, int mediaId, int actorUserId, ProductMediaRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -96,9 +96,9 @@ public sealed class ProductMediaManager : IProductMediaService
         return new SuccessResult("Product media metadata updated.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Product.Content.Manage")]
     [CacheRemoveAspect(CacheProfiles.ProductDetail)]
+    [TransactionScopeAspect]
     public async Task<IResult> DeleteAsync(int productId, int mediaId, int actorUserId,
         CancellationToken cancellationToken = default)
     {

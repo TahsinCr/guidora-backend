@@ -16,8 +16,8 @@ namespace Business.Concrete
             _sessionInvalidationService = sessionInvalidationService;
         }
 
-        [TransactionScopeAspect]
         [SecuredOperationAspect("User.Manage")]
+        [TransactionScopeAspect]
         public IResult Ban(int userId)
         {
             var userResult = _userService.GetById(userId);
@@ -36,8 +36,8 @@ namespace Business.Concrete
             return _sessionInvalidationService.InvalidateUserSessions(userId);
         }
 
-        [TransactionScopeAspect]
         [SecuredOperationAspect("User.Manage")]
+        [TransactionScopeAspect]
         public IResult Restore(int userId)
         {
             var userResult = _userService.GetById(userId);
@@ -56,8 +56,8 @@ namespace Business.Concrete
             return _sessionInvalidationService.InvalidateUserSessions(userId);
         }
 
-        [TransactionScopeAspect]
         [SecuredOperationAspect("User.Manage")]
+        [TransactionScopeAspect]
         public IResult InvalidateAuthorization(int userId)
         {
             return _sessionInvalidationService.InvalidateUserSessions(userId);

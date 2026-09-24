@@ -56,9 +56,9 @@ public sealed class CommentManager : ICommentService
             new PagedResult<Comment>(comments, request.Page, request.PageSize, totalCount));
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Comment.Create")]
     [ValidationAspect(typeof(CommentRequestValidator))]
+    [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(int productId, int userId, CommentRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -91,8 +91,8 @@ public sealed class CommentManager : ICommentService
         return new SuccessResult("Comment created.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Comment.Create")]
+    [TransactionScopeAspect]
     public async Task<IResult> DeleteAsync(int commentId, int actorUserId,
         CancellationToken cancellationToken = default)
     {
@@ -114,8 +114,8 @@ public sealed class CommentManager : ICommentService
         return new SuccessResult("Comment deleted.");
     }
 
-    [TransactionScopeAspect]
     [SecuredOperationAspect("Comment.Moderate")]
+    [TransactionScopeAspect]
     public async Task<IResult> SetVisibilityAsync(int commentId, int actorUserId, bool isVisible,
         CancellationToken cancellationToken = default)
     {
