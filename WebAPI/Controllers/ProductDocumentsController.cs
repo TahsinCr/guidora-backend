@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
 
@@ -26,7 +27,7 @@ public sealed class ProductDocumentsController : ControllerBase
     {
         if (!TryUserId(out var actorId)) return Unauthorized();
         var result = await _service.CreateAsync(productId, actorId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPut("{documentId:int}")]
@@ -35,7 +36,7 @@ public sealed class ProductDocumentsController : ControllerBase
     {
         if (!TryUserId(out var actorId)) return Unauthorized();
         var result = await _service.UpdateAsync(productId, documentId, actorId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpDelete("{documentId:int}")]
@@ -43,7 +44,7 @@ public sealed class ProductDocumentsController : ControllerBase
     {
         if (!TryUserId(out var actorId)) return Unauthorized();
         var result = await _service.DeleteAsync(productId, documentId, actorId, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     private bool TryUserId(out int userId) => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);

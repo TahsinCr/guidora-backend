@@ -5,10 +5,8 @@ using Business.BusinessRules.Content;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
-using Core.Aspects.Caching;
 using Core.Aspects.Transaction;
 using Core.DataAccess;
-using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -51,7 +49,6 @@ public sealed class ProductContributorManager : IProductContributorService
 
     [SecuredOperationAspect("Product.Contributor.Manage")]
     [ValidationAspect(typeof(ProductContributorRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> AddAsync(int productId, int actorUserId, ProductContributorRequest request,
         CancellationToken cancellationToken = default)
@@ -61,7 +58,7 @@ public sealed class ProductContributorManager : IProductContributorService
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
-        if (product is null) return new ErrorResult("Product was not found.");
+        if (product is null) return new NotFoundResult("Product was not found.");
         if (actorUserId != request.UserId && actorUserId != product.CreatedByUserId)
             return new ErrorResult("Only the Product creator may credit another contributor.");
         var user = await _userDal.GetAsync(item => item.Id == request.UserId, cancellationToken);
@@ -99,7 +96,6 @@ public sealed class ProductContributorManager : IProductContributorService
     }
 
     [SecuredOperationAspect("Product.Contributor.Manage")]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> RemoveAsync(int productId, int userId, int actorUserId,
         CancellationToken cancellationToken = default)
@@ -107,7 +103,7 @@ public sealed class ProductContributorManager : IProductContributorService
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
-        if (product is null) return new ErrorResult("Product was not found.");
+        if (product is null) return new NotFoundResult("Product was not found.");
         if (actorUserId != userId && actorUserId != product.CreatedByUserId)
             return new ErrorResult("Only the contributor or Product creator may remove this credit.");
         var contributor = await _contributorDal.GetAsync(item => item.ProductId == productId && item.UserId == userId,

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers
 {
@@ -24,12 +25,7 @@ namespace WebAPI.Controllers
             if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
                 return Unauthorized();
             var result = await _categoryService.CreateAsync(request, actorId, cancellationToken);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpDelete("{id:int}")]
@@ -38,36 +34,21 @@ namespace WebAPI.Controllers
             if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
                 return Unauthorized();
             var result = await _categoryService.DeactivateAsync(id, actorId, cancellationToken);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpGet("{id:int}")]
         public IActionResult GetById(int id)
         {
             var result = _categoryService.GetById(id);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpGet]
         public IActionResult GetAll()
         {
             var result = _categoryService.GetAll();
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpPut("{id:int}")]
@@ -76,12 +57,7 @@ namespace WebAPI.Controllers
             if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
                 return Unauthorized();
             var result = await _categoryService.UpdateAsync(id, request, actorId, cancellationToken);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
     }
 }

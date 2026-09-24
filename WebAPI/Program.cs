@@ -10,21 +10,26 @@ using Core.Utilities.Security.Encyption;
 using Core.Utilities.Security.JWT;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using DataAccess.Concrete.Entityframework.Contexts;
 using Business.Abstract;
 using System.Security.Claims;
 using StackExchange.Redis;
-using Core.CrossCuttingConcerns.Messaging;
-using Microsoft.Extensions.Options;
-using RabbitMQ.Client;
 using Business.Security;
 using DataAccess.Abstract;
 using Core.DataAccess;
+using System.Net;
+using System.Threading.RateLimiting;
+using WebAPI.HealthChecks;
 
 namespace WebAPI
 {
@@ -34,8 +39,8 @@ namespace WebAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            string apiCorsPolicy = "_apiCorsPolicy";
-            string[] allowOrigins = ["http://localhost:4200"];
+            const string apiCorsPolicy = "_apiCorsPolicy";
+            var allowOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
             builder.Services.AddCors(options =>
             {
@@ -47,6 +52,33 @@ namespace WebAPI
                             .AllowCredentials();
                     }
                 );
+            });
+
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                foreach (var proxyAddress in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies")
+                             .Get<string[]>() ?? [])
+                {
+                    if (!IPAddress.TryParse(proxyAddress, out var address))
+                    {
+                        throw new InvalidOperationException(
+                            $"Forwarded proxy address '{proxyAddress}' is not a valid IP address.");
+                    }
+
+                    options.KnownProxies.Add(address);
+                }
+            });
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                AddIpRateLimitPolicy(options, builder.Configuration, "auth-login", "RateLimiting:Login",
+                    permitLimit: 10, windowSeconds: 60);
+                AddIpRateLimitPolicy(options, builder.Configuration, "auth-register", "RateLimiting:Register",
+                    permitLimit: 5, windowSeconds: 3600);
+                AddIpRateLimitPolicy(options, builder.Configuration, "auth-refresh", "RateLimiting:Refresh",
+                    permitLimit: 30, windowSeconds: 60);
             });
 
             // Add services to the container.
@@ -67,22 +99,9 @@ namespace WebAPI
                 options.ClientName = "guidora-api";
                 return ConnectionMultiplexer.Connect(options);
             });
-            builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
-            builder.Services.AddSingleton<IConnection>(serviceProvider =>
-            {
-                var options = serviceProvider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
-                var factory = new ConnectionFactory
-                {
-                    HostName = options.HostName,
-                    Port = options.Port,
-                    UserName = options.UserName,
-                    Password = options.Password,
-                    VirtualHost = options.VirtualHost,
-                    ClientProvidedName = options.ClientProvidedName
-                };
-                return factory.CreateConnectionAsync().GetAwaiter().GetResult();
-            });
-            builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
+            builder.Services.AddHealthChecks()
+                .AddCheck<PostgreSqlHealthCheck>("postgresql", tags: ["ready"])
+                .AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);
 
             //builder.Services.AddSingleton<IProductDal,EfProductDal>();
             //builder.Services.AddSingleton<IProductService,ProductManager>();
@@ -114,7 +133,7 @@ namespace WebAPI
                     };
                     options.Events = new JwtBearerEvents
                     {
-                        OnTokenValidated = context =>
+                        OnTokenValidated = async context =>
                         {
                             var userIdValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                             var sessionId = context.Principal?.FindFirst("sid")?.Value;
@@ -125,18 +144,18 @@ namespace WebAPI
                                 string.IsNullOrWhiteSpace(sessionId))
                             {
                                 context.Fail("Access token security claims are invalid.");
-                                return Task.CompletedTask;
+                                return;
                             }
 
                             var validationService = context.HttpContext.RequestServices
                                 .GetRequiredService<ITokenValidationService>();
-                            var validationResult = validationService.Validate(userId, sessionId, authorizationVersion);
+                            var validationResult = await validationService.ValidateAsync(userId, sessionId,
+                                authorizationVersion, context.HttpContext.RequestAborted);
                             if (!validationResult.Success)
                             {
                                 context.Fail(validationResult.Message);
                             }
 
-                            return Task.CompletedTask;
                         }
                     };
                 });
@@ -172,9 +191,14 @@ namespace WebAPI
                 app.UseSwaggerUI();
             }
 
+            app.UseForwardedHeaders();
             app.ConfigureCustomExceptionMiddleware();
 
+            app.UseRouting();
+
             app.UseCors(apiCorsPolicy);
+
+            app.UseRateLimiter();
 
             app.UseHttpsRedirection();
 
@@ -183,7 +207,18 @@ namespace WebAPI
             app.UseAuthorization();
             
             app.MapControllers();
-            app.MapGet("/health", () => "ok");
+            app.MapHealthChecks("/health/live", new HealthCheckOptions
+            {
+                Predicate = _ => false
+            });
+            app.MapHealthChecks("/health/ready", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("ready")
+            });
+            app.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("ready")
+            });
 
             app.Run();
         }
@@ -201,6 +236,30 @@ namespace WebAPI
             }
 
             await context.Database.MigrateAsync();
+        }
+
+        private static void AddIpRateLimitPolicy(RateLimiterOptions options, IConfiguration configuration,
+            string policyName, string configurationPath, int permitLimit, int windowSeconds)
+        {
+            var configuredPermitLimit = configuration.GetValue<int?>($"{configurationPath}:PermitLimit")
+                                        ?? permitLimit;
+            var configuredWindowSeconds = configuration.GetValue<int?>($"{configurationPath}:WindowSeconds")
+                                          ?? windowSeconds;
+
+            if (configuredPermitLimit <= 0 || configuredWindowSeconds <= 0)
+            {
+                throw new InvalidOperationException($"Rate limit settings for '{policyName}' must be positive.");
+            }
+
+            options.AddPolicy(policyName, context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = configuredPermitLimit,
+                    QueueLimit = 0,
+                    Window = TimeSpan.FromSeconds(configuredWindowSeconds)
+                }));
         }
     }
 }

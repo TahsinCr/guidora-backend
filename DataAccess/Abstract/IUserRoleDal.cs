@@ -3,7 +3,7 @@ using Core.Entities.Concrete;
 
 namespace DataAccess.Abstract
 {
-    public interface IUserRoleDal : IEntityRepository<UserRole>
+    public interface IUserRoleDal : IEntityRepository<UserRole>, IEntityPurgeRepository<UserRole>
     {
     }
 }

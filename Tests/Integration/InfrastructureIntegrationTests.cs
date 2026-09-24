@@ -142,6 +142,73 @@ public sealed class InfrastructureIntegrationTests
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task ReportReviewUpdatesRejectAStalePostgreSqlXminVersion()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING")).Options;
+        var suffix = Guid.NewGuid().ToString("N");
+        int reportId;
+        int productId;
+        int userId;
+
+        await using (var setup = new GuidoraDbContext(options))
+        {
+            var user = new User
+            {
+                FirstName = "Concurrency", LastName = "Report", Email = $"report-{suffix}@example.test",
+                PasswordHash = [1], PasswordSalt = [1], Status = true
+            };
+            setup.Users.Add(user);
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+            var published = await setup.ProductStatuses.SingleAsync(item => item.Code == "published");
+            var product = new Product
+            {
+                Name = $"Report-{suffix}", Slug = $"report-{suffix}", ShortDescription = "Concurrency test",
+                Description = "Test product", WebsiteUrl = $"https://example.test/{suffix}",
+                LogoUrl = "https://example.test/logo.png", ProductStatusId = published.Id,
+                CreatedByUserId = userId, CreatedAt = DateTime.UtcNow
+            };
+            setup.Products.Add(product);
+            await setup.SaveChangesAsync();
+            productId = product.ProductId;
+            var report = new ProductReport
+            {
+                ProductId = productId, ReportedByUserId = userId, ReportReasonId = 1,
+                ReportStatusId = 1, Description = "initial", CreatedAt = DateTime.UtcNow
+            };
+            setup.ProductReports.Add(report);
+            await setup.SaveChangesAsync();
+            reportId = report.Id;
+        }
+
+        try
+        {
+            await using var first = new GuidoraDbContext(options);
+            await using var second = new GuidoraDbContext(options);
+            var firstReport = await first.ProductReports.SingleAsync(item => item.Id == reportId);
+            var staleReport = await second.ProductReports.SingleAsync(item => item.Id == reportId);
+            firstReport.Description = "resolved by writer one";
+            firstReport.ReportStatusId = 2;
+            firstReport.ResolvedByUserId = userId;
+            firstReport.ResolvedAt = DateTime.UtcNow;
+            await first.SaveChangesAsync();
+
+            staleReport.Description = "stale writer";
+            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync());
+        }
+        finally
+        {
+            await using var cleanup = new GuidoraDbContext(options);
+            var product = await cleanup.Products.SingleOrDefaultAsync(item => item.ProductId == productId);
+            if (product is not null) cleanup.Products.Remove(product);
+            var user = await cleanup.Users.SingleOrDefaultAsync(item => item.Id == userId);
+            if (user is not null) cleanup.Users.Remove(user);
+            await cleanup.SaveChangesAsync();
+        }
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
     public async Task AuditRevertRestoresProductAndCategoryAndAppendsLinkedAuditEntries()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()

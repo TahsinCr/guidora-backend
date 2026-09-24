@@ -57,6 +57,29 @@ public sealed class UserSessionInvalidationManagerTests
     }
 
     [Fact]
+    public void BulkInvalidationUpdatesStatesAndSessionsWithOneCommit()
+    {
+        var first = new UserAuthenticationState { Id = 1, UserId = 42, AuthorizationVersion = 4 };
+        var stateDal = new AuthenticationStateDalStub([first]);
+        var cache = new RecordingDistributedCache();
+        var sessions = new UserSessionDalStub([
+            new UserSession { Id = Guid.NewGuid(), UserId = 42 },
+            new UserSession { Id = Guid.NewGuid(), UserId = 43 }]);
+        var unitOfWork = new UnitOfWorkStub();
+        var sut = new UserSessionInvalidationManager(stateDal, sessions, cache, unitOfWork);
+
+        var result = sut.InvalidateUsersSessions([42, 43, 42]);
+
+        Assert.True(result.Success);
+        Assert.Equal(5, first.AuthorizationVersion);
+        Assert.Equal(1, stateDal.UpdateCount);
+        Assert.Single(stateDal.Added, item => item.UserId == 43);
+        Assert.Equal(2, sessions.UpdateCount);
+        Assert.Equal(1, unitOfWork.SaveCount);
+        Assert.Equal(2, cache.RemovedKeys.Count);
+    }
+
+    [Fact]
     public void DoesNotEvictSessionCacheWhenPersistenceFails()
     {
         var session = new UserSession { Id = Guid.NewGuid(), UserId = 42 };

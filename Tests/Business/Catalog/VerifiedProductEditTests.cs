@@ -106,7 +106,15 @@ public sealed class VerifiedProductEditTests
         TagIds = [12]
     };
 
-    private sealed class ProductDalStub(IEnumerable<Product>? values = null) : EntityRepositoryStub<Product>(values), IProductDal;
+    private sealed class ProductDalStub(IEnumerable<Product>? values = null) : EntityRepositoryStub<Product>(values), IProductDal
+    {
+        public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
+            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+        public Task<int> CountPublishedAsync(int statusId, int? categoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
+            GetAll(item => item.ProductStatusId == statusId).Count);
+    }
     private sealed class ProductStatusDalStub(IEnumerable<ProductStatus>? values = null) : EntityRepositoryStub<ProductStatus>(values), IProductStatusDal;
     private sealed class ProductCategoryDalStub(IEnumerable<ProductCategory>? values = null)
         : EntityRepositoryStub<ProductCategory>(values), IProductCategoryDal

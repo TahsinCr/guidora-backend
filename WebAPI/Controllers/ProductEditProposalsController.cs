@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
 
@@ -20,7 +21,7 @@ public sealed class ProductEditProposalsController : ControllerBase
     public async Task<IActionResult> GetPending([FromQuery] PageRequest request, CancellationToken cancellationToken)
     {
         var result = await _proposalService.GetPendingAsync(request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPost("{id:int}/accept")]
@@ -39,6 +40,6 @@ public sealed class ProductEditProposalsController : ControllerBase
         var result = accept
             ? await _proposalService.AcceptAsync(id, reviewerId, request, cancellationToken)
             : await _proposalService.RejectAsync(id, reviewerId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 }

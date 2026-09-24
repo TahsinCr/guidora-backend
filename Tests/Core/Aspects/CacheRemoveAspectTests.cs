@@ -54,6 +54,21 @@ public sealed class CacheRemoveAspectTests
         Assert.Equal(["catalog:*", "product-detail:*"], cache.InvalidatedPatterns);
     }
 
+    [Fact]
+    public void CanTargetInvalidationToOneArgumentValue()
+    {
+        var cache = new CacheManagerStub();
+        var services = new ServiceCollection().AddSingleton<ICacheManager>(cache).BuildServiceProvider();
+        ServiceTool.SetProvider(services);
+        var proxy = new ProxyGenerator().CreateInterfaceProxyWithTarget<IWriteTarget>(
+            new WriteTarget(), new CacheRemoveAspect("product-detail") { ArgumentIndex = 0 });
+
+        Assert.True(proxy.UpdateProduct(42).Success);
+
+        Assert.Equal($"product-detail:*:arg:0:{CacheKeySegment.Hash(42)}",
+            Assert.Single(cache.InvalidatedPatterns));
+    }
+
     private static (IWriteTarget Proxy, CacheManagerStub Cache) CreateProxy()
     {
         var cache = new CacheManagerStub();
@@ -70,6 +85,7 @@ public sealed class CacheRemoveAspectTests
         IResult Succeed();
         Task<IResult> FailAsync();
         Task<IResult> SucceedAsync();
+        IResult UpdateProduct(int productId);
     }
 
     private sealed class WriteTarget : IWriteTarget
@@ -78,5 +94,6 @@ public sealed class CacheRemoveAspectTests
         public IResult Succeed() => new SuccessResult();
         public Task<IResult> FailAsync() => Task.FromResult<IResult>(new ErrorResult("rejected"));
         public Task<IResult> SucceedAsync() => Task.FromResult<IResult>(new SuccessResult());
+        public IResult UpdateProduct(int productId) => new SuccessResult();
     }
 }

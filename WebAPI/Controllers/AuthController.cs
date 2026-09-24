@@ -2,7 +2,12 @@
 using Entities.DTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using System;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers
 {
@@ -18,51 +23,50 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost("login")]
-        public ActionResult Login(UserForLoginDto userForLoginDto)
+        [EnableRateLimiting("auth-login")]
+        public IActionResult Login(UserForLoginDto userForLoginDto)
         {
             var userToLogin = _authService.Login(userForLoginDto);
             if (!userToLogin.Success)
             {
-                return BadRequest(userToLogin);
+                return Unauthorized(userToLogin);
             }
 
-            var result = _authService.CreateSession(userToLogin.Data, rememberMe: true, GetDeviceName());
+            var result = _authService.CreateSession(userToLogin.Data, userForLoginDto.RememberMe, GetDeviceName());
             if (result.Success)
             {
-                WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration);
+                WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration,
+                    result.Data.IsPersistentSession);
                 return Ok(result);
             }
 
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpPost("register")]
-        public ActionResult Register(UserForRegisterDto userForRegisterDto)
+        [EnableRateLimiting("auth-register")]
+        public IActionResult Register(UserForRegisterDto userForRegisterDto)
         {
-            var userExists = _authService.UserExists(userForRegisterDto.Email);
-            if (!userExists.Success)
-            {
-                return BadRequest(userExists);
-            }
-
             var registerResult = _authService.Register(userForRegisterDto,userForRegisterDto.Password);
             if (!registerResult.Success)
             {
-                return BadRequest(registerResult);
+                return this.ToHttpResult(registerResult);
             }
 
-            var result = _authService.CreateSession(registerResult.Data, rememberMe: true, GetDeviceName());
+            var result = _authService.CreateSession(registerResult.Data, userForRegisterDto.RememberMe, GetDeviceName());
             if (result.Success)
             {
-                WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration);
+                WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration,
+                    result.Data.IsPersistentSession);
                 return Ok(result);
             }
 
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpPost("refresh")]
-        public ActionResult Refresh()
+        [EnableRateLimiting("auth-refresh")]
+        public IActionResult Refresh()
         {
             if (!Request.Cookies.TryGetValue("guidora_refresh", out var refreshToken))
             {
@@ -76,7 +80,8 @@ namespace WebAPI.Controllers
                 return Unauthorized(result);
             }
 
-            WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration);
+            WriteRefreshTokenCookie(result.Data.RefreshToken, result.Data.RefreshTokenExpiration,
+                result.Data.IsPersistentSession);
             return Ok(result);
         }
 
@@ -92,15 +97,21 @@ namespace WebAPI.Controllers
             return NoContent();
         }
 
-        private void WriteRefreshTokenCookie(string refreshToken, DateTime expiration)
+        private void WriteRefreshTokenCookie(string refreshToken, DateTime expiration, bool isPersistent)
         {
-            Response.Cookies.Append("guidora_refresh", refreshToken, new CookieOptions
+            var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Lax,
-                Expires = new DateTimeOffset(expiration)
-            });
+                Secure = Request.IsHttps ||
+                         HttpContext.RequestServices.GetService<IWebHostEnvironment>()?.IsDevelopment() != true,
+                SameSite = SameSiteMode.Lax
+            };
+            if (isPersistent)
+            {
+                cookieOptions.Expires = new DateTimeOffset(expiration);
+            }
+
+            Response.Cookies.Append("guidora_refresh", refreshToken, cookieOptions);
         }
 
         private string GetDeviceName()

@@ -40,11 +40,12 @@ public sealed class ProductBusinessRules : IProductBusinessRules
         var duplicate = await _productDal.GetAsync(product =>
             (!excludingProductId.HasValue || product.ProductId != excludingProductId) &&
             (product.Name.Trim().ToUpper() == normalizedName.ToUpper() ||
-             product.Slug == normalizedSlug), cancellationToken);
+             product.Slug == normalizedSlug ||
+             product.WebsiteUrl == normalizedWebsiteUrl), cancellationToken);
 
         return duplicate is null
             ? new SuccessResult()
-            : new ErrorResult("A Product with the same name or slug already exists.");
+            : new Core.Utilities.Results.ConflictResult("A Product with the same name, slug, or website URL already exists.");
     }
 
     public async Task<IResult> EnsureCategoriesAreActiveAsync(IEnumerable<int> categoryIds,

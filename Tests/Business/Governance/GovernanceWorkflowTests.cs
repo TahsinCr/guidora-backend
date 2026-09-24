@@ -219,7 +219,15 @@ public sealed class GovernanceWorkflowTests
             audit, unitOfWork);
     }
 
-    private sealed class ProductDal(IEnumerable<Product>? values = null) : EntityRepositoryStub<Product>(values), IProductDal;
+    private sealed class ProductDal(IEnumerable<Product>? values = null) : EntityRepositoryStub<Product>(values), IProductDal
+    {
+        public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
+            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+        public Task<int> CountPublishedAsync(int statusId, int? categoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
+            GetAll(item => item.ProductStatusId == statusId).Count);
+    }
     private sealed class ProposalDal(IEnumerable<ProductEditProposal>? values = null) : EntityRepositoryStub<ProductEditProposal>(values), IProductEditProposalDal;
     private sealed class CategoryDal(IEnumerable<Category>? values = null) : EntityRepositoryStub<Category>(values), ICategoryDal;
     private sealed class TagDal(IEnumerable<Tag>? values = null) : EntityRepositoryStub<Tag>(values), ITagDal;

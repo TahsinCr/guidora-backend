@@ -13,6 +13,8 @@ namespace Core.Aspects.Caching
         private readonly string[] _profiles;
         private readonly ICacheManager _cacheManager;
 
+        public int ArgumentIndex { get; set; } = -1;
+
         public CacheRemoveAspect(params string[] profiles)
         {
             Priority = InterceptorPriority;
@@ -29,7 +31,10 @@ namespace Core.Aspects.Caching
 
             foreach (string profile in _profiles)
             {
-                _cacheManager.RemoveByPattern($"{profile}:*");
+                var pattern = ArgumentIndex >= 0 && ArgumentIndex < invocation.Arguments.Length
+                    ? $"{profile}:*:arg:{ArgumentIndex}:{CacheKeySegment.Hash(invocation.Arguments[ArgumentIndex])}"
+                    : $"{profile}:*";
+                _cacheManager.RemoveByPattern(pattern);
             }
         }
     }

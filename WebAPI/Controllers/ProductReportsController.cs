@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
 
@@ -19,7 +20,7 @@ public sealed class ProductReportsController : ControllerBase
     public async Task<IActionResult> GetOpen([FromQuery] PageRequest request, CancellationToken cancellationToken)
     {
         var result = await _reportService.GetOpenAsync(request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPost("products/{productId:int}")]
@@ -29,7 +30,7 @@ public sealed class ProductReportsController : ControllerBase
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var reporterId))
             return Unauthorized();
         var result = await _reportService.SubmitAsync(productId, reporterId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPost("{id:int}/resolve")]
@@ -48,6 +49,6 @@ public sealed class ProductReportsController : ControllerBase
         var result = resolve
             ? await _reportService.ResolveAsync(id, reviewerId, request, cancellationToken)
             : await _reportService.DismissAsync(id, reviewerId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 }

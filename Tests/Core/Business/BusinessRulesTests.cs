@@ -31,6 +31,16 @@ public sealed class BusinessRulesTests
     }
 
     [Fact]
+    public void Run_UsesCallerSuccessMessageWithoutReplacingFailure()
+    {
+        var result = BusinessRules.Run("All checks passed.", () => new SuccessResult());
+        Assert.Equal("All checks passed.", result.Message);
+
+        var failure = new ErrorResult("blocked");
+        Assert.Same(failure, BusinessRules.Run("ignored", () => failure));
+    }
+
+    [Fact]
     public async Task RunAsync_ExecutesSequentiallyAndStopsOnFirstFailure()
     {
         var visited = new List<int>();
@@ -43,6 +53,14 @@ public sealed class BusinessRulesTests
 
         Assert.Same(failure, result);
         Assert.Equal([1, 2], visited);
+    }
+
+    [Fact]
+    public async Task RunAsync_UsesCallerSuccessMessage()
+    {
+        var result = await BusinessRules.RunAsync("All checks passed.",
+            () => Task.FromResult<IResult>(new SuccessResult()));
+        Assert.Equal("All checks passed.", result.Message);
     }
 
     [Fact]
@@ -59,5 +77,13 @@ public sealed class BusinessRulesTests
 
         Assert.Equal(3, ran);
         Assert.Same(firstFailure, result);
+    }
+
+    [Fact]
+    public async Task RunConcurrentAsync_UsesCallerSuccessMessage()
+    {
+        var result = await BusinessRules.RunConcurrentAsync("All checks passed.",
+            () => Task.FromResult<IResult>(new SuccessResult()));
+        Assert.Equal("All checks passed.", result.Message);
     }
 }

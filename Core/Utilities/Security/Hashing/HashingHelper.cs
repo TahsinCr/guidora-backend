@@ -33,5 +33,8 @@ namespace Core.Utilities.Security.Hashing
             var legacyHash = legacyHmac.ComputeHash(Encoding.UTF8.GetBytes(password));
             return CryptographicOperations.FixedTimeEquals(legacyHash, passwordHash);
         }
+
+        public static bool NeedsRehash(byte[] passwordHash, byte[] passwordSalt) =>
+            passwordHash.Length != HashSize || passwordSalt.Length != SaltSize;
     }
 }

@@ -42,6 +42,23 @@ public sealed class CacheAspectTests
     }
 
     [Fact]
+    public void VaryingByArgumentKeepsDifferentProductsInSeparateCacheEntries()
+    {
+        var cache = new CacheManagerStub();
+        var services = new ServiceCollection().AddSingleton<ICacheManager>(cache).BuildServiceProvider();
+        ServiceTool.SetProvider(services);
+        var aspect = new CacheAspect("product-detail", 15) { VaryByArgumentIndexes = [0] };
+        var proxy = new ProxyGenerator().CreateInterfaceProxyWithTarget<ICacheReadTarget>(
+            new CacheReadTarget(), aspect);
+
+        Assert.True(proxy.GetById(12).Success);
+        Assert.True(proxy.GetById(27).Success);
+
+        Assert.Equal(2, cache.RequestedDurations.Count);
+        Assert.Contains(cache.Values.Keys, key => key.Contains(":arg:0:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void DoesNotCacheBusinessErrorResults()
     {
         var (proxy, cache) = CreateProxy();
@@ -68,6 +85,7 @@ public sealed class CacheAspectTests
         IDataResult<string> GetForTenMinutes();
         IDataResult<string> GetError();
         Task<IDataResult<string>> GetAsync();
+        IDataResult<string> GetById(int id);
     }
 
     private sealed class CacheReadTarget : ICacheReadTarget
@@ -76,5 +94,6 @@ public sealed class CacheAspectTests
         public IDataResult<string> GetForTenMinutes() => new SuccessDataResult<string>("ten");
         public IDataResult<string> GetError() => new ErrorDataResult<string>("not found");
         public Task<IDataResult<string>> GetAsync() => Task.FromResult<IDataResult<string>>(new SuccessDataResult<string>("async"));
+        public IDataResult<string> GetById(int id) => new SuccessDataResult<string>(id.ToString());
     }
 }

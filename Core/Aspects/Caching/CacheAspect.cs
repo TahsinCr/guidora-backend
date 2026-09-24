@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,13 +30,14 @@ namespace Core.Aspects.Caching
 
         public const int InterceptorPriority = 300;
 
+        public int[] VaryByArgumentIndexes { get; set; } = [];
+
         public override void Intercept(IInvocation invocation)
         {
             var key = BuildCacheKey(invocation);
             var returnType = invocation.Method.ReturnType;
-            if (_cacheManager.IsExists(key))
+            if (_cacheManager.TryGet(key, out var cachedValue))
             {
-                var cachedValue = _cacheManager.Get(key);
                 invocation.ReturnValue = IsGenericTask(returnType)
                     ? CreateCompletedTask(returnType.GetGenericArguments()[0], cachedValue)
                     : cachedValue;
@@ -90,7 +92,17 @@ namespace Core.Aspects.Caching
             var methodName = $"{invocation.Method.ReflectedType?.FullName ?? invocation.Method.DeclaringType?.FullName ?? "Unknown"}.{invocation.Method.Name}";
             var arguments = JsonConvert.SerializeObject(invocation.Arguments);
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(arguments)));
-            return $"{_profile}:{methodName}:{hash}";
+            var keySegments = VaryByArgumentIndexes.Select(index =>
+            {
+                if (index < 0 || index >= invocation.Arguments.Length)
+                {
+                    throw new InvalidOperationException(
+                        $"Cache argument index {index} is outside the parameter list for '{methodName}'.");
+                }
+
+                return $":arg:{index}:{CacheKeySegment.Hash(invocation.Arguments[index])}";
+            });
+            return $"{_profile}:{methodName}:{hash}{string.Concat(keySegments)}";
         }
     }
 }

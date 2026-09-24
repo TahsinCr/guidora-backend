@@ -1,0 +1,79 @@
+name: backend-ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: guidora_test
+          POSTGRES_USER: guidora
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U guidora -d guidora_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guidora
+          RABBITMQ_DEFAULT_PASS: ci-rabbit-password
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Install EF tooling
+        run: dotnet tool install --global dotnet-ef --version 10.0.4
+      - name: Restore backend layers
+        run: dotnet restore NetCoreBackend.sln
+      - name: Build backend layers
+        run: dotnet build NetCoreBackend.sln --configuration Release --no-restore
+      - name: Start Redis with production cache policy
+        run: >-
+          docker run --detach --name guidora-ci-redis --publish 6379:6379
+          redis:8-alpine redis-server --maxmemory 256mb
+          --maxmemory-policy allkeys-lfu --appendonly no --save ""
+      - name: Wait for Redis readiness
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker exec guidora-ci-redis redis-cli ping | grep -q PONG; then exit 0; fi
+            sleep 1
+          done
+          docker logs guidora-ci-redis
+          exit 1
+      - name: Apply schema to isolated CI database
+        env:
+          ConnectionStrings__Guidora: Host=localhost;Port=5432;Database=guidora_test;Username=guidora;Password=ci-postgres-password
+        run: dotnet ef database update --project DataAccess --startup-project WebAPI --configuration Release
+      - name: Run all tests, including infrastructure integration tests
+        env:
+          GUIDORA_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=guidora_test;Username=guidora;Password=ci-postgres-password
+          GUIDORA_TEST_REDIS_CONFIGURATION: localhost:6379
+          GUIDORA_TEST_RABBITMQ_HOST: localhost
+          GUIDORA_TEST_RABBITMQ_PORT: 5672
+          GUIDORA_TEST_RABBITMQ_USERNAME: guidora
+          GUIDORA_TEST_RABBITMQ_PASSWORD: ci-rabbit-password
+        run: dotnet test Tests/Tests.csproj --configuration Release --no-build
+      - name: Validate Compose configuration
+        run: docker compose --env-file .env.example config --quiet
+      - name: Build backend image
+        run: docker build --tag guidora-backend:ci .

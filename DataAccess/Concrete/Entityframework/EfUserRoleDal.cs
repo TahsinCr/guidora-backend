@@ -5,7 +5,7 @@ using DataAccess.Concrete.Entityframework.Contexts;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfUserRoleDal : EfEntityRepositoryBase<UserRole, GuidoraDbContext>, IUserRoleDal
+    public class EfUserRoleDal : EfEntityPurgeRepositoryBase<UserRole, GuidoraDbContext>, IUserRoleDal
     {
         public EfUserRoleDal(GuidoraDbContext context) : base(context) { }
     }

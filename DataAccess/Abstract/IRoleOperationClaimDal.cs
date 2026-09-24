@@ -3,7 +3,7 @@ using Core.Entities.Concrete;
 
 namespace DataAccess.Abstract
 {
-    public interface IRoleOperationClaimDal : IEntityRepository<RoleOperationClaim>
+    public interface IRoleOperationClaimDal : IEntityRepository<RoleOperationClaim>, IEntityPurgeRepository<RoleOperationClaim>
     {
     }
 }

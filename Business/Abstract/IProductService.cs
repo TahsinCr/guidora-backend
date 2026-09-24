@@ -12,6 +12,8 @@ namespace Business.Abstract
         IDataResult<List<Product>> GetAll();
         public IDataResult<List<Product>> GetAllByCategoryId(int id);
         public IDataResult<Product> GetById(int id);
+        Task<IDataResult<PagedResult<Product>>> GetPageAsync(PageRequest request, int? categoryId = null,
+            CancellationToken cancellationToken = default);
         Task<IResult> CreateAsync(CreateProductRequest request, int createdByUserId,
             CancellationToken cancellationToken = default);
         Task<IResult> UpdateAsync(int productId, UpdateProductRequest request, int updatedByUserId,

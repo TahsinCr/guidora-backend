@@ -21,5 +21,5 @@ ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 COPY --from=build /app/publish .
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=5 \
-  CMD curl --fail --silent http://localhost:8080/health || exit 1
+  CMD curl --fail --silent http://localhost:8080/health/ready || exit 1
 ENTRYPOINT ["dotnet", "WebAPI.dll"]

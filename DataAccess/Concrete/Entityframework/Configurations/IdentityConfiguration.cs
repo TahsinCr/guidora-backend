@@ -39,7 +39,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new OperationClaim { Id = 11, Name = "Product.Content.Manage" },
                 new OperationClaim { Id = 12, Name = "Product.Contributor.Manage" },
                 new OperationClaim { Id = 13, Name = "User.Manage" },
-                new OperationClaim { Id = 14, Name = "Audit.Revert" });
+                new OperationClaim { Id = 14, Name = "Audit.Revert" },
+                new OperationClaim { Id = 15, Name = "Tag.Manage" },
+                new OperationClaim { Id = 16, Name = "TagCategory.Manage" },
+                new OperationClaim { Id = 17, Name = "Role.Manage" });
         }
     }
 
@@ -137,7 +140,13 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new RoleOperationClaim { Id = 21, RoleId = 3, OperationClaimId = 11 },
                 new RoleOperationClaim { Id = 22, RoleId = 3, OperationClaimId = 12 },
                 new RoleOperationClaim { Id = 23, RoleId = 3, OperationClaimId = 13 },
-                new RoleOperationClaim { Id = 24, RoleId = 3, OperationClaimId = 14 });
+                new RoleOperationClaim { Id = 24, RoleId = 3, OperationClaimId = 14 },
+                new RoleOperationClaim { Id = 25, RoleId = 1, OperationClaimId = 2 },
+                new RoleOperationClaim { Id = 26, RoleId = 2, OperationClaimId = 15 },
+                new RoleOperationClaim { Id = 27, RoleId = 2, OperationClaimId = 16 },
+                new RoleOperationClaim { Id = 28, RoleId = 3, OperationClaimId = 15 },
+                new RoleOperationClaim { Id = 29, RoleId = 3, OperationClaimId = 16 },
+                new RoleOperationClaim { Id = 30, RoleId = 3, OperationClaimId = 17 });
         }
     }
 }

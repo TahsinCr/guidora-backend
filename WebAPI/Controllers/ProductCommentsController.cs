@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
 
@@ -20,7 +21,7 @@ public sealed class ProductCommentsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _commentService.GetVisibleByProductAsync(productId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPost("products/{productId:int}/comments")]
@@ -29,7 +30,7 @@ public sealed class ProductCommentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _commentService.CreateAsync(productId, userId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpDelete("comments/{commentId:int}")]
@@ -37,7 +38,7 @@ public sealed class ProductCommentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _commentService.DeleteAsync(commentId, userId, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPatch("comments/{commentId:int}/visibility")]
@@ -46,7 +47,15 @@ public sealed class ProductCommentsController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _commentService.SetVisibilityAsync(commentId, userId, request.IsVisible, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
+    }
+
+    [HttpPost("comments/{commentId:int}/block")]
+    public async Task<IActionResult> Block(int commentId, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var result = await _commentService.BlockAsync(commentId, userId, cancellationToken);
+        return this.ToHttpResult(result);
     }
 
     private bool TryGetUserId(out int userId) =>

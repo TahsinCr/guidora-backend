@@ -5,10 +5,8 @@ using Business.BusinessRules.Content;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
-using Core.Aspects.Caching;
 using Core.Aspects.Transaction;
 using Core.DataAccess;
-using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -48,7 +46,6 @@ public sealed class ProductChangelogManager : IProductChangelogService
 
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductChangelogRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductChangelogRequest request,
         CancellationToken cancellationToken = default)

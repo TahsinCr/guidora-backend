@@ -5,10 +5,8 @@ using Business.BusinessRules.Content;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
-using Core.Aspects.Caching;
 using Core.Aspects.Transaction;
 using Core.DataAccess;
-using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -48,7 +46,6 @@ public sealed class ProductDocumentManager : IProductDocumentService
 
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductDocumentRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductDocumentRequest request,
         CancellationToken cancellationToken = default)
@@ -73,7 +70,6 @@ public sealed class ProductDocumentManager : IProductDocumentService
 
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductDocumentRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> UpdateAsync(int productId, int documentId, int actorUserId,
         ProductDocumentRequest request, CancellationToken cancellationToken = default)
@@ -84,7 +80,7 @@ public sealed class ProductDocumentManager : IProductDocumentService
         if (!rule.Success) return rule;
         var document = await _documentDal.GetAsync(item => item.Id == documentId && item.ProductId == productId,
             cancellationToken);
-        if (document is null) return new ErrorResult("Product document was not found.");
+        if (document is null) return new NotFoundResult("Product document was not found.");
         var oldValues = new { document.DocumentType, document.Title, document.Content, document.UpdatedAt };
         document.DocumentType = request.DocumentType.Trim();
         document.Title = request.Title.Trim();
@@ -99,7 +95,6 @@ public sealed class ProductDocumentManager : IProductDocumentService
     }
 
     [SecuredOperationAspect("Product.Content.Manage")]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> DeleteAsync(int productId, int documentId, int actorUserId,
         CancellationToken cancellationToken = default)
@@ -108,7 +103,7 @@ public sealed class ProductDocumentManager : IProductDocumentService
         if (!rule.Success) return rule;
         var document = await _documentDal.GetAsync(item => item.Id == documentId && item.ProductId == productId,
             cancellationToken);
-        if (document is null) return new ErrorResult("Product document was not found.");
+        if (document is null) return new NotFoundResult("Product document was not found.");
         _documentDal.Purge(document);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(ProductDocument), documentId.ToString(),
             "Deleted", new { document.ProductId, document.DocumentType, document.Title, document.Content }, new { }),

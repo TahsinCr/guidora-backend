@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Business.Abstract;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
@@ -8,22 +10,23 @@ namespace Business.Concrete
 {
     public class TokenValidationManager : ITokenValidationService
     {
-        private readonly IUserService _userService;
+        private readonly IUserDal _userDal;
         private readonly IUserAuthenticationStateDal _authenticationStateDal;
         private readonly IUserSessionDal _userSessionDal;
         private readonly IDistributedCache _distributedCache;
 
-        public TokenValidationManager(IUserService userService,
+        public TokenValidationManager(IUserDal userDal,
             IUserAuthenticationStateDal authenticationStateDal, IUserSessionDal userSessionDal,
             IDistributedCache distributedCache)
         {
-            _userService = userService;
+            _userDal = userDal;
             _authenticationStateDal = authenticationStateDal;
             _userSessionDal = userSessionDal;
             _distributedCache = distributedCache;
         }
 
-        public IResult Validate(int userId, string sessionId, int authorizationVersion)
+        public async Task<IResult> ValidateAsync(int userId, string sessionId, int authorizationVersion,
+            CancellationToken cancellationToken = default)
         {
             if (!Guid.TryParse(sessionId, out var parsedSessionId))
             {
@@ -31,34 +34,34 @@ namespace Business.Concrete
             }
 
             var cacheKey = $"auth-session:{parsedSessionId}";
-            var cachedAuthorizationVersion = _distributedCache.GetString(cacheKey);
+            var cachedAuthorizationVersion = await _distributedCache.GetStringAsync(cacheKey, cancellationToken);
             if (cachedAuthorizationVersion == authorizationVersion.ToString())
             {
                 return new SuccessResult();
             }
 
-            var userResult = _userService.GetById(userId);
-            if (!userResult.Success || !userResult.Data.Status)
+            var user = await _userDal.GetAsync(item => item.Id == userId, cancellationToken);
+            if (user is not { Status: true })
             {
                 return new ErrorResult("User account is inactive.");
             }
 
-            var state = _authenticationStateDal.Get(item => item.UserId == userId);
+            var state = await _authenticationStateDal.GetAsync(item => item.UserId == userId, cancellationToken);
             if (state == null || state.AuthorizationVersion != authorizationVersion)
             {
                 return new ErrorResult("Access token authorization is no longer valid.");
             }
 
-            var session = _userSessionDal.Get(item => item.Id == parsedSessionId && item.UserId == userId);
+            var session = await _userSessionDal.GetAsync(item => item.Id == parsedSessionId && item.UserId == userId,
+                cancellationToken);
             if (session == null || session.RevokedAt.HasValue || session.ExpiresAt <= DateTime.UtcNow)
             {
                 return new ErrorResult("Access token session is no longer valid.");
             }
 
-            _distributedCache.SetString(cacheKey, authorizationVersion.ToString(), new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1)
-            });
+            await _distributedCache.SetStringAsync(cacheKey, authorizationVersion.ToString(),
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1) },
+                cancellationToken);
 
             return new SuccessResult();
         }

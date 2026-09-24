@@ -21,6 +21,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<UserSession> builder)
         {
             builder.HasKey(session => session.Id);
+            builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(session => session.RefreshTokenHash).HasMaxLength(128).IsRequired();
             builder.Property(session => session.DeviceName).HasMaxLength(250).IsRequired();
             builder.HasIndex(session => session.RefreshTokenHash).IsUnique();

@@ -2,9 +2,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Claims;
 using Business.Abstract;
-using Core.Utilities.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
 
@@ -24,11 +24,6 @@ public sealed class AuditController : ControllerBase
             return Unauthorized();
 
         var result = await _auditRevertService.RevertAsync(auditLogId, actorUserId, cancellationToken);
-        return result switch
-        {
-            Core.Utilities.Results.ConflictResult => Conflict(result),
-            { Success: true } => Ok(result),
-            _ => BadRequest(result)
-        };
+        return this.ToHttpResult(result);
     }
 }

@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
 
@@ -23,7 +24,7 @@ public sealed class ProductVerificationsController : ControllerBase
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
             return Unauthorized();
         var result = await _verificationService.VerifyAsAdminAsync(productId, actorId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpDelete("admin")]
@@ -33,6 +34,6 @@ public sealed class ProductVerificationsController : ControllerBase
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
             return Unauthorized();
         var result = await _verificationService.RevokeAdminVerificationAsync(productId, actorId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 }

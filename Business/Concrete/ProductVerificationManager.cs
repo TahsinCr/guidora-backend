@@ -4,9 +4,7 @@ using Business.BusinessAspect.Autofac;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
-using Core.Aspects.Caching;
 using Core.Aspects.Transaction;
-using Core.CrossCuttingConcerns.Caching;
 using Core.DataAccess;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
@@ -14,6 +12,7 @@ using Entities;
 using Entities.DTOs;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete;
 
@@ -37,13 +36,12 @@ public sealed class ProductVerificationManager : IProductVerificationService
 
     [SecuredOperationAspect("Product.Verify")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> VerifyAsAdminAsync(int productId, int verifierUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default)
     {
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
-        if (product is null) return new ErrorResult("Product was not found.");
+        if (product is null) return new NotFoundResult("Product was not found.");
         var type = await _verificationTypeDal.GetAsync(item => item.Code == "admin", cancellationToken);
         if (type is null) return new ErrorResult("Admin verification type is not configured.");
 
@@ -87,13 +85,19 @@ public sealed class ProductVerificationManager : IProductVerificationService
                 Status = "Active", verification.VerifiedByUserId,
                 verification.VerifiedAt, verification.RevokedAt, verification.Note
             }), cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ConflictResult("Product verification changed concurrently. Reload and try again.");
+        }
         return new SuccessResult("Product verified by an administrator.");
     }
 
     [SecuredOperationAspect("Product.Verify")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> RevokeAdminVerificationAsync(int productId, int actorUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default)
@@ -119,7 +123,14 @@ public sealed class ProductVerificationManager : IProductVerificationService
                 Status = "Revoked", verification.Note, verification.VerifiedByUserId,
                 verification.VerifiedAt, verification.RevokedAt
             }), cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ConflictResult("Product verification changed concurrently. Reload and try again.");
+        }
         return new SuccessResult("Admin verification revoked.");
     }
 }

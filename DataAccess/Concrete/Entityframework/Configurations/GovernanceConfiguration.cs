@@ -40,6 +40,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<ProductReport> builder)
         {
             builder.HasKey(report => report.Id);
+            builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(report => report.Description).HasMaxLength(4000).IsRequired();
             builder.HasIndex(report => new { report.ProductId, report.ReportedByUserId, report.ReportStatusId });
             builder.HasIndex(report => new { report.ReportStatusId, report.CreatedAt });
@@ -90,6 +91,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<ProductVerification> builder)
         {
             builder.HasKey(verification => verification.Id);
+            builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(verification => verification.Note).HasMaxLength(4000).IsRequired();
             builder.HasIndex(verification => new { verification.ProductId, verification.VerificationTypeId })
                 .IsUnique();
@@ -107,6 +109,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<ProductEditProposal> builder)
         {
             builder.HasKey(proposal => proposal.Id);
+            builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(proposal => proposal.Status).HasConversion<string>().HasMaxLength(80).IsRequired();
             builder.Property(proposal => proposal.Name).HasMaxLength(200).IsRequired();
             builder.Property(proposal => proposal.Slug).HasMaxLength(220).IsRequired();
@@ -162,7 +165,10 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(log => log.OldValues).HasColumnType("jsonb").IsRequired();
             builder.Property(log => log.NewValues).HasColumnType("jsonb").IsRequired();
             builder.HasIndex(log => new { log.EntityType, log.EntityId, log.CreatedAt });
-            builder.HasIndex(log => log.RevertsAuditLogId);
+            builder.HasIndex(log => log.RevertsAuditLogId)
+                .IsUnique()
+                .HasFilter("\"RevertsAuditLogId\" IS NOT NULL")
+                .HasDatabaseName("UX_AuditLogs_RevertsAuditLogId");
             builder.HasOne<AuditLog>().WithMany().HasForeignKey(log => log.RevertsAuditLogId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<User>().WithMany().HasForeignKey(log => log.ActorUserId)

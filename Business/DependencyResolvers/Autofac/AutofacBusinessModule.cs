@@ -17,16 +17,12 @@ namespace Business.DependencyResolvers.Autofac
         protected override void Load(ContainerBuilder builder)
         {
             builder.RegisterType<GuidoraUnitOfWork>().As<IUnitOfWork>().InstancePerLifetimeScope();
-            builder.RegisterType<ProductManager>().As<IProductService>();
             builder.RegisterType<EfProductDal>().As<IProductDal>();
 
-            builder.RegisterType<CategoryManager>().As<ICategoryService>();
             builder.RegisterType<EfCategoryDal>().As<ICategoryDal>();
 
-            builder.RegisterType<UserManager>().As<IUserService>();
             builder.RegisterType<EfUserDal>().As<IUserDal>();
 
-            builder.RegisterType<OperationClaimManager>().As<IOperationClaimService>();
             builder.RegisterType<EfOperationClaimDal>().As<IOperationClaimDal>();
 
             builder.RegisterType<EfUserProfileDal>().As<IUserProfileDal>();
@@ -54,19 +50,16 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<EfProductEditProposalTagDal>().As<IProductEditProposalTagDal>();
             builder.RegisterType<EfProductEditProposalCategoryDal>().As<IProductEditProposalCategoryDal>();
             builder.RegisterType<EfAuditLogDal>().As<IAuditLogDal>();
-            builder.RegisterType<AuditRevertManager>().As<IAuditRevertService>();
             builder.RegisterType<EfUserAuthenticationStateDal>().As<IUserAuthenticationStateDal>();
             builder.RegisterType<EfUserSessionDal>().As<IUserSessionDal>();
 
-            builder.RegisterType<AuthManager>().As<IAuthService>();
-            builder.RegisterType<UserSessionInvalidationManager>().As<IUserSessionInvalidationService>();
-            builder.RegisterType<TokenValidationManager>().As<ITokenValidationService>();
-            builder.RegisterType<UserSecurityManager>().As<IUserSecurityService>();
             builder.RegisterType<JwtHelper>().As<ITokenHelper>();
 
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
-            builder.RegisterAssemblyTypes(assembly).AsImplementedInterfaces()
+            builder.RegisterAssemblyTypes(assembly)
+                .Where(type => type != typeof(DeterministicContentModerationRule))
+                .AsImplementedInterfaces()
                 .EnableInterfaceInterceptors(new ProxyGenerationOptions()
                 {
                     Selector = new AspectInterceptorSelector()

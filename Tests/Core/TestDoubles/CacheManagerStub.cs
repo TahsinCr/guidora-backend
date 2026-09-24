@@ -12,6 +12,7 @@ public sealed class CacheManagerStub : ICacheManager
 
     public T Get<T>(string key) => (T)Get(key)!;
     public object? Get(string key) => Values.TryGetValue(key, out var value) ? value : null;
+    public bool TryGet(string key, out object? value) => Values.TryGetValue(key, out value);
     public void Add(string key, object? value, int? durationMinutes)
     {
         Values[key] = value;

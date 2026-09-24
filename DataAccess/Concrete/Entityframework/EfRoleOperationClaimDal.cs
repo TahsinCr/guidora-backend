@@ -5,7 +5,7 @@ using DataAccess.Concrete.Entityframework.Contexts;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfRoleOperationClaimDal : EfEntityRepositoryBase<RoleOperationClaim, GuidoraDbContext>, IRoleOperationClaimDal
+    public class EfRoleOperationClaimDal : EfEntityPurgeRepositoryBase<RoleOperationClaim, GuidoraDbContext>, IRoleOperationClaimDal
     {
         public EfRoleOperationClaimDal(GuidoraDbContext context) : base(context) { }
     }

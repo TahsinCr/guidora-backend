@@ -1,5 +1,6 @@
 ﻿using Business.Abstract;
 using Business.Constants;
+using Business.ValidationRules.FluentValidation;
 using Core.Entities.Concrete;
 using Core.Utilities.Results;
 using Core.Utilities.Security.JWT;
@@ -13,7 +14,9 @@ using Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Distributed;
 using Core.Aspects.Transaction;
+using Core.Aspects.Autofac.Validation;
 using Core.DataAccess;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete
 {
@@ -48,9 +51,16 @@ namespace Business.Concrete
             _unitOfWork = unitOfWork;
         }
 
+        [ValidationAspect(typeof(UserForRegisterValidator))]
         [TransactionScopeAspect]
         public IDataResult<User> Register(UserForRegisterDto userForRegisterDto, string password)
         {
+            var existence = UserExists(userForRegisterDto.Email);
+            if (!existence.Success)
+            {
+                return new ConflictDataResult<User>(existence.Message);
+            }
+
             byte[] passwordHash, passwordSalt;
             HashingHelper.CreatePasswordHash(password, out passwordHash, out passwordSalt);
             var user = new User
@@ -85,6 +95,7 @@ namespace Business.Concrete
             return new SuccessDataResult<User>(user, Messages.UserRegistered);
         }
 
+        [ValidationAspect(typeof(UserForLoginValidator))]
         public IDataResult<User> Login(UserForLoginDto userForLoginDto)
         {
             var userToCheck = _userService.GetByMail(userForLoginDto.Email);
@@ -100,6 +111,17 @@ namespace Business.Concrete
                 return new ErrorDataResult<User>(Messages.PasswordError);
             }
 
+            if (HashingHelper.NeedsRehash(userToCheck.Data.PasswordHash, userToCheck.Data.PasswordSalt))
+            {
+                byte[] upgradedHash;
+                byte[] upgradedSalt;
+                HashingHelper.CreatePasswordHash(userForLoginDto.Password,
+                    out upgradedHash, out upgradedSalt);
+                userToCheck.Data.PasswordHash = upgradedHash;
+                userToCheck.Data.PasswordSalt = upgradedSalt;
+                _userService.UpdateUser(userToCheck.Data);
+            }
+
             return new SuccessDataResult<User>(userToCheck.Data, Messages.SuccessfulLogin);
         }
 
@@ -107,7 +129,7 @@ namespace Business.Concrete
         {
             if (_userService.GetByMail(email).Data != null)
             {
-                return new ErrorResult(Messages.UserAlreadyExists);
+                return new ConflictResult(Messages.UserAlreadyExists);
             }
             return new SuccessResult();
         }
@@ -148,6 +170,7 @@ namespace Business.Concrete
             }, Messages.AccessTokenCreated);
         }
 
+        [TransactionScopeAspect]
         public IDataResult<AuthenticationResultDto> RefreshSession(string refreshToken, string deviceName)
         {
             var session = _userSessionDal.Get(item => item.RefreshTokenHash == RefreshTokenHasher.Hash(refreshToken));
@@ -192,7 +215,15 @@ namespace Business.Concrete
                 }
             }
 
-            _unitOfWork.SaveChanges();
+            try
+            {
+                _unitOfWork.SaveChanges();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return new ErrorDataResult<AuthenticationResultDto>(
+                    "Refresh session has already been rotated. Authenticate again.");
+            }
 
             return newResult;
         }

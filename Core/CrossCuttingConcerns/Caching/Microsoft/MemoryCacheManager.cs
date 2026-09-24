@@ -25,7 +25,12 @@ namespace Core.CrossCuttingConcerns.Caching.Microsoft
         }
         public object? Get(string key)
         {
-            return _memoryCache.Get(key);
+            return TryGet(key, out var value) ? value : null;
+        }
+
+        public bool TryGet(string key, out object? value)
+        {
+            return _memoryCache.TryGetValue(key, out value);
         }
 
         public void Add(string key, object? value, int? durationMinutes)
@@ -69,7 +74,8 @@ namespace Core.CrossCuttingConcerns.Caching.Microsoft
                 }
             }
 
-            var regex = new Regex(pattern, RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*", StringComparison.Ordinal) + "$";
+            var regex = new Regex(regexPattern, RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var keysToRemove = cacheCollectionValues
                 .Where(d => regex.IsMatch(d.Key?.ToString() ?? string.Empty))
                 .Select(d => d.Key)

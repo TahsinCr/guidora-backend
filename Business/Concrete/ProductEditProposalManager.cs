@@ -17,6 +17,7 @@ using Entities;
 using Entities.DTOs;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete;
 
@@ -64,12 +65,12 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         CancellationToken cancellationToken = default)
     {
         var proposal = await _proposalDal.GetAsync(item => item.Id == proposalId, cancellationToken);
-        if (proposal is null) return new ErrorResult("Product edit proposal was not found.");
+        if (proposal is null) return new NotFoundResult("Product edit proposal was not found.");
         if (proposal.Status != ProductEditProposalStatus.Pending)
             return new ErrorResult("Only pending proposals can be reviewed.");
 
         var product = await _productDal.GetAsync(item => item.ProductId == proposal.ProductId, cancellationToken);
-        if (product is null) return new ErrorResult("The canonical product was not found.");
+        if (product is null) return new NotFoundResult("The canonical product was not found.");
 
         var categoryIds = (await _proposalCategoryDal.GetAllAsync(
                 item => item.ProductEditProposalId == proposalId, cancellationToken))
@@ -151,7 +152,14 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
                 proposal.ReviewedByUserId,
                 proposal.ReviewNote
             }), cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ConflictResult("This Product edit proposal was already changed. Reload and try again.");
+        }
         return new SuccessResult("Product edit proposal accepted.");
     }
 
@@ -162,7 +170,7 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         CancellationToken cancellationToken = default)
     {
         var proposal = await _proposalDal.GetAsync(item => item.Id == proposalId, cancellationToken);
-        if (proposal is null) return new ErrorResult("Product edit proposal was not found.");
+        if (proposal is null) return new NotFoundResult("Product edit proposal was not found.");
         if (proposal.Status != ProductEditProposalStatus.Pending)
             return new ErrorResult("Only pending proposals can be reviewed.");
 
@@ -185,7 +193,14 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
                 proposal.ReviewNote,
                 proposal.ProductId
             }), cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ConflictResult("This Product edit proposal was already changed. Reload and try again.");
+        }
         return new SuccessResult("Product edit proposal rejected.");
     }
 

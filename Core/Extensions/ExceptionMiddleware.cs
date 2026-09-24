@@ -8,16 +8,20 @@ using System.Text;
 using System.Threading.Tasks;
 using FluentValidation.Results;
 using Core.Utilities.Security.Authorization;
+using Core.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Extensions
 {
     public class ExceptionMiddleware
     {
-        private RequestDelegate _next;
+        private readonly RequestDelegate _next;
+        private readonly ILogger<ExceptionMiddleware> _logger;
 
-        public ExceptionMiddleware(RequestDelegate next)
+        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
         {
             _next = next;
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext httpContext)
@@ -28,6 +32,12 @@ namespace Core.Extensions
             }
             catch (Exception e)
             {
+                if (e is DataConflictException)
+                    _logger.LogInformation(e, "Request rejected by a database uniqueness constraint. TraceId: {TraceId}",
+                        httpContext.TraceIdentifier);
+                else
+                    _logger.LogError(e, "Unhandled request exception. TraceId: {TraceId}",
+                        httpContext.TraceIdentifier);
                 await HandleExceptionAsync(httpContext, e);
             }
         }
@@ -69,6 +79,16 @@ namespace Core.Extensions
                 {
                     StatusCode = httpContext.Response.StatusCode,
                     Message = e.Message
+                }.ToString());
+            }
+
+            if (e is DataConflictException)
+            {
+                httpContext.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                return httpContext.Response.WriteAsync(new ErrorDetails
+                {
+                    StatusCode = httpContext.Response.StatusCode,
+                    Message = "The request conflicts with an existing record."
                 }.ToString());
             }
 

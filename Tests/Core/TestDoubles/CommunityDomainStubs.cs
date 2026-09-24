@@ -34,6 +34,13 @@ public sealed class CommunityFavoriteDalStub(IEnumerable<Favorite>? items = null
         .OrderByDescending(item => item.CreatedAt).ThenByDescending(item => item.Id).Skip(offset).Take(pageSize).ToList());
     public Task<int> CountByUserAsync(int userId, CancellationToken cancellationToken = default) =>
         Task.FromResult(GetAll(item => item.UserId == userId).Count);
+    public Task<bool> TryAddAsync(Favorite favorite, CancellationToken cancellationToken = default)
+    {
+        if (GetAll(item => item.UserId == favorite.UserId && item.ProductId == favorite.ProductId).Count > 0)
+            return Task.FromResult(false);
+        Add(favorite);
+        return Task.FromResult(true);
+    }
 }
 
 public sealed class CommunityCommentDalStub(IEnumerable<Comment>? items = null)
@@ -55,7 +62,15 @@ public sealed class CommunityCommentDalStub(IEnumerable<Comment>? items = null)
 public sealed class CommunityCommentStatusDalStub(IEnumerable<CommentStatus>? items = null)
     : EntityRepositoryStub<CommentStatus>(items), ICommentStatusDal;
 public sealed class CommunityProductDalStub(IEnumerable<Product>? items = null)
-    : EntityRepositoryStub<Product>(items), IProductDal;
+    : EntityRepositoryStub<Product>(items), IProductDal
+{
+    public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+        CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
+        GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+    public Task<int> CountPublishedAsync(int statusId, int? categoryId,
+        CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
+        GetAll(item => item.ProductStatusId == statusId).Count);
+}
 public sealed class CommunityProductStatusDalStub(IEnumerable<ProductStatus>? items = null)
     : EntityRepositoryStub<ProductStatus>(items), IProductStatusDal;
 public sealed class CommunityUserDalStub(IEnumerable<User>? items = null)

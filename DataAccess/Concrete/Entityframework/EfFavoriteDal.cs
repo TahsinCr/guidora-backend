@@ -21,5 +21,15 @@ namespace DataAccess.Concrete.Entityframework
 
         public Task<int> CountByUserAsync(int userId, CancellationToken cancellationToken = default) =>
             Context.Favorites.CountAsync(item => item.UserId == userId, cancellationToken);
+
+        public async Task<bool> TryAddAsync(Favorite favorite, CancellationToken cancellationToken = default)
+        {
+            var affected = await Context.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "Favorites" ("UserId", "ProductId", "CreatedAt")
+                VALUES ({favorite.UserId}, {favorite.ProductId}, {favorite.CreatedAt})
+                ON CONFLICT ("UserId", "ProductId") DO NOTHING
+                """, cancellationToken);
+            return affected == 1;
+        }
     }
 }

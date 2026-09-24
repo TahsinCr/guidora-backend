@@ -53,15 +53,13 @@ public sealed class FavoriteManager : IFavoriteService
     {
         if (!await IsActiveUserAsync(userId, cancellationToken)) return new ErrorResult("User is unavailable.");
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
-        if (product is null) return new ErrorResult("Product was not found.");
+        if (product is null) return new NotFoundResult("Product was not found.");
         var status = await _productStatusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
         if (status?.Code != "published") return new ErrorResult("Only published Products can be favorited.");
 
-        if (await _favoriteDal.AnyAsync(item => item.UserId == userId && item.ProductId == productId, cancellationToken))
-            return new SuccessResult("Product is already in favorites.");
-
         var favorite = new Favorite { UserId = userId, ProductId = productId, CreatedAt = System.DateTime.UtcNow };
-        await _favoriteDal.AddAsync(favorite, cancellationToken);
+        if (!await _favoriteDal.TryAddAsync(favorite, cancellationToken))
+            return new SuccessResult("Product is already in favorites.");
         await _auditLogDal.AddAsync(AuditLogFactory.Create(userId, nameof(Favorite), $"{userId}:{productId}",
             "Added", new { }, new { favorite.UserId, favorite.ProductId, favorite.CreatedAt }), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -38,15 +38,15 @@ namespace Business.Concrete
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
         public IDataResult<List<Category>> GetAll()
         {
-            return new SuccessDataResult<List<Category>>(_categoryDal.GetAll());
+            return new SuccessDataResult<List<Category>>(_categoryDal.GetAll(category => category.IsActive));
         }
 
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
         public IDataResult<Category> GetById(int id)
         {
-            var category = _categoryDal.Get(category => category.CategoryId == id);
+            var category = _categoryDal.Get(category => category.CategoryId == id && category.IsActive);
             return category == null
-                ? new ErrorDataResult<Category>("Category was not found.")
+                ? new NotFoundDataResult<Category>("Category was not found.")
                 : new SuccessDataResult<Category>(category);
         }
 
@@ -89,7 +89,7 @@ namespace Business.Concrete
             CancellationToken cancellationToken = default)
         {
             var category = await _categoryDal.GetAsync(item => item.CategoryId == categoryId, cancellationToken);
-            if (category is null) return new ErrorResult("Category was not found.");
+            if (category is null) return new NotFoundResult("Category was not found.");
 
             var ruleResult = await _businessRules.EnsureSlugIsAvailableAsync(request.Slug, categoryId,
                 cancellationToken);
@@ -121,7 +121,7 @@ namespace Business.Concrete
             CancellationToken cancellationToken = default)
         {
             var category = await _categoryDal.GetAsync(item => item.CategoryId == categoryId, cancellationToken);
-            if (category is null) return new ErrorResult("Category was not found.");
+            if (category is null) return new NotFoundResult("Category was not found.");
 
             var oldValues = new { category.IsActive, category.UpdatedAt };
             category.IsActive = false;

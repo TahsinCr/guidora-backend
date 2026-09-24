@@ -1,4 +1,6 @@
 using Core.Utilities.Security.Hashing;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Tests.Core.Security;
 
@@ -18,5 +20,20 @@ public sealed class HashingHelperTests
         HashingHelper.CreatePasswordHash("correct horse battery staple", out var hash, out var salt);
 
         Assert.False(HashingHelper.VerifyPasswordHash("incorrect password", hash, salt));
+    }
+
+    [Fact]
+    public void Legacy_hash_verifies_and_is_marked_for_rehash()
+    {
+        const string password = "legacy password";
+        var salt = RandomNumberGenerator.GetBytes(64);
+        using var hmac = new HMACSHA512(salt);
+        var legacyHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+
+        Assert.True(HashingHelper.VerifyPasswordHash(password, legacyHash, salt));
+        Assert.True(HashingHelper.NeedsRehash(legacyHash, salt));
+
+        HashingHelper.CreatePasswordHash(password, out var currentHash, out var currentSalt);
+        Assert.False(HashingHelper.NeedsRehash(currentHash, currentSalt));
     }
 }

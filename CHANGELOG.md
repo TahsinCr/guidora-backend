@@ -6,6 +6,33 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Completed the public active Tag/TagCategory catalog and moderator/admin
+  management endpoints, with validation, audit, transactional writes, seeded
+  permissions, and cascading deactivation of selectable tags.
+- Added authentication request validation, configurable IP rate limits,
+  remember-me session selection, Secure production refresh cookies, and legacy
+  password-hash upgrade after successful login. Added PostgreSQL xmin
+  optimistic concurrency for refresh-token rotation and granted the User role
+  the Product.Update permission required by the community edit workflow.
+- Added database identity checks for normalized Product website URLs, targeted
+  per-Product cache variation/invalidation, cache-envelope recovery as a cache
+  miss, and removed detail-cache invalidation from writes that do not affect
+  the Product entity returned by the detail endpoint.
+- Added PostgreSQL/Redis readiness checks, a process liveness endpoint,
+  configurable CORS and trusted forwarded-proxy handling. RabbitMQ is now an
+  optional Compose `messaging` profile and is not a V1 backend startup dependency.
+- Added Admin-only role and permission management endpoints, bulk authorization
+  session invalidation, last-Admin safeguards, explicit Comment blocking, and
+  safeguards against moving Product-used Tags or invalidating existing multi-tag
+  selections through TagCategory edits.
+- Added xmin concurrency tokens for report/proposal/verification reviews and a
+  filtered unique revert-provenance index. Favorite insertion is now idempotent
+  under concurrent requests, and shared BusinessRules runners accept explicit
+  success messages.
+- Converted per-request access-token session validation to async PostgreSQL and
+  Redis operations. PostgreSQL unique-constraint races now map to a sanitized
+  HTTP 409 response instead of leaking as an unhandled 500.
+
 - Restricted user ban, restore, and authorization invalidation to the
   Admin-only `User.Manage` OperationClaim; added Admin-only audit reversion for
   Product/Category snapshots with state checks, PostgreSQL xmin optimistic

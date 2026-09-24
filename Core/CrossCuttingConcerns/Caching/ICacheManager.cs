@@ -10,6 +10,7 @@ namespace Core.CrossCuttingConcerns.Caching
     {
         T Get<T>(string key);
         object? Get(string key);
+        bool TryGet(string key, out object? value);
 
         void Add(string key, object? value, int? durationMinutes);
 

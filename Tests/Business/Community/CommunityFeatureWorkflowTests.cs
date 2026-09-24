@@ -80,6 +80,30 @@ public sealed class CommunityFeatureWorkflowTests
     }
 
     [Fact]
+    public async Task ModeratorCanBlockCommentAndRepeatedBlockIsIdempotent()
+    {
+        var comment = new Comment { Id = 13, ProductId = 5, UserId = 7, CommentStatusId = 1, Content = "Reported" };
+        var comments = new CommunityCommentDalStub([comment]);
+        var audit = new CommunityAuditDalStub();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new CommentManager(comments,
+            new CommunityCommentStatusDalStub([
+                new CommentStatus { Id = 1, Code = "active", IsVisible = true },
+                new CommentStatus { Id = 4, Code = "blocked", IsVisible = false }]),
+            new CommunityUserDalStub(), new CommunityProductDalStub(), new CommunityProductStatusDalStub(), audit,
+            unitOfWork, new DeterministicContentModerationRule());
+
+        var blocked = await manager.BlockAsync(13, actorUserId: 99);
+        var repeated = await manager.BlockAsync(13, actorUserId: 99);
+
+        Assert.True(blocked.Success);
+        Assert.True(repeated.Success);
+        Assert.Equal(4, comment.CommentStatusId);
+        Assert.Equal("Blocked", Assert.Single(audit.Entries).Action);
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
     public async Task CommentReadIsPaginatedAndRejectsOversizedPages()
     {
         var comments = new CommunityCommentDalStub

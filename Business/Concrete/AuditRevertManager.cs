@@ -66,7 +66,7 @@ public sealed class AuditRevertManager : IAuditRevertService
             return new ErrorResult("A valid audit entry and authenticated actor are required.");
 
         var source = await _auditLogDal.GetByIdAsync(auditLogId, cancellationToken);
-        if (source is null) return new ErrorResult("Audit entry was not found.");
+        if (source is null) return new NotFoundResult("Audit entry was not found.");
         if (await _auditLogDal.HasRevertAsync(source.Id, cancellationToken))
             return new ErrorResult("This audit entry has already been reverted.");
 

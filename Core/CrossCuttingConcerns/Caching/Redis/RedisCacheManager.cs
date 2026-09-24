@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Newtonsoft.Json;
+using Core.CrossCuttingConcerns.Caching;
 using StackExchange.Redis;
 
 namespace Core.CrossCuttingConcerns.Caching.Redis
@@ -22,20 +23,43 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
 
         public object? Get(string key)
         {
-            var value = GetDatabase().StringGet(ToRedisKey(key));
-            if (value.IsNullOrEmpty)
+            return TryGet(key, out var value) ? value : null;
+        }
+
+        public bool TryGet(string key, out object? value)
+        {
+            value = null;
+            var redisKey = ToRedisKey(key);
+            var serializedEnvelope = GetDatabase().StringGet(redisKey);
+            if (serializedEnvelope.IsNullOrEmpty)
             {
-                return null;
+                return false;
             }
 
-            var envelope = JsonConvert.DeserializeObject<CacheValueEnvelope>(value!);
-            if (envelope == null || string.IsNullOrWhiteSpace(envelope.TypeName))
+            try
             {
-                return null;
-            }
+                var envelope = JsonConvert.DeserializeObject<CacheValueEnvelope>(serializedEnvelope!);
+                if (envelope == null || string.IsNullOrWhiteSpace(envelope.TypeName))
+                {
+                    GetDatabase().KeyDelete(redisKey);
+                    return false;
+                }
 
-            var valueType = Type.GetType(envelope.TypeName, throwOnError: false);
-            return valueType == null ? null : JsonConvert.DeserializeObject(envelope.Payload, valueType);
+                var valueType = Type.GetType(envelope.TypeName, throwOnError: false);
+                value = valueType == null ? null : JsonConvert.DeserializeObject(envelope.Payload, valueType);
+                if (value != null)
+                {
+                    return true;
+                }
+
+                GetDatabase().KeyDelete(redisKey);
+                return false;
+            }
+            catch (JsonException)
+            {
+                GetDatabase().KeyDelete(redisKey);
+                return false;
+            }
         }
 
         public void Add(string key, object? value, int? durationMinutes)

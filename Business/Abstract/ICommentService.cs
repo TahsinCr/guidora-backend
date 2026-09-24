@@ -16,4 +16,5 @@ public interface ICommentService
     Task<IResult> DeleteAsync(int commentId, int actorUserId, CancellationToken cancellationToken = default);
     Task<IResult> SetVisibilityAsync(int commentId, int actorUserId, bool isVisible,
         CancellationToken cancellationToken = default);
+    Task<IResult> BlockAsync(int commentId, int actorUserId, CancellationToken cancellationToken = default);
 }

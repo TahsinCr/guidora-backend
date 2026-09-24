@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
 
@@ -20,7 +21,7 @@ public sealed class FavoritesController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _favoriteService.GetForUserAsync(userId, request, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPost("products/{productId:int}")]
@@ -28,7 +29,7 @@ public sealed class FavoritesController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _favoriteService.AddAsync(productId, userId, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpDelete("products/{productId:int}")]
@@ -36,7 +37,7 @@ public sealed class FavoritesController : ControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var result = await _favoriteService.RemoveAsync(productId, userId, cancellationToken);
-        return result.Success ? Ok(result) : BadRequest(result);
+        return this.ToHttpResult(result);
     }
 
     private bool TryGetUserId(out int userId) =>

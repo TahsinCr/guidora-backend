@@ -24,6 +24,13 @@ public static class BusinessRules
         return new SuccessResult();
     }
 
+    public static IResult Run(string successMessage, params Func<IResult>[] rules)
+    {
+        ArgumentNullException.ThrowIfNull(successMessage);
+        var result = Run(rules);
+        return result.Success ? new SuccessResult(successMessage) : result;
+    }
+
     public static async Task<IResult> RunAsync(params Func<Task<IResult>>[] rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
@@ -40,6 +47,13 @@ public static class BusinessRules
         }
 
         return new SuccessResult();
+    }
+
+    public static async Task<IResult> RunAsync(string successMessage, params Func<Task<IResult>>[] rules)
+    {
+        ArgumentNullException.ThrowIfNull(successMessage);
+        var result = await RunAsync(rules).ConfigureAwait(false);
+        return result.Success ? new SuccessResult(successMessage) : result;
     }
 
     public static async Task<IResult> RunConcurrentAsync(params Func<Task<IResult>>[] rules)
@@ -66,5 +80,12 @@ public static class BusinessRules
         }
 
         return new SuccessResult();
+    }
+
+    public static async Task<IResult> RunConcurrentAsync(string successMessage, params Func<Task<IResult>>[] rules)
+    {
+        ArgumentNullException.ThrowIfNull(successMessage);
+        var result = await RunConcurrentAsync(rules).ConfigureAwait(false);
+        return result.Success ? new SuccessResult(successMessage) : result;
     }
 }

@@ -9,7 +9,8 @@ Guidora Backend is a .NET platform designed to run on Docker and evolve into ind
 - Services must be able to run as independent Docker containers.
 - Each service must own its domain model, `DbContext`, and migrations.
 - Services must not access each other's tables directly.
-- Asynchronous service communication must use RabbitMQ events.
+- RabbitMQ is optional in V1; introduce broker-backed events only when an
+  asynchronous integration/use-case is added.
 - Redis is used for caching and temporary distributed state, not as the source of truth.
 - Secrets must never be committed to the repository.
 - Ongoing work must be recorded in the `Unreleased` section of `CHANGELOG.md`.
@@ -36,10 +37,12 @@ docker compose up -d
 docker compose ps
 ```
 
-The Compose stack builds and runs the backend together with PostgreSQL, Redis,
-and RabbitMQ. Copy `.env.example` to `.env` and replace every placeholder
-secret before starting the stack. The backend is exposed on `localhost:8080`
-and its liveness endpoint is available at `/health`.
+The default Compose stack builds and runs the backend with PostgreSQL and Redis.
+RabbitMQ is optional and is not a dependency of the synchronous V1 API; start it
+only when explicitly needed with `docker compose --profile messaging up -d`.
+Copy `.env.example` to `.env` and replace every placeholder secret before
+starting the stack. The backend is exposed on `localhost:8080`; `/health/live`
+checks process availability and `/health/ready` checks PostgreSQL and Redis.
 
 Compose services:
 
@@ -47,8 +50,13 @@ Compose services:
 |---|---|
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
-| RabbitMQ AMQP | `localhost:5672` |
-| RabbitMQ management UI | `http://localhost:15672` |
+| RabbitMQ AMQP (optional `messaging` profile) | `localhost:5672` |
+| RabbitMQ management UI (optional) | `http://localhost:15672` |
+
+Infrastructure ports bind to loopback by default. Set `INFRA_BIND_ADDRESS` to
+another address only when remote host access is intentionally required; for a
+production deployment, prefer keeping PostgreSQL, Redis, and RabbitMQ private
+to the Docker network.
 
 See [infra/README.md](infra/README.md) for infrastructure details.
 
@@ -75,11 +83,15 @@ Keep the switch disabled by default in production. For local development it may
 be enabled after reviewed migrations exist. Production deployments should apply
 migrations through a controlled migration bundle or reviewed SQL deployment.
 
-The backend reads the PostgreSQL connection from the standard
-`ConnectionStrings:Guidora` configuration key. In Docker Compose this is
-overridden with the `postgres` service hostname. Redis and RabbitMQ are
-provisioned as infrastructure dependencies; feature-specific integrations are
-added only when their application contracts are defined.
+The backend reads PostgreSQL from `ConnectionStrings:Guidora`, overridden in
+Compose with the `postgres` service hostname. Redis is a V1 API dependency;
+RabbitMQ is an optional infrastructure profile, not required by the API.
+Configure browser origins through `Cors:AllowedOrigins` (Compose:
+`WEB_CLIENT_ORIGIN`). Behind a TLS-terminating proxy, set
+`ForwardedHeaders:KnownProxies` to the proxy IP addresses; arbitrary forwarded
+headers must not be trusted. Login, registration, and refresh endpoints have
+configurable IP-partitioned limits under `RateLimiting:Login`, `Register`, and
+`Refresh`. Refresh cookies are Secure outside Development.
 
 ## Redis cache and RabbitMQ
 
@@ -161,10 +173,19 @@ leaves the canonical Product unchanged. Document and media edits are not part of
 the V1 proposal snapshot.
 
 Product names are unique case-insensitively and slugs are unique in PostgreSQL.
-Website URLs are normalized before persistence, but are not used as a hard
-duplicate constraint: a shared vendor homepage may legitimately host multiple
-Products. Domain-wide or semantic duplicate detection remains undecided. Public
-catalog reads expose only `published` Products.
+Website URLs are normalized before persistence and exact normalized URL matches
+are rejected by the Business identity rule. Whether different URLs on the same
+canonical domain should be treated as duplicates remains undecided. Public
+catalog reads expose only `published` Products. Product listing endpoints are
+database-paginated (`page`, `pageSize`, capped at 100) and category filtering is
+performed in the database rather than materializing category Product IDs in
+the API process.
+
+The public tag catalog is exposed by `GET /api/tag-categories` and
+`GET /api/tags?tagCategoryId={id}`. Both return active entries only. Moderator
+and Admin management operations create, update, and deactivate tags and tag
+categories. Deactivating a TagCategory also deactivates its Tags so they cannot
+remain selectable through the public catalog.
 
 User-submitted Product text, comments, document/changelog content, media alt
 text, and contributor labels pass through a local deterministic moderation
@@ -202,7 +223,8 @@ Product comments can be listed with
 `GET /api/products/{productId}/comments?page=1&pageSize=50` and created at
 `/api/products/{productId}/comments`; authors delete their comments by changing
 them to the domain's `deleted` status, while moderators can hide or restore
-eligible comments. Public comment reads include only active comments on
+eligible comments or block them at `POST /api/comments/{id}/block`. Public
+comment reads include only active comments on
 published Products whose authors remain active; closing a User account does not
 rewrite that User's comment rows. Comment replies are not part of V1.
 
@@ -255,9 +277,11 @@ The default token settings are deliberately persistent without being
 indefinite: access token 15 minutes, refresh session 30 days, remembered
 session 90 days, and an absolute rolling-session limit of 180 days. A ban,
 direct user-claim change, or explicit authorization invalidation revokes all
-of the user's sessions and increments its authorization version. Future
-UserRole and RoleOperationClaim command handlers must call the same
-invalidation service after changing permissions.
+of the user's sessions and increments its authorization version. The Admin-only
+role API assigns/removes roles and grants/revokes OperationClaims; affected
+users' authorization versions and sessions are invalidated in the same
+transaction. The last active Admin assignment and the Admin role's
+`Role.Manage` permission are protected from removal.
 
 ## Project structure
 

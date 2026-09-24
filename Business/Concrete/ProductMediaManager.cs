@@ -5,10 +5,8 @@ using Business.BusinessRules.Content;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
-using Core.Aspects.Caching;
 using Core.Aspects.Transaction;
 using Core.DataAccess;
-using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -47,7 +45,6 @@ public sealed class ProductMediaManager : IProductMediaService
 
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductMediaRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductMediaRequest request,
         CancellationToken cancellationToken = default)
@@ -72,7 +69,6 @@ public sealed class ProductMediaManager : IProductMediaService
 
     [SecuredOperationAspect("Product.Content.Manage")]
     [ValidationAspect(typeof(ProductMediaRequestValidator))]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> UpdateAsync(int productId, int mediaId, int actorUserId, ProductMediaRequest request,
         CancellationToken cancellationToken = default)
@@ -83,7 +79,7 @@ public sealed class ProductMediaManager : IProductMediaService
         if (!rule.Success) return rule;
         var media = await _mediaDal.GetAsync(item => item.ProductId == productId && item.Id == mediaId,
             cancellationToken);
-        if (media is null) return new ErrorResult("Product media was not found.");
+        if (media is null) return new NotFoundResult("Product media was not found.");
         var oldValues = new { media.MediaType, media.Url, media.AltText, media.DisplayOrder };
         media.MediaType = request.MediaType.Trim();
         media.Url = request.Url.Trim();
@@ -97,7 +93,6 @@ public sealed class ProductMediaManager : IProductMediaService
     }
 
     [SecuredOperationAspect("Product.Content.Manage")]
-    [CacheRemoveAspect(CacheProfiles.ProductDetail)]
     [TransactionScopeAspect]
     public async Task<IResult> DeleteAsync(int productId, int mediaId, int actorUserId,
         CancellationToken cancellationToken = default)
@@ -106,7 +101,7 @@ public sealed class ProductMediaManager : IProductMediaService
         if (!rule.Success) return rule;
         var media = await _mediaDal.GetAsync(item => item.ProductId == productId && item.Id == mediaId,
             cancellationToken);
-        if (media is null) return new ErrorResult("Product media was not found.");
+        if (media is null) return new NotFoundResult("Product media was not found.");
         _mediaDal.Purge(media);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(ProductMedia), mediaId.ToString(),
             "Deleted", new { media.ProductId, media.MediaType, media.Url, media.AltText, media.DisplayOrder }, new { }),

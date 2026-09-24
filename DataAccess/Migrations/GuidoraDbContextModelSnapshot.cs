@@ -113,6 +113,21 @@ namespace DataAccess.Migrations
                         {
                             Id = 14,
                             Name = "Audit.Revert"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Name = "Tag.Manage"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            Name = "TagCategory.Manage"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            Name = "Role.Manage"
                         });
                 });
 
@@ -335,6 +350,42 @@ namespace DataAccess.Migrations
                             Id = 24,
                             OperationClaimId = 14,
                             RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 25,
+                            OperationClaimId = 2,
+                            RoleId = 1
+                        },
+                        new
+                        {
+                            Id = 26,
+                            OperationClaimId = 15,
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 27,
+                            OperationClaimId = 16,
+                            RoleId = 2
+                        },
+                        new
+                        {
+                            Id = 28,
+                            OperationClaimId = 15,
+                            RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 29,
+                            OperationClaimId = 16,
+                            RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 30,
+                            OperationClaimId = 17,
+                            RoleId = 3
                         });
                 });
 
@@ -537,7 +588,10 @@ namespace DataAccess.Migrations
 
                     b.HasIndex("ActorUserId");
 
-                    b.HasIndex("RevertsAuditLogId");
+                    b.HasIndex("RevertsAuditLogId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AuditLogs_RevertsAuditLogId")
+                        .HasFilter("\"RevertsAuditLogId\" IS NOT NULL");
 
                     b.HasIndex("EntityType", "EntityId", "CreatedAt");
 
@@ -985,6 +1039,12 @@ namespace DataAccess.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProposedByUserId");
@@ -1119,6 +1179,12 @@ namespace DataAccess.Migrations
                     b.Property<int?>("ResolvedByUserId")
                         .HasColumnType("integer");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ReportReasonId");
@@ -1237,6 +1303,12 @@ namespace DataAccess.Migrations
 
                     b.Property<int?>("VerifiedByUserId")
                         .HasColumnType("integer");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -1476,6 +1548,12 @@ namespace DataAccess.Migrations
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 

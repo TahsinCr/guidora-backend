@@ -12,6 +12,7 @@ using Entities;
 using Entities.DTOs;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete;
 
@@ -42,7 +43,7 @@ public sealed class ProductReportManager : IProductReportService
         CancellationToken cancellationToken = default)
     {
         if (await _productDal.GetAsync(product => product.ProductId == productId, cancellationToken) is null)
-            return new ErrorResult("Product was not found.");
+            return new NotFoundResult("Product was not found.");
         var reason = await _reasonDal.GetAsync(item => item.Id == request.ReasonId && item.IsActive, cancellationToken);
         if (reason is null) return new ErrorResult("Report reason is unavailable.");
         var openStatus = await _statusDal.GetAsync(status => status.Code == "open", cancellationToken);
@@ -107,7 +108,7 @@ public sealed class ProductReportManager : IProductReportService
         string reviewNote, CancellationToken cancellationToken)
     {
         var report = await _reportDal.GetAsync(item => item.Id == reportId, cancellationToken);
-        if (report is null) return new ErrorResult("Product report was not found.");
+        if (report is null) return new NotFoundResult("Product report was not found.");
         var currentStatus = await _statusDal.GetAsync(item => item.Id == report.ReportStatusId, cancellationToken);
         if (currentStatus?.Code != "open") return new ErrorResult("Only open reports can be reviewed.");
         var targetStatus = await _statusDal.GetAsync(item => item.Code == statusCode, cancellationToken);
@@ -130,7 +131,14 @@ public sealed class ProductReportManager : IProductReportService
                 Status = targetStatus.Code, report.ResolvedAt, report.ResolvedByUserId,
                 ReviewNote = reviewNote
             }), cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ConflictResult("This Product report was reviewed by another moderator. Reload and try again.");
+        }
         return new SuccessResult($"Product report {statusCode}.");
     }
 }

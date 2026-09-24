@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Transactions;
 using Business.Abstract;
@@ -28,27 +29,34 @@ namespace Business.Concrete
 
         public IResult InvalidateUserSessions(int userId)
         {
-            if (userId <= 0)
-            {
-                return new ErrorResult("A valid user identifier is required.");
-            }
+            return InvalidateUsersSessions([userId]);
+        }
+
+        public IResult InvalidateUsersSessions(IReadOnlyCollection<int> userIds)
+        {
+            if (userIds is null || userIds.Count == 0 || userIds.Any(id => id <= 0))
+                return new ErrorResult("At least one valid user identifier is required.");
+
+            var distinctUserIds = userIds.Distinct().ToArray();
 
             var now = DateTime.UtcNow;
-            var authenticationState = _authenticationStateDal.Get(item => item.UserId == userId);
-            if (authenticationState is null)
+            var authenticationStates = _authenticationStateDal.GetAll(item => distinctUserIds.Contains(item.UserId));
+            var statesByUserId = authenticationStates.ToDictionary(item => item.UserId);
+            var newStates = new List<UserAuthenticationState>();
+            foreach (var userId in distinctUserIds)
             {
-                // Keep the entity Added. Calling Update here would turn the new row into
-                // an UPDATE against its unset/generated primary key.
-                authenticationState = new UserAuthenticationState
+                if (!statesByUserId.TryGetValue(userId, out var authenticationState))
                 {
-                    UserId = userId,
-                    AuthorizationVersion = 2,
-                    UpdatedAt = now
-                };
-                _authenticationStateDal.Add(authenticationState);
-            }
-            else
-            {
+                    // Keep new rows Added; updating generated-key entities here would issue invalid UPDATEs.
+                    newStates.Add(new UserAuthenticationState
+                    {
+                        UserId = userId,
+                        AuthorizationVersion = 2,
+                        UpdatedAt = now
+                    });
+                    continue;
+                }
+
                 checked
                 {
                     authenticationState.AuthorizationVersion++;
@@ -56,9 +64,10 @@ namespace Business.Concrete
                 authenticationState.UpdatedAt = now;
                 _authenticationStateDal.Update(authenticationState);
             }
+            foreach (var state in newStates) _authenticationStateDal.Add(state);
 
             var activeSessions = _userSessionDal.GetAll(session =>
-                session.UserId == userId && !session.RevokedAt.HasValue);
+                distinctUserIds.Contains(session.UserId) && !session.RevokedAt.HasValue);
             foreach (var session in activeSessions)
             {
                 session.RevokedAt = now;

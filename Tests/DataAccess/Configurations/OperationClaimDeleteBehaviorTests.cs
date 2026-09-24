@@ -79,6 +79,58 @@ public sealed class OperationClaimDeleteBehaviorTests
     }
 
     [Fact]
+    public void ProductUpdatePermissionIsSeededForTheCommunityUserRole()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var updateClaim = Assert.Single(model.FindEntityType(typeof(OperationClaim))!.GetSeedData(),
+            seed => seed["Name"] as string == "Product.Update");
+
+        var assignment = Assert.Single(model.FindEntityType(typeof(RoleOperationClaim))!.GetSeedData(),
+            seed => Convert.ToInt32(seed["OperationClaimId"]) == Convert.ToInt32(updateClaim["Id"])
+                    && Convert.ToInt32(seed["RoleId"]) == 1);
+        Assert.Equal(25, Convert.ToInt32(assignment["Id"]));
+    }
+
+    [Fact]
+    public void UserSessionsUsePostgreSqlXminForRefreshRotationConcurrency()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+        var token = context.Model.FindEntityType(typeof(UserSession))!.FindProperty("xmin");
+
+        Assert.NotNull(token);
+        Assert.True(token!.IsConcurrencyToken);
+        Assert.True(token.ValueGenerated.HasFlag(Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAddOrUpdate));
+    }
+
+    [Fact]
+    public void GovernanceReviewRecordsUseXminAndAuditRevertsAreUnique()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+
+        foreach (var entityType in new[] { typeof(ProductReport), typeof(ProductEditProposal), typeof(ProductVerification) })
+        {
+            var token = context.Model.FindEntityType(entityType)!.FindProperty("xmin");
+            Assert.NotNull(token);
+            Assert.True(token!.IsConcurrencyToken);
+        }
+
+        var revertIndex = context.Model.FindEntityType(typeof(AuditLog))!.GetIndexes()
+            .Single(index => index.GetDatabaseName() == "UX_AuditLogs_RevertsAuditLogId");
+        Assert.True(revertIndex.IsUnique);
+        Assert.Equal("\"RevertsAuditLogId\" IS NOT NULL", revertIndex.GetFilter());
+    }
+
+    [Fact]
     public void CommunityAndContentPermissionsAreSeededForExpectedRoles()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()

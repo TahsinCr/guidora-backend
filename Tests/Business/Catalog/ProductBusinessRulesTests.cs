@@ -59,9 +59,28 @@ public sealed class ProductBusinessRulesTests
             " guidora ", "another", "https://another.test")).Success);
         Assert.True((await rules.EnsureIdentityIsAvailableAsync(
             "Other", "another", "https://another.test", excludingProductId: 8)).Success);
-        Assert.True((await rules.EnsureIdentityIsAvailableAsync(
+        Assert.False((await rules.EnsureIdentityIsAvailableAsync(
             "Another Product", "another-product",
             "HTTPS://EXAMPLE.TEST/product/?utm_source=guidora")).Success);
+    }
+
+    [Fact]
+    public async Task RejectsDuplicateNormalizedWebsiteUrlEvenWhenNameAndSlugDiffer()
+    {
+        var existing = new Product
+        {
+            ProductId = 19,
+            Name = "Existing Product",
+            Slug = "existing-product",
+            WebsiteUrl = ProductIdentityNormalizer.NormalizeWebsiteUrl(
+                "https://example.test/app?utm_source=old")
+        };
+        var rules = new ProductBusinessRules(new ProductDalStub([existing]), new CategoryDalStub());
+
+        var result = await rules.EnsureIdentityIsAvailableAsync(
+            "Different Product", "different-product", "https://EXAMPLE.TEST/app/#section");
+
+        Assert.False(result.Success);
     }
 
     [Fact]
@@ -97,6 +116,26 @@ public sealed class ProductBusinessRulesTests
         Assert.True(manager.GetById(1).Success);
         Assert.False(manager.GetById(2).Success);
         Assert.False(manager.GetById(3).Success);
+    }
+
+    [Fact]
+    public async Task ProductCatalogPageIsBoundedAndReportsTotalCount()
+    {
+        var products = new ProductDalStub([
+            new Product { ProductId = 1, Name = "Alpha", ProductStatusId = 1 },
+            new Product { ProductId = 2, Name = "Beta", ProductStatusId = 1 },
+            new Product { ProductId = 3, Name = "Hidden", ProductStatusId = 2 }
+        ]);
+        var manager = CreateProductManager(products,
+            new ProductStatusDalStub([
+                new ProductStatus { Id = 1, Code = "published" },
+                new ProductStatus { Id = 2, Code = "hidden" }]), new ProductCategoryDalStub());
+
+        var result = await manager.GetPageAsync(new PageRequest { Page = 2, PageSize = 1 });
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data!.TotalCount);
+        Assert.Equal("Beta", Assert.Single(result.Data.Items).Name);
     }
 
     [Fact]
@@ -182,6 +221,12 @@ public sealed class ProductBusinessRulesTests
     private sealed class ProductDalStub(IEnumerable<Product>? products = null)
         : EntityRepositoryStub<Product>(products), IProductDal
     {
+        public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
+            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+        public Task<int> CountPublishedAsync(int statusId, int? categoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
+            GetAll(item => item.ProductStatusId == statusId).Count);
         public override void Add(Product entity)
         {
             entity.ProductId = 42;

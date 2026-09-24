@@ -27,7 +27,7 @@ public sealed class ProductResourceRules : IProductResourceRules
     public async Task<IResult> EnsurePublishedAsync(int productId, CancellationToken cancellationToken = default)
     {
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
-        if (product is null) return new ErrorResult("Product was not found.");
+        if (product is null) return new NotFoundResult("Product was not found.");
         var status = await _statusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
         return status?.Code == "published"
             ? new SuccessResult()

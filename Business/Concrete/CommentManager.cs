@@ -68,7 +68,7 @@ public sealed class CommentManager : ICommentService
         var user = await _userDal.GetAsync(item => item.Id == userId, cancellationToken);
         if (user is not { Status: true }) return new ErrorResult("User is unavailable.");
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
-        if (product is null) return new ErrorResult("Product was not found.");
+        if (product is null) return new NotFoundResult("Product was not found.");
         var productStatus = await _productStatusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
         if (productStatus?.Code != "published") return new ErrorResult("Comments are available only for published Products.");
         var activeStatus = await _commentStatusDal.GetAsync(item => item.Code == "active", cancellationToken);
@@ -97,7 +97,7 @@ public sealed class CommentManager : ICommentService
         CancellationToken cancellationToken = default)
     {
         var comment = await _commentDal.GetAsync(item => item.Id == commentId, cancellationToken);
-        if (comment is null) return new ErrorResult("Comment was not found.");
+        if (comment is null) return new NotFoundResult("Comment was not found.");
         if (comment.UserId != actorUserId) return new ErrorResult("Only the author can delete this comment.");
         var currentStatus = await _commentStatusDal.GetAsync(item => item.Id == comment.CommentStatusId, cancellationToken);
         if (currentStatus?.Code == "deleted") return new SuccessResult("Comment is already deleted.");
@@ -120,7 +120,7 @@ public sealed class CommentManager : ICommentService
         CancellationToken cancellationToken = default)
     {
         var comment = await _commentDal.GetAsync(item => item.Id == commentId, cancellationToken);
-        if (comment is null) return new ErrorResult("Comment was not found.");
+        if (comment is null) return new NotFoundResult("Comment was not found.");
         var currentStatus = await _commentStatusDal.GetAsync(item => item.Id == comment.CommentStatusId, cancellationToken);
         if (currentStatus is null || currentStatus.Code is "deleted" or "blocked")
             return new ErrorResult("This comment status cannot be changed by this operation.");
@@ -137,5 +137,29 @@ public sealed class CommentManager : ICommentService
             new { Status = targetStatus.Code, comment.UpdatedAt }), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return new SuccessResult(isVisible ? "Comment is visible." : "Comment is hidden.");
+    }
+
+    [SecuredOperationAspect("Comment.Moderate")]
+    [TransactionScopeAspect]
+    public async Task<IResult> BlockAsync(int commentId, int actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var comment = await _commentDal.GetAsync(item => item.Id == commentId, cancellationToken);
+        if (comment is null) return new NotFoundResult("Comment was not found.");
+        var currentStatus = await _commentStatusDal.GetAsync(item => item.Id == comment.CommentStatusId, cancellationToken);
+        if (currentStatus is null || currentStatus.Code is "deleted" or "blocked")
+            return currentStatus?.Code == "blocked"
+                ? new SuccessResult("Comment is already blocked.")
+                : new ErrorResult("This comment cannot be blocked from its current status.");
+        var blockedStatus = await _commentStatusDal.GetAsync(item => item.Code == "blocked", cancellationToken);
+        if (blockedStatus is null) return new ErrorResult("Blocked comment status is not configured.");
+
+        comment.CommentStatusId = blockedStatus.Id;
+        comment.UpdatedAt = System.DateTime.UtcNow;
+        _commentDal.Update(comment);
+        await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(Comment), commentId.ToString(),
+            "Blocked", new { Status = currentStatus.Code }, new { Status = blockedStatus.Code, comment.UpdatedAt }), cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return new SuccessResult("Comment blocked.");
     }
 }

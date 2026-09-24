@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using WebAPI.Utilities;
 
 namespace WebAPI.Controllers
 {
@@ -29,12 +30,7 @@ namespace WebAPI.Controllers
             }
 
             var result = await _productService.CreateAsync(request, createdByUserId, cancellationToken);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpDelete("{id:int}")]
@@ -47,48 +43,29 @@ namespace WebAPI.Controllers
             }
 
             var result = await _productService.DeleteAsync(id, deletedByUserId, cancellationToken);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpGet("{id:int}")]
         public IActionResult GetById(int id)
         {
             var result = _productService.GetById(id);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpGet("by-category/{id:int}")]
-        public IActionResult GetAllByCategoryId(int id)
+        public async Task<IActionResult> GetAllByCategoryId(int id, [FromQuery] PageRequest request,
+            CancellationToken cancellationToken)
         {
-            var result = _productService.GetAllByCategoryId(id);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            var result = await _productService.GetPageAsync(request, id, cancellationToken);
+            return this.ToHttpResult(result);
         }
 
         [HttpGet]
-        public IActionResult GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] PageRequest request, CancellationToken cancellationToken)
         {
-            var result = _productService.GetAll();
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            var result = await _productService.GetPageAsync(request, cancellationToken: cancellationToken);
+            return this.ToHttpResult(result);
         }
 
         [HttpPut("{id:int}")]
@@ -101,12 +78,7 @@ namespace WebAPI.Controllers
             }
 
             var result = await _productService.UpdateAsync(id, request, updatedByUserId, cancellationToken);
-            if (result.Success)
-            {
-                return Ok(result);
-            }
-
-            return BadRequest(result);
+            return this.ToHttpResult(result);
         }
     }
 }

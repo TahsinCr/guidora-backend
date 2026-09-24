@@ -10,21 +10,16 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__Guidora: Host=postgres;Port=5432;Database=${POSTGRES_DB:-guidora};Username=${POSTGRES_USER:-guidora};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       Redis__Configuration: redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
-      RabbitMq__HostName: rabbitmq
-      RabbitMq__Port: 5672
-      RabbitMq__UserName: ${RABBITMQ_USER:-guidora}
-      RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}
       Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}
       Authorization__SyncOperationClaimsOnStartup: ${AUTHORIZATION_SYNC_OPERATION_CLAIMS_ON_STARTUP:-false}
       TokenOptions__SecurityKey: ${TOKEN_OPTIONS__SECURITYKEY:?TOKEN_OPTIONS__SECURITYKEY must be set in .env}
+      Cors__AllowedOrigins__0: ${WEB_CLIENT_ORIGIN:-http://localhost:4200}
     ports:
       - "${WEBAPI_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
     networks: [guidora]
 
@@ -36,7 +31,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-guidora}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - guidora-postgres-data:/var/lib/postgresql
     healthcheck:
@@ -52,7 +47,7 @@ services:
     command: ["redis-server", "/usr/local/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lfu"]
     mem_limit: ${REDIS_CONTAINER_MEMORY_LIMIT:-320m}
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     volumes:
       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
@@ -63,14 +58,15 @@ services:
     networks: [guidora]
 
   rabbitmq:
+    profiles: ["messaging"]
     image: rabbitmq:4.3.6-management-alpine
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guidora}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:${RABBITMQ_PORT:-5672}:5672"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes:
       - guidora-rabbitmq-data:/var/lib/rabbitmq
     healthcheck:

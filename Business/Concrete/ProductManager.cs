@@ -95,8 +95,31 @@ namespace Business.Concrete
                                                product.ProductStatusId == publishedStatus.Id));
         }
 
+        [ValidationAspect(typeof(PageRequestValidator))]
+        [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
+        public async Task<IDataResult<PagedResult<Product>>> GetPageAsync(PageRequest request, int? categoryId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (request is null || request.Page < 1 || request.PageSize is < 1 or > 100)
+                return new ErrorDataResult<PagedResult<Product>>("Invalid product page request.");
+            if (categoryId is <= 0)
+                return new ErrorDataResult<PagedResult<Product>>("Category ID must be positive.");
+            var status = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
+            if (status is null)
+                return new ErrorDataResult<PagedResult<Product>>("Published product status is not configured.");
+            var offset = ((long)request.Page - 1) * request.PageSize;
+            if (offset > int.MaxValue)
+                return new ErrorDataResult<PagedResult<Product>>("Requested page is out of range.");
 
-        [CacheAspect(CacheProfiles.ProductDetail, duration: 15)]
+            var items = await _productDal.GetPublishedPageAsync(status.Id, categoryId, (int)offset,
+                request.PageSize, cancellationToken);
+            var totalCount = await _productDal.CountPublishedAsync(status.Id, categoryId, cancellationToken);
+            return new SuccessDataResult<PagedResult<Product>>(
+                new PagedResult<Product>(items, request.Page, request.PageSize, totalCount), Messages.ProductsListed);
+        }
+
+
+        [CacheAspect(CacheProfiles.ProductDetail, duration: 15, VaryByArgumentIndexes = new[] { 0 })]
         public IDataResult<Product> GetById(int id)
         {
             var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
@@ -108,7 +131,7 @@ namespace Business.Concrete
             var product = _productDal.Get(product => product.ProductId == id &&
                                                       product.ProductStatusId == publishedStatus.Id);
             return product == null
-                ? new ErrorDataResult<Product>("Product was not found.")
+                ? new NotFoundDataResult<Product>("Product was not found.")
                 : new SuccessDataResult<Product>(product);
         }
 
@@ -142,11 +165,19 @@ namespace Business.Concrete
 
         [SecuredOperationAspect("Product.Create")]
         [ValidationAspect(typeof(CreateProductRequestValidator))]
-        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing)]
         [TransactionScopeAspect]
         public async Task<IResult> CreateAsync(CreateProductRequest request, int createdByUserId,
             CancellationToken cancellationToken = default)
         {
+            var normalizedCategoryIds = request.CategoryIds.Distinct().ToArray();
+            var categoryValidation = await _businessRules.EnsureCategoriesAreActiveAsync(normalizedCategoryIds,
+                cancellationToken);
+            if (!categoryValidation.Success) return categoryValidation;
+            var normalizedTagIds = request.TagIds.Distinct().ToArray();
+            var tagValidation = await EnsureTagSelectionIsValidAsync(normalizedTagIds, cancellationToken);
+            if (!tagValidation.Success) return tagValidation;
+
             var product = new Product
             {
                 Name = request.Name,
@@ -164,14 +195,10 @@ namespace Business.Concrete
                 return result;
             }
 
-            var categoryResult = await ReplaceCategoriesAsync(product.ProductId, request.CategoryIds, cancellationToken);
-            if (!categoryResult.Success)
-            {
-                return categoryResult;
-            }
-            var tagResult = await EnsureTagSelectionIsValidAsync(request.TagIds, cancellationToken);
-            if (!tagResult.Success) return tagResult;
-            await ReplaceTagsAsync(product.ProductId, request.TagIds.Distinct().ToArray(), cancellationToken);
+            _productCategoryDal.AddRange(normalizedCategoryIds.Select(categoryId =>
+                new ProductCategory { ProductId = product.ProductId, CategoryId = categoryId }));
+            _productTagDal.AddRange(normalizedTagIds.Select(tagId =>
+                new ProductTag { ProductId = product.ProductId, TagId = tagId }));
 
             await _auditLogDal.AddAsync(AuditLogFactory.Create(createdByUserId, nameof(Product), product.ProductId.ToString(),
                 "Created", new { }, new
@@ -179,16 +206,17 @@ namespace Business.Concrete
                     product.Name, product.Slug, product.ShortDescription, product.Description,
                     product.WebsiteUrl, product.LogoUrl, product.CreatedByUserId,
                     product.ProductStatusId, product.CreatedAt,
-                    CategoryIds = request.CategoryIds.Distinct().ToArray(),
-                    TagIds = request.TagIds.Distinct().ToArray()
+                    CategoryIds = normalizedCategoryIds,
+                    TagIds = normalizedTagIds
                 }), cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return categoryResult;
+            return new SuccessResult(Messages.ProductAdded);
         }
 
         [SecuredOperationAspect("Product.Update")]
         [ValidationAspect(typeof(UpdateProductRequestValidator))]
-        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing)]
+        [CacheRemoveAspect(CacheProfiles.ProductDetail, ArgumentIndex = 0)]
         [TransactionScopeAspect]
         public async Task<IResult> UpdateAsync(int productId, UpdateProductRequest request, int updatedByUserId,
             CancellationToken cancellationToken = default)
@@ -196,7 +224,7 @@ namespace Business.Concrete
             var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
             if (product == null)
             {
-                return new ErrorResult("Product was not found.");
+                return new NotFoundResult("Product was not found.");
             }
 
             var normalizedRequest = new UpdateProductRequest
@@ -325,7 +353,8 @@ namespace Business.Concrete
         }
 
         [SecuredOperationAspect("Product.Delete")]
-        [CacheRemoveAspect(CacheProfiles.CatalogListing, CacheProfiles.ProductDetail)]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing)]
+        [CacheRemoveAspect(CacheProfiles.ProductDetail, ArgumentIndex = 0)]
         [TransactionScopeAspect]
         public async Task<IResult> DeleteAsync(int productId, int deletedByUserId,
             CancellationToken cancellationToken = default)
@@ -333,7 +362,7 @@ namespace Business.Concrete
             var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
             if (product == null)
             {
-                return new ErrorResult("Product was not found.");
+                return new NotFoundResult("Product was not found.");
             }
 
             var deletedStatus = await _productStatusDal.GetAsync(status => status.Code == "deleted", cancellationToken);
@@ -366,9 +395,12 @@ namespace Business.Concrete
                 return categoryRule;
             }
 
-            _productCategoryDal.PurgeRange(await _productCategoryDal.GetAllAsync(
-                item => item.ProductId == productId, cancellationToken));
-            _productCategoryDal.AddRange(normalizedCategoryIds.Select(categoryId =>
+            var existing = await _productCategoryDal.GetAllAsync(item => item.ProductId == productId,
+                cancellationToken);
+            var requestedSet = normalizedCategoryIds.ToHashSet();
+            var existingSet = existing.Select(item => item.CategoryId).ToHashSet();
+            _productCategoryDal.PurgeRange(existing.Where(item => !requestedSet.Contains(item.CategoryId)));
+            _productCategoryDal.AddRange(requestedSet.Except(existingSet).Select(categoryId =>
                 new ProductCategory { ProductId = productId, CategoryId = categoryId }));
 
             return new SuccessResult();
@@ -388,9 +420,12 @@ namespace Business.Concrete
 
         private async Task ReplaceTagsAsync(int productId, int[] tagIds, CancellationToken cancellationToken)
         {
-            _productTagDal.PurgeRange(await _productTagDal.GetAllAsync(
-                item => item.ProductId == productId, cancellationToken));
-            _productTagDal.AddRange(tagIds.Select(tagId => new ProductTag { ProductId = productId, TagId = tagId }));
+            var existing = await _productTagDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
+            var requestedSet = tagIds.ToHashSet();
+            var existingSet = existing.Select(item => item.TagId).ToHashSet();
+            _productTagDal.PurgeRange(existing.Where(item => !requestedSet.Contains(item.TagId)));
+            _productTagDal.AddRange(requestedSet.Except(existingSet)
+                .Select(tagId => new ProductTag { ProductId = productId, TagId = tagId }));
         }
     }
 }
