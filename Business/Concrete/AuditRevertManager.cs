@@ -187,7 +187,9 @@ public sealed class AuditRevertManager : IAuditRevertService
         var restored = Snapshot(product, targetStatus.Code, nextCategories, nextTags);
         await AddRevertAuditAsync(source, actorUserId, current, restored, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return new SuccessResult("Product changes were reverted and recorded in the audit history.");
+        return new CacheInvalidationSuccessResult("Product changes were reverted and recorded in the audit history.",
+            new CacheInvalidationTarget(CacheProfiles.CatalogListing),
+            new CacheInvalidationTarget(CacheProfiles.ProductDetail, ArgumentIndex: 0, ArgumentValue: productId));
     }
 
     private async Task<IResult> RevertCategoryAsync(AuditLog source, int actorUserId,
@@ -229,7 +231,9 @@ public sealed class AuditRevertManager : IAuditRevertService
         var restored = Snapshot(category);
         await AddRevertAuditAsync(source, actorUserId, current, restored, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return new SuccessResult("Category changes were reverted and recorded in the audit history.");
+        return new CacheInvalidationSuccessResult("Category changes were reverted and recorded in the audit history.",
+            new CacheInvalidationTarget(CacheProfiles.CatalogListing),
+            new CacheInvalidationTarget(CacheProfiles.CatalogNavigation));
     }
 
     private async Task AddRevertAuditAsync<TSnapshot>(AuditLog source, int actorUserId,

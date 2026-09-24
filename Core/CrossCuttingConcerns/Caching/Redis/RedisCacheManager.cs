@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using Core.CrossCuttingConcerns.Caching;
 using StackExchange.Redis;
@@ -9,6 +9,7 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
     public class RedisCacheManager : ICacheManager
     {
         private const string CachePrefix = "cache:";
+        private const int KeyDeleteBatchSize = 256;
         private readonly IConnectionMultiplexer _connectionMultiplexer;
 
         public RedisCacheManager(IConnectionMultiplexer connectionMultiplexer)
@@ -106,10 +107,22 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
                     continue;
                 }
 
-                var keys = server.Keys(database: 0, pattern: redisPattern, pageSize: 1000).ToArray();
-                if (keys.Length > 0)
+                var batch = new List<RedisKey>(KeyDeleteBatchSize);
+                foreach (var key in server.Keys(database: 0, pattern: redisPattern, pageSize: KeyDeleteBatchSize))
                 {
-                    database.KeyDelete(keys);
+                    batch.Add(key);
+                    if (batch.Count < KeyDeleteBatchSize)
+                    {
+                        continue;
+                    }
+
+                    database.KeyDelete(batch.ToArray());
+                    batch.Clear();
+                }
+
+                if (batch.Count > 0)
+                {
+                    database.KeyDelete(batch.ToArray());
                 }
             }
         }

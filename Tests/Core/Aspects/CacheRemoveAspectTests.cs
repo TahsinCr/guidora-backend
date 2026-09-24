@@ -5,6 +5,7 @@ using Core.Utilities.IoC;
 using Core.Utilities.Results;
 using Microsoft.Extensions.DependencyInjection;
 using Tests.Core.TestDoubles;
+using System.Text.Json;
 
 namespace Tests.Core.Aspects;
 
@@ -69,6 +70,44 @@ public sealed class CacheRemoveAspectTests
             Assert.Single(cache.InvalidatedPatterns));
     }
 
+    [Fact]
+    public void UsesSuccessfulResultTargetsInsteadOfInvalidatingEveryConfiguredProfile()
+    {
+        var (proxy, cache) = CreateProxy();
+
+        var result = proxy.SucceedWithTarget(42);
+
+        Assert.True(result.Success);
+        Assert.Equal(
+            ["catalog-listing:*", $"product-detail:*:arg:0:{CacheKeySegment.Hash(42)}"],
+            cache.InvalidatedPatterns);
+        Assert.DoesNotContain("product-detail:*", cache.InvalidatedPatterns);
+    }
+
+    [Fact]
+    public async Task AppliesResultDrivenInvalidationAfterAsynchronousCommandCompletes()
+    {
+        var (proxy, cache) = CreateProxy();
+
+        var result = await proxy.SucceedWithTargetAsync(42);
+
+        Assert.True(result.Success);
+        Assert.Equal(
+            ["catalog-listing:*", $"product-detail:*:arg:0:{CacheKeySegment.Hash(42)}"],
+            cache.InvalidatedPatterns);
+    }
+
+    [Fact]
+    public void CacheInvalidationDirectiveIsNotSerializedIntoPublicResultContract()
+    {
+        var result = JsonSerializer.Serialize(new CacheInvalidationSuccessResult("done",
+            new CacheInvalidationTarget("product-detail", 0, 42)));
+
+        Assert.DoesNotContain("CacheInvalidations", result, StringComparison.Ordinal);
+        Assert.Contains("\"Success\":true", result, StringComparison.Ordinal);
+        Assert.Contains("\"Message\":\"done\"", result, StringComparison.Ordinal);
+    }
+
     private static (IWriteTarget Proxy, CacheManagerStub Cache) CreateProxy()
     {
         var cache = new CacheManagerStub();
@@ -86,6 +125,8 @@ public sealed class CacheRemoveAspectTests
         Task<IResult> FailAsync();
         Task<IResult> SucceedAsync();
         IResult UpdateProduct(int productId);
+        IResult SucceedWithTarget(int productId);
+        Task<IResult> SucceedWithTargetAsync(int productId);
     }
 
     private sealed class WriteTarget : IWriteTarget
@@ -95,5 +136,12 @@ public sealed class CacheRemoveAspectTests
         public Task<IResult> FailAsync() => Task.FromResult<IResult>(new ErrorResult("rejected"));
         public Task<IResult> SucceedAsync() => Task.FromResult<IResult>(new SuccessResult());
         public IResult UpdateProduct(int productId) => new SuccessResult();
+        public IResult SucceedWithTarget(int productId) => new CacheInvalidationSuccessResult("done",
+            new CacheInvalidationTarget("catalog-listing"),
+            new CacheInvalidationTarget("product-detail", 0, productId));
+        public Task<IResult> SucceedWithTargetAsync(int productId) => Task.FromResult<IResult>(
+            new CacheInvalidationSuccessResult("done",
+                new CacheInvalidationTarget("catalog-listing"),
+                new CacheInvalidationTarget("product-detail", 0, productId)));
     }
 }

@@ -105,6 +105,11 @@ their concrete result type; PostgreSQL remains the source of truth.
 Authentication session validation uses a separate, one-minute distributed
 Redis entry.
 
+Use cases that know the affected Product return an internal cache-invalidation
+directive so detail entries are targeted by Product ID while affected catalog
+listings are invalidated by profile. The directive is not serialized in the HTTP
+result. Redis pattern invalidation deletes matching keys in bounded batches.
+
 Aspect priorities define wrapper nesting, not the timestamp of each aspect's
 callback. Authorization and validation guard the use case; `CacheRemoveAspect`
 wraps the transaction so its success hook executes after the inner transaction
@@ -120,6 +125,9 @@ Redis is configured as disposable cache infrastructure: AOF and RDB persistence
 are disabled, and the global eviction policy is `allkeys-lfu`. Compose defaults
 to `REDIS_MAXMEMORY=256mb` and `REDIS_CONTAINER_MEMORY_LIMIT=320m`; override
 these deployment settings through `.env` after measuring the target host.
+
+The V1 verification lookup contains only `admin` and `community`; Bot
+Verification remains out of scope and is not seeded until its workflow exists.
 
 Secured-operation claims are discovered from Business aspects. Startup
 synchronization is additive and idempotent: it creates missing claims but never

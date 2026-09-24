@@ -1602,12 +1602,6 @@ namespace DataAccess.Migrations
                             Id = 2,
                             Code = "community",
                             Name = "Community verified"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Code = "bot",
-                            Name = "Bot verified"
                         });
                 });
 

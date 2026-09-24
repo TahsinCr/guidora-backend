@@ -96,6 +96,23 @@ public sealed class OperationClaimDeleteBehaviorTests
     }
 
     [Fact]
+    public void V1VerificationCatalogContainsOnlyAdminAndCommunityTypes()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+
+        var types = context.GetService<IDesignTimeModel>().Model
+            .FindEntityType(typeof(VerificationType))!.GetSeedData()
+            .Select(seed => (string)seed["Code"]!)
+            .Order()
+            .ToArray();
+
+        Assert.Equal(["admin", "community"], types);
+    }
+
+    [Fact]
     public void UserSessionsUsePostgreSqlXminForRefreshRotationConcurrency()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()

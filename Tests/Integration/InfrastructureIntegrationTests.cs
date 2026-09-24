@@ -1,4 +1,5 @@
 using Core.CrossCuttingConcerns.Messaging;
+using Core.CrossCuttingConcerns.Caching.Redis;
 using Business.BusinessRules.Catalog;
 using Business.Concrete;
 using Core.Entities.Concrete;
@@ -491,6 +492,28 @@ public sealed class InfrastructureIntegrationTests
         Assert.Contains(policy, pair => pair.Value == "allkeys-lfu");
         var persistence = await server.ConfigGetAsync("appendonly");
         Assert.Contains(persistence, pair => pair.Value == "no");
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_REDIS_CONFIGURATION")]
+    public async Task RedisPatternInvalidationDeletesKeysInBoundedBatches()
+    {
+        var options = ConfigurationOptions.Parse(Environment.GetEnvironmentVariable("GUIDORA_TEST_REDIS_CONFIGURATION")!);
+        options.AbortOnConnectFail = false;
+        await using var connection = await ConnectionMultiplexer.ConnectAsync(options);
+        var cache = new RedisCacheManager(connection);
+        var profile = $"integration-batch-{Guid.NewGuid():N}";
+        var keys = Enumerable.Range(0, 600)
+            .Select(index => $"{profile}:entry:{index}")
+            .ToArray();
+
+        foreach (var key in keys)
+        {
+            cache.Add(key, "value", durationMinutes: 5);
+        }
+
+        cache.RemoveByPattern($"{profile}:*");
+
+        Assert.All(keys, key => Assert.False(cache.IsExists(key)));
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_RABBITMQ_HOST", "GUIDORA_TEST_RABBITMQ_PASSWORD")]

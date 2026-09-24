@@ -29,6 +29,19 @@ namespace Core.Aspects.Caching
                 return;
             }
 
+            if (result is ICacheInvalidationDirective directive)
+            {
+                foreach (var target in directive.CacheInvalidations)
+                {
+                    var pattern = target.ArgumentIndex is int argumentIndex
+                        ? $"{target.Profile}:*:arg:{argumentIndex}:{CacheKeySegment.Hash(target.ArgumentValue)}"
+                        : $"{target.Profile}:*";
+                    _cacheManager.RemoveByPattern(pattern);
+                }
+
+                return;
+            }
+
             foreach (string profile in _profiles)
             {
                 var pattern = ArgumentIndex >= 0 && ArgumentIndex < invocation.Arguments.Length

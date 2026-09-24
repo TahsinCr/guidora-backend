@@ -81,8 +81,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasIndex(type => type.Code).IsUnique();
             builder.HasData(
                 new VerificationType { Id = 1, Code = "admin", Name = "Admin verified" },
-                new VerificationType { Id = 2, Code = "community", Name = "Community verified" },
-                new VerificationType { Id = 3, Code = "bot", Name = "Bot verified" });
+                new VerificationType { Id = 2, Code = "community", Name = "Community verified" });
         }
     }
 

@@ -160,7 +160,9 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         {
             return new ConflictResult("This Product edit proposal was already changed. Reload and try again.");
         }
-        return new SuccessResult("Product edit proposal accepted.");
+        return new CacheInvalidationSuccessResult("Product edit proposal accepted.",
+            new CacheInvalidationTarget(CacheProfiles.CatalogListing),
+            new CacheInvalidationTarget(CacheProfiles.ProductDetail, ArgumentIndex: 0, ArgumentValue: product.ProductId));
     }
 
     [SecuredOperationAspect("Product.Proposal.Review")]
