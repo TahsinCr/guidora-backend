@@ -139,6 +139,40 @@ public sealed class ProductBusinessRulesTests
     }
 
     [Fact]
+    public async Task ProductCatalogRejectsInactiveCategoryBeforeQueryingProducts()
+    {
+        var products = new ProductDalStub();
+        var manager = CreateProductManager(products,
+            new ProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
+            new ProductCategoryDalStub(), new CategoryDalStub([
+                new Category { CategoryId = 4, IsActive = false }
+            ]));
+
+        var result = await manager.GetPageAsync(new PageRequest { Page = 1, PageSize = 10 }, categoryId: 4);
+
+        Assert.False(result.Success);
+        Assert.IsAssignableFrom<INotFoundResult>(result);
+        Assert.Equal(0, products.PublishedPageCalls);
+    }
+
+    [Fact]
+    public async Task ProductCatalogAllowsAnActiveCategoryFilter()
+    {
+        var products = new ProductDalStub();
+        var manager = CreateProductManager(products,
+            new ProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
+            new ProductCategoryDalStub(), new CategoryDalStub([
+                new Category { CategoryId = 4, IsActive = true }
+            ]));
+
+        var result = await manager.GetPageAsync(new PageRequest { Page = 1, PageSize = 10 }, categoryId: 4);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, products.PublishedPageCalls);
+        Assert.Equal(1, products.PublishedCountCalls);
+    }
+
+    [Fact]
     public async Task ProductCreationRejectsModeratedTextBeforeAnyPersistence()
     {
         var products = new ProductDalStub();
@@ -221,12 +255,24 @@ public sealed class ProductBusinessRulesTests
     private sealed class ProductDalStub(IEnumerable<Product>? products = null)
         : EntityRepositoryStub<Product>(products), IProductDal
     {
+        public int PublishedPageCalls { get; private set; }
+        public int PublishedCountCalls { get; private set; }
+
         public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
-            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
-            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+            CancellationToken cancellationToken = default)
+        {
+            PublishedPageCalls++;
+            return Task.FromResult(categoryId.HasValue ? [] :
+                GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name)
+                    .Skip(skip).Take(take).ToList());
+        }
         public Task<int> CountPublishedAsync(int statusId, int? categoryId,
-            CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
-            GetAll(item => item.ProductStatusId == statusId).Count);
+            CancellationToken cancellationToken = default)
+        {
+            PublishedCountCalls++;
+            return Task.FromResult(categoryId.HasValue ? 0 :
+                GetAll(item => item.ProductStatusId == statusId).Count);
+        }
         public override void Add(Product entity)
         {
             entity.ProductId = 42;
@@ -235,11 +281,11 @@ public sealed class ProductBusinessRulesTests
     }
 
     private static ProductManager CreateProductManager(ProductDalStub products, ProductStatusDalStub statuses,
-        ProductCategoryDalStub categories) => new(products, categories, statuses, new ProductTagDalStub(),
+        ProductCategoryDalStub categories, CategoryDalStub? categoryDal = null) => new(products, categories, statuses, new ProductTagDalStub(),
         new TagDalStub(), new TagCategoryDalStub(), new ProductVerificationDalStub(),
         new ProductEditProposalDalStub(), new ProductEditProposalTagDalStub(),
         new ProductEditProposalCategoryDalStub(), new AuditLogDalStub(), new UnitOfWorkStub(),
-        new ProductBusinessRules(products, new CategoryDalStub()), new TagBusinessRules(),
+        new ProductBusinessRules(products, categoryDal ?? new CategoryDalStub()), new TagBusinessRules(),
         new DeterministicContentModerationRule());
     private sealed class CategoryDalStub(IEnumerable<Category>? categories = null) : EntityRepositoryStub<Category>(categories), ICategoryDal;
     private sealed class ProductStatusDalStub(IEnumerable<ProductStatus>? statuses = null) : EntityRepositoryStub<ProductStatus>(statuses), IProductStatusDal;

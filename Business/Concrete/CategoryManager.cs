@@ -120,7 +120,7 @@ namespace Business.Concrete
         }
 
         [SecuredOperationAspect("Category.Manage")]
-        [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
+        [CacheRemoveAspect(CacheProfiles.CatalogNavigation, CacheProfiles.CatalogListing)]
         [TransactionScopeAspect]
         public async Task<IResult> DeactivateAsync(int categoryId, int updatedByUserId,
             CancellationToken cancellationToken = default)

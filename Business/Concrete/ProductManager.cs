@@ -79,6 +79,14 @@ namespace Business.Concrete
                 return new ErrorDataResult<PagedResult<Product>>("Invalid product page request.");
             if (categoryId is <= 0)
                 return new ErrorDataResult<PagedResult<Product>>("Category ID must be positive.");
+            if (categoryId.HasValue)
+            {
+                var categoryResult = await _businessRules.EnsureCategoryIsActiveAsync(categoryId.Value,
+                    cancellationToken);
+                if (!categoryResult.Success)
+                    return new NotFoundDataResult<PagedResult<Product>>(categoryResult.Message);
+            }
+
             var status = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
             if (status is null)
                 return new ErrorDataResult<PagedResult<Product>>("Published product status is not configured.");

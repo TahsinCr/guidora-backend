@@ -60,4 +60,15 @@ public sealed class ProductBusinessRules : IProductBusinessRules
             ? new SuccessResult()
             : new ErrorResult("One or more categories are missing or inactive.");
     }
+
+    public async Task<IResult> EnsureCategoryIsActiveAsync(int categoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var isActive = await _categoryDal.AnyAsync(category =>
+            category.CategoryId == categoryId && category.IsActive, cancellationToken);
+
+        return isActive
+            ? new SuccessResult()
+            : new Core.Utilities.Results.NotFoundResult("Category was not found.");
+    }
 }

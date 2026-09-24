@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using Tests.Core.TestDoubles;
+using System.Collections.Generic;
 
 namespace Tests.Core.Aspects;
 
@@ -44,6 +45,20 @@ public sealed class AspectInterceptorSelectorTests
     public void CacheRemovalWrapsTransactionSoItRunsAfterCommit()
     {
         Assert.True(CacheRemoveAspect.InterceptorPriority < TransactionScopeAspect.InterceptorPriority);
+    }
+
+    [Fact]
+    public void CategoryDeactivationInvalidatesNavigationAndProductListingCaches()
+    {
+        var method = typeof(CategoryManager).GetMethod(nameof(CategoryManager.DeactivateAsync))!;
+        var cacheRemoval = Assert.Single(method.GetCustomAttributesData(), attribute =>
+            attribute.AttributeType == typeof(CacheRemoveAspect));
+        var profiles = Assert.IsAssignableFrom<IList<CustomAttributeTypedArgument>>(
+            cacheRemoval.ConstructorArguments.Single().Value);
+
+        Assert.Equal(
+            [CacheProfiles.CatalogNavigation, CacheProfiles.CatalogListing],
+            profiles.Select(profile => profile.Value).ToArray());
     }
 
     [Fact]

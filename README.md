@@ -205,6 +205,9 @@ catalog reads expose only `published` Products. Product listing endpoints are
 database-paginated (`page`, `pageSize`, capped at 100) and category filtering is
 performed in the database rather than materializing category Product IDs in
 the API process.
+Only active Categories are public: listing Products by an inactive or unknown
+Category returns 404. Deactivating a Category invalidates both navigation and
+Product-listing caches after the database transaction commits.
 
 The public tag catalog is exposed by `GET /api/tag-categories` and
 `GET /api/tags?tagCategoryId={id}`. Both return active entries only. Moderator

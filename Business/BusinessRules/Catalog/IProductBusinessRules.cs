@@ -11,4 +11,5 @@ public interface IProductBusinessRules
         int? excludingProductId = null, CancellationToken cancellationToken = default);
     Task<IResult> EnsureCategoriesAreActiveAsync(IEnumerable<int> categoryIds,
         CancellationToken cancellationToken = default);
+    Task<IResult> EnsureCategoryIsActiveAsync(int categoryId, CancellationToken cancellationToken = default);
 }

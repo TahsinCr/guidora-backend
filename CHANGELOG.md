@@ -16,6 +16,9 @@ All notable changes to the Guidora backend are documented here.
   message bodies are excluded.
 - Added regression coverage confirming public Category list/detail reads omit
   inactive categories.
+- Product listing by an inactive or unknown Category now returns 404 before
+  querying Products; Category deactivation also invalidates catalog-listing
+  caches after commit.
 - Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
   nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
   omits values it cannot safely serialize; added recursive redaction tests.
