@@ -29,6 +29,8 @@ All notable changes to the Guidora backend are documented here.
   `Product.Update` effective-permission path.
 - Added controller contract tests that pin login, registration, and refresh to
   their intended rate-limit policies.
+- Preserved full IPv6 client addresses in authentication rate-limit partitions
+  while normalizing only IPv4-mapped IPv6 addresses.
 - Added explicit selector-order regression tests for Product create, update,
   and status-based delete so authorization, validation, cache invalidation, and
   transaction nesting cannot silently drift.

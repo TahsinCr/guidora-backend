@@ -240,7 +240,7 @@ namespace WebAPI
             }
 
             options.AddPolicy(policyName, context => RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "unknown",
+                RateLimitPartitionKey.FromAddress(context.Connection.RemoteIpAddress),
                 _ => new FixedWindowRateLimiterOptions
                 {
                     AutoReplenishment = true,
