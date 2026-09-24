@@ -32,7 +32,7 @@ public sealed class VerifiedProductEditTests
         var result = await manager.UpdateAsync(30, request, updatedByUserId: 99);
 
         Assert.True(result.Success);
-        Assert.IsNotAssignableFrom<ICacheInvalidationDirective>(result);
+        Assert.Empty(Assert.IsAssignableFrom<ICacheInvalidationDirective>(result).CacheInvalidations);
         Assert.Equal("Original", product.Name);
         Assert.Equal(0, productDal.UpdateCount);
         var proposal = Assert.Single(proposalDal.GetAll());

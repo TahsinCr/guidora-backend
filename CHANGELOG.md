@@ -27,6 +27,8 @@ All notable changes to the Guidora backend are documented here.
   leaking the empty success result from the internal category-replacement step.
 - Cache invalidation for Product edits now runs only when the canonical Product
   changes; submitting a verified Product proposal leaves catalog caches intact.
+  Result directives are consumed by the post-commit CacheRemoveAspect, so the
+  targeted invalidation is actually executed.
 - Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
   nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
   omits values it cannot safely serialize; added recursive redaction tests.

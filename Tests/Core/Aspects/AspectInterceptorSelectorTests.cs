@@ -62,6 +62,18 @@ public sealed class AspectInterceptorSelectorTests
     }
 
     [Fact]
+    public void ProductUpdateUsesResultDrivenCacheInvalidation()
+    {
+        var method = typeof(ProductManager).GetMethod(nameof(ProductManager.UpdateAsync))!;
+        var cacheRemoval = Assert.Single(method.GetCustomAttributesData(), attribute =>
+            attribute.AttributeType == typeof(CacheRemoveAspect));
+        var profiles = Assert.IsAssignableFrom<IList<CustomAttributeTypedArgument>>(
+            cacheRemoval.ConstructorArguments.Single().Value);
+
+        Assert.Equal([CacheProfiles.CatalogListing], profiles.Select(profile => profile.Value).ToArray());
+    }
+
+    [Fact]
     public void BusinessManagerAspectDeclarationsMatchResolvedRuntimeOrder()
     {
         var services = new ServiceCollection()

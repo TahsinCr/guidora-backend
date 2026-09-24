@@ -199,6 +199,7 @@ namespace Business.Concrete
 
         [SecuredOperationAspect("Product.Update")]
         [ValidationAspect(typeof(UpdateProductRequestValidator))]
+        [CacheRemoveAspect(CacheProfiles.CatalogListing)]
         [TransactionScopeAspect]
         public async Task<IResult> UpdateAsync(int productId, UpdateProductRequest request, int updatedByUserId,
             CancellationToken cancellationToken = default)
@@ -334,7 +335,7 @@ namespace Business.Concrete
                     TagIds = tagIds
                 }), cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return new SuccessResult("Edit proposal submitted for review.");
+            return new CacheInvalidationSuccessResult("Edit proposal submitted for review.");
         }
 
         [SecuredOperationAspect("Product.Delete")]
