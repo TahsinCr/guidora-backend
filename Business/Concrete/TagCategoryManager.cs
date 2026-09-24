@@ -45,7 +45,7 @@ public sealed class TagCategoryManager : ITagCategoryService
     {
         var slug = ProductIdentityNormalizer.NormalizeSlug(request.Slug);
         if (await _dal.AnyAsync(item => item.Slug == slug, cancellationToken))
-            return new ErrorResult("A TagCategory with this slug already exists.");
+            return new ConflictResult("A TagCategory with this slug already exists.");
         var entity = new TagCategory
         {
             Name = request.Name.Trim(), Slug = slug,
@@ -69,7 +69,7 @@ public sealed class TagCategoryManager : ITagCategoryService
         if (entity is null) return new NotFoundResult("TagCategory was not found.");
         var slug = ProductIdentityNormalizer.NormalizeSlug(request.Slug);
         if (await _dal.AnyAsync(item => item.Id != id && item.Slug == slug, cancellationToken))
-            return new ErrorResult("A TagCategory with this slug already exists.");
+            return new ConflictResult("A TagCategory with this slug already exists.");
         if (entity.AllowsMultipleSelection != request.AllowsMultipleSelection)
         {
             var tagIds = (await _tagDal.GetAllAsync(item => item.TagCategoryId == id, cancellationToken))

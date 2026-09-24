@@ -56,7 +56,7 @@ public sealed class ProductChangelogManager : IProductChangelogService
         if (!rule.Success) return rule;
         if (await _changelogDal.AnyAsync(item => item.ProductId == productId && item.Version == request.Version,
                 cancellationToken))
-            return new ErrorResult("This Product version already has a changelog entry.");
+            return new ConflictResult("This Product version already has a changelog entry.");
 
         var entry = new ProductChangelog
         {

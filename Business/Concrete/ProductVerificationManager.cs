@@ -48,7 +48,7 @@ public sealed class ProductVerificationManager : IProductVerificationService
         var verification = await _verificationDal.GetAsync(item =>
             item.ProductId == productId && item.VerificationTypeId == type.Id, cancellationToken);
         if (verification is { RevokedAt: null })
-            return new ErrorResult("Product already has an active admin verification.");
+            return new ConflictResult("Product already has an active admin verification.");
 
         object oldValues = verification is null
             ? new { Status = "None", VerifiedByUserId = (int?)null, VerifiedAt = (DateTime?)null,
@@ -107,7 +107,7 @@ public sealed class ProductVerificationManager : IProductVerificationService
         var verification = await _verificationDal.GetAsync(item =>
             item.ProductId == productId && item.VerificationTypeId == type.Id && item.RevokedAt == null,
             cancellationToken);
-        if (verification is null) return new ErrorResult("Product has no active admin verification.");
+        if (verification is null) return new ConflictResult("Product has no active admin verification.");
 
         var oldValues = new
         {

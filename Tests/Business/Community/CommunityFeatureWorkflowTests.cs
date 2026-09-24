@@ -4,6 +4,7 @@ using Business.Abstract;
 using Business.Concrete;
 using Business.ValidationRules.FluentValidation;
 using Core.Entities.Concrete;
+using Core.Utilities.Results;
 using Entities;
 using Entities.DTOs;
 using Tests.Core.TestDoubles;
@@ -241,7 +242,7 @@ public sealed class CommunityFeatureWorkflowTests
         var added = await manager.CreateAsync(5, 7, new ProductChangelogRequest
             { Version = "1.1", Title = "Release", Content = "Notes", ReleaseDate = System.DateTime.UtcNow });
 
-        Assert.False(duplicate.Success);
+        Assert.IsAssignableFrom<IConflictResult>(duplicate);
         Assert.True(added.Success);
         Assert.Single(audit.Entries);
         Assert.DoesNotContain(typeof(IProductChangelogService).GetMethods(), method => method.Name is "UpdateAsync" or "DeleteAsync");

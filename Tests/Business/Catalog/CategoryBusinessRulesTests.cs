@@ -61,7 +61,8 @@ public sealed class CategoryBusinessRulesTests
         var dal = new CategoryDalStub([category]);
         var rules = new CategoryBusinessRules(dal);
 
-        Assert.False((await rules.EnsureSlugIsAvailableAsync("design")).Success);
+        var duplicateSlug = await rules.EnsureSlugIsAvailableAsync("design");
+        Assert.IsAssignableFrom<IConflictResult>(duplicateSlug);
         Assert.True((await rules.EnsureSlugIsAvailableAsync("design", excludingCategoryId: 4)).Success);
     }
 

@@ -110,7 +110,7 @@ public sealed class ProductReportManager : IProductReportService
         var report = await _reportDal.GetAsync(item => item.Id == reportId, cancellationToken);
         if (report is null) return new NotFoundResult("Product report was not found.");
         var currentStatus = await _statusDal.GetAsync(item => item.Id == report.ReportStatusId, cancellationToken);
-        if (currentStatus?.Code != "open") return new ErrorResult("Only open reports can be reviewed.");
+        if (currentStatus?.Code != "open") return new ConflictResult("Only open reports can be reviewed.");
         var targetStatus = await _statusDal.GetAsync(item => item.Code == statusCode, cancellationToken);
         if (targetStatus is null) return new ErrorResult("Target report status is not configured.");
 

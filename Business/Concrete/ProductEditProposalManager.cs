@@ -67,7 +67,7 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         var proposal = await _proposalDal.GetAsync(item => item.Id == proposalId, cancellationToken);
         if (proposal is null) return new NotFoundResult("Product edit proposal was not found.");
         if (proposal.Status != ProductEditProposalStatus.Pending)
-            return new ErrorResult("Only pending proposals can be reviewed.");
+            return new ConflictResult("Only pending proposals can be reviewed.");
 
         var product = await _productDal.GetAsync(item => item.ProductId == proposal.ProductId, cancellationToken);
         if (product is null) return new NotFoundResult("The canonical product was not found.");
@@ -174,7 +174,7 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         var proposal = await _proposalDal.GetAsync(item => item.Id == proposalId, cancellationToken);
         if (proposal is null) return new NotFoundResult("Product edit proposal was not found.");
         if (proposal.Status != ProductEditProposalStatus.Pending)
-            return new ErrorResult("Only pending proposals can be reviewed.");
+            return new ConflictResult("Only pending proposals can be reviewed.");
 
         var oldReview = new
         {

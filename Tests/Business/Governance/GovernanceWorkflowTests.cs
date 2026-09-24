@@ -93,6 +93,7 @@ public sealed class GovernanceWorkflowTests
 
         Assert.True(first.Success);
         Assert.False(repeated.Success);
+        Assert.IsAssignableFrom<IConflictResult>(repeated);
         Assert.Equal("Canonical", product.Name);
         Assert.Equal(ProductEditProposalStatus.Rejected, proposal.Status);
         Assert.Equal(1, unitOfWork.SaveCount);
@@ -155,6 +156,7 @@ public sealed class GovernanceWorkflowTests
         var result = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest());
 
         Assert.False(result.Success);
+        Assert.IsAssignableFrom<IConflictResult>(result);
         Assert.Single(verificationDal.GetAll());
         Assert.Empty(audit.Entries);
         Assert.Equal(0, unitOfWork.SaveCount);
@@ -182,6 +184,7 @@ public sealed class GovernanceWorkflowTests
         Assert.True(submitted.Success);
         Assert.True(resolved.Success);
         Assert.False(repeated.Success);
+        Assert.IsAssignableFrom<IConflictResult>(repeated);
         var report = Assert.Single(reportDal.GetAll());
         Assert.Equal(2, report.ReportStatusId);
         Assert.Equal(99, report.ResolvedByUserId);

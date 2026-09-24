@@ -52,10 +52,10 @@ public sealed class TagManager : ITagService
     {
         var category = await _categoryDal.GetAsync(item => item.Id == request.TagCategoryId && item.IsActive,
             cancellationToken);
-        if (category is null) return new ErrorResult("Active TagCategory was not found.");
+        if (category is null) return new NotFoundResult("Active TagCategory was not found.");
         var slug = ProductIdentityNormalizer.NormalizeSlug(request.Slug);
         if (await _dal.AnyAsync(item => item.TagCategoryId == category.Id && item.Slug == slug, cancellationToken))
-            return new ErrorResult("A Tag with this slug already exists in the category.");
+            return new ConflictResult("A Tag with this slug already exists in the category.");
         var entity = new Tag
         {
             TagCategoryId = category.Id, Name = request.Name.Trim(), Slug = slug,
@@ -85,11 +85,11 @@ public sealed class TagManager : ITagService
                 id, entity.TagCategoryId, cancellationToken))
             return new ConflictResult("A Product-assigned Tag cannot become exclusive because existing selections may become invalid.");
         if (!await _categoryDal.AnyAsync(item => item.Id == request.TagCategoryId && item.IsActive, cancellationToken))
-            return new ErrorResult("Active TagCategory was not found.");
+            return new NotFoundResult("Active TagCategory was not found.");
         var slug = ProductIdentityNormalizer.NormalizeSlug(request.Slug);
         if (await _dal.AnyAsync(item => item.Id != id && item.TagCategoryId == request.TagCategoryId &&
                                         item.Slug == slug, cancellationToken))
-            return new ErrorResult("A Tag with this slug already exists in the category.");
+            return new ConflictResult("A Tag with this slug already exists in the category.");
         var oldValues = new { entity.TagCategoryId, entity.Name, entity.Slug, entity.IsExclusive, entity.IsActive };
         entity.TagCategoryId = request.TagCategoryId;
         entity.Name = request.Name.Trim();

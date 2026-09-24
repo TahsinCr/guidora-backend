@@ -19,6 +19,6 @@ public sealed class CategoryBusinessRules : ICategoryBusinessRules
             cancellationToken);
         return duplicate is null
             ? new SuccessResult()
-            : new ErrorResult("A category with this slug already exists.");
+            : new ConflictResult("A category with this slug already exists.");
     }
 }
