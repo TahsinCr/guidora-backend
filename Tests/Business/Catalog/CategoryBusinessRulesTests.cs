@@ -1,15 +1,39 @@
 using Business.BusinessRules.Catalog;
+using Business.BusinessAspect.Autofac;
 using Business.Concrete;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
 using Entities.DTOs;
 using Tests.Core.TestDoubles;
+using System.Collections.Generic;
+using System.Reflection;
 
 namespace Tests.Business.Catalog;
 
 public sealed class CategoryBusinessRulesTests
 {
+    [Fact]
+    public async Task ManagementCategoryReadIncludesInactiveRowsAndRequiresCategoryManageClaim()
+    {
+        var categories = new CategoryDalStub([
+            new Category { CategoryId = 1, IsActive = true },
+            new Category { CategoryId = 2, IsActive = false }]);
+        var manager = new CategoryManager(categories, new UnitOfWorkStub(),
+            new CategoryBusinessRules(categories), new AuditLogDalStub());
+
+        var result = await manager.GetAllForManagementAsync();
+        var method = typeof(CategoryManager).GetMethod(nameof(CategoryManager.GetAllForManagementAsync))!;
+        var authorization = Assert.Single(method.GetCustomAttributesData(), attribute =>
+            attribute.AttributeType == typeof(SecuredOperationAspect));
+        var requiredClaims = Assert.IsAssignableFrom<IList<CustomAttributeTypedArgument>>(
+            authorization.ConstructorArguments.Single().Value);
+
+        Assert.True(result.Success);
+        Assert.Equal([1, 2], result.Data!.Select(category => category.CategoryId).Order().ToArray());
+        Assert.Equal("Category.Manage", Assert.Single(requiredClaims).Value);
+    }
+
     [Fact]
     public async Task PublicCategoryReadsExcludeInactiveCategories()
     {

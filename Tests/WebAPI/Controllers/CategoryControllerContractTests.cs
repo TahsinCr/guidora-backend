@@ -17,10 +17,12 @@ public sealed class CategoryControllerContractTests
         var create = controller.GetMethod(nameof(CategorysController.Add))!;
         var update = controller.GetMethod(nameof(CategorysController.Update))!;
         var delete = controller.GetMethod(nameof(CategorysController.Delete))!;
+        var managementRead = controller.GetMethod(nameof(CategorysController.GetAllForManagement))!;
 
         Assert.IsType<HttpPostAttribute>(create.GetCustomAttribute<HttpPostAttribute>());
         Assert.IsType<HttpPutAttribute>(update.GetCustomAttribute<HttpPutAttribute>());
         Assert.IsType<HttpDeleteAttribute>(delete.GetCustomAttribute<HttpDeleteAttribute>());
+        Assert.Equal("management", managementRead.GetCustomAttribute<HttpGetAttribute>()?.Template);
         Assert.Equal(typeof(CategoryRequest), create.GetParameters()[0].ParameterType);
         Assert.Equal(typeof(int), update.GetParameters()[0].ParameterType);
         Assert.Equal(typeof(CategoryRequest), update.GetParameters()[1].ParameterType);

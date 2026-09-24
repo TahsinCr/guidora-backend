@@ -51,6 +51,13 @@ namespace WebAPI.Controllers
             return this.ToHttpResult(result);
         }
 
+        [HttpGet("management")]
+        public async Task<IActionResult> GetAllForManagement(CancellationToken cancellationToken)
+        {
+            var result = await _categoryService.GetAllForManagementAsync(cancellationToken);
+            return this.ToHttpResult(result);
+        }
+
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, CategoryRequest request, CancellationToken cancellationToken)
         {

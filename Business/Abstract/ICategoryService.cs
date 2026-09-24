@@ -10,6 +10,7 @@ namespace Business.Abstract
     public interface ICategoryService
     {
         Task<IDataResult<List<Category>>> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<IDataResult<List<Category>>> GetAllForManagementAsync(CancellationToken cancellationToken = default);
         Task<IDataResult<Category>> GetByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<IResult> CreateAsync(CategoryRequest request, int createdByUserId,
             CancellationToken cancellationToken = default);

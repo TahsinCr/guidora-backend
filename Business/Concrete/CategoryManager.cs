@@ -44,6 +44,14 @@ namespace Business.Concrete
                 await _categoryDal.GetAllAsync(category => category.IsActive, cancellationToken));
         }
 
+        [SecuredOperationAspect("Category.Manage")]
+        public async Task<IDataResult<List<Category>>> GetAllForManagementAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return new SuccessDataResult<List<Category>>(
+                await _categoryDal.GetAllAsync(cancellationToken: cancellationToken));
+        }
+
         [PerformanceAspect(1)]
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
         public async Task<IDataResult<Category>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
