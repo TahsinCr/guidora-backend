@@ -6,6 +6,9 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
+  nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
+  omits values it cannot safely serialize; added recursive redaction tests.
 - Updated `ValidationAspect` to resolve typed FluentValidation validators from
   the current request scope, supporting validator dependencies and generic base
   classes; added scoped-DI and validation-failure tests.
