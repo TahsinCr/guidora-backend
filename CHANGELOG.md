@@ -14,6 +14,8 @@ All notable changes to the Guidora backend are documented here.
 - Added production HTTP request logging for method, path, response status,
   duration, and trace ID only; a TestServer test verifies query strings and
   message bodies are excluded.
+- Added regression coverage confirming public Category list/detail reads omit
+  inactive categories.
 - Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
   nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
   omits values it cannot safely serialize; added recursive redaction tests.

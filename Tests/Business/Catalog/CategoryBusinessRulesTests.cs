@@ -11,6 +11,26 @@ namespace Tests.Business.Catalog;
 public sealed class CategoryBusinessRulesTests
 {
     [Fact]
+    public async Task PublicCategoryReadsExcludeInactiveCategories()
+    {
+        var categories = new CategoryDalStub([
+            new Category { CategoryId = 1, CategoryName = "Active", IsActive = true },
+            new Category { CategoryId = 2, CategoryName = "Inactive", IsActive = false }]);
+        var manager = new CategoryManager(categories, new UnitOfWorkStub(),
+            new CategoryBusinessRules(categories), new AuditLogDalStub());
+
+        var list = await manager.GetAllAsync();
+        var active = await manager.GetByIdAsync(1);
+        var inactive = await manager.GetByIdAsync(2);
+
+        Assert.True(list.Success);
+        Assert.Equal([1], list.Data!.Select(category => category.CategoryId));
+        Assert.True(active.Success);
+        Assert.Equal(1, active.Data!.CategoryId);
+        Assert.False(inactive.Success);
+    }
+
+    [Fact]
     public async Task DetectsExistingSlugAndAllowsCurrentCategoryDuringUpdate()
     {
         var category = new Category { CategoryId = 4, Slug = "design" };
