@@ -1,6 +1,7 @@
 using Business.BusinessRules.Catalog;
 using Business.Concrete;
 using Business.BusinessRules.Moderation;
+using Business.Constants;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -61,6 +62,7 @@ public sealed class VerifiedProductEditTests
         var result = await manager.UpdateAsync(30, Request("new-name", [4]), updatedByUserId: 99);
 
         Assert.True(result.Success);
+        Assert.Equal(Messages.ProductUpdated, result.Message);
         Assert.Equal("new-name", product.Name);
         Assert.Equal(1, productDal.UpdateCount);
         Assert.Empty(proposalDal.GetAll());

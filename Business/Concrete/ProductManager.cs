@@ -282,7 +282,7 @@ namespace Business.Concrete
                     TagIds = normalizedTagIds
                 }), cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return categoryResult;
+            return new SuccessResult(Messages.ProductUpdated);
         }
 
         private async Task<IResult> CreateEditProposalAsync(int productId, int proposedByUserId,

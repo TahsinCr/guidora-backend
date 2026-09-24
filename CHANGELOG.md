@@ -23,6 +23,8 @@ All notable changes to the Guidora backend are documented here.
   operators can inspect inactive Categories without exposing them publicly.
 - Added a PostgreSQL unique index for normalized Product website URLs so
   concurrent requests cannot bypass the exact-URL duplicate rule.
+- Product updates now return a dedicated localized success message instead of
+  leaking the empty success result from the internal category-replacement step.
 - Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
   nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
   omits values it cannot safely serialize; added recursive redaction tests.
