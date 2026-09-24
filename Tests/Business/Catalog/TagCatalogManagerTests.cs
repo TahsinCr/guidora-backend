@@ -29,6 +29,29 @@ public sealed class TagCatalogManagerTests
     }
 
     [Fact]
+    public async Task DuplicateTagSlugReturnsConflictWithoutWriting()
+    {
+        var tags = new TagDalStub([new Tag { Id = 7, TagCategoryId = 4, Slug = "linux" }]);
+        var audit = new CommunityAuditDalStub();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new TagManager(tags, new TagCategoryDalStub([
+            new TagCategory { Id = 4, IsActive = true }
+        ]), new ProductTagDalStub(), audit, unitOfWork);
+
+        var result = await manager.CreateAsync(new TagRequest
+        {
+            TagCategoryId = 4,
+            Name = "Linux",
+            Slug = "linux"
+        }, actorUserId: 99);
+
+        Assert.IsAssignableFrom<IConflictResult>(result);
+        Assert.Single(tags.GetAll());
+        Assert.Empty(audit.Entries);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
     public async Task DeactivatingTagCategoryAlsoDeactivatesItsTagsAndAuditsTheChange()
     {
         var category = new TagCategory { Id = 4, Name = "Platform", Slug = "platform", IsActive = true };
@@ -134,6 +157,29 @@ public sealed class TagCatalogManagerTests
 
         Assert.False(result.Success);
         Assert.True(category.AllowsMultipleSelection);
+    }
+
+    [Fact]
+    public async Task DuplicateTagCategorySlugReturnsConflictWithoutWriting()
+    {
+        var categories = new TagCategoryDalStub([
+            new TagCategory { Id = 4, Slug = "platforms" }
+        ]);
+        var audit = new CommunityAuditDalStub();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new TagCategoryManager(categories, new TagDalStub(), new ProductTagDalStub(), audit, unitOfWork);
+
+        var result = await manager.CreateAsync(new TagCategoryRequest
+        {
+            Name = "Platforms",
+            Slug = "platforms",
+            AllowsMultipleSelection = true
+        }, actorUserId: 99);
+
+        Assert.IsAssignableFrom<IConflictResult>(result);
+        Assert.Single(categories.GetAll());
+        Assert.Empty(audit.Entries);
+        Assert.Equal(0, unitOfWork.SaveCount);
     }
 
     private sealed class TagDalStub(IEnumerable<Tag>? values = null) : EntityRepositoryStub<Tag>(values), ITagDal;
