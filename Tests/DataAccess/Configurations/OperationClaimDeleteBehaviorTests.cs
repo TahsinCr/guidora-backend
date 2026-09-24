@@ -1,4 +1,6 @@
 using Core.Entities.Concrete;
+using Core.DataAccess;
+using DataAccess.Abstract;
 using DataAccess.Concrete.Entityframework.Contexts;
 using Entities;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +11,32 @@ namespace Tests.DataAccess.Configurations;
 
 public sealed class OperationClaimDeleteBehaviorTests
 {
+    [Fact]
+    public void PhysicalPurgeIsOptInRatherThanPartOfEveryRepositoryContract()
+    {
+        Assert.DoesNotContain(typeof(IEntityRepository<Product>).GetMethods(), method =>
+            method.Name is nameof(IEntityPurgeRepository<Product>.Purge) or nameof(IEntityPurgeRepository<Product>.PurgeRange));
+        Assert.Contains(typeof(IEntityPurgeRepository<ProductCategory>), typeof(IProductCategoryDal).GetInterfaces());
+        Assert.DoesNotContain(typeof(IEntityPurgeRepository<Product>), typeof(IProductDal).GetInterfaces());
+    }
+
+    [Fact]
+    public void CatalogEntitiesUsePostgreSqlXminOptimisticConcurrencyTokens()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+
+        foreach (var entityType in new[] { typeof(Product), typeof(Category) })
+        {
+            var token = context.Model.FindEntityType(entityType)!.FindProperty("xmin");
+            Assert.NotNull(token);
+            Assert.True(token!.IsConcurrencyToken);
+            Assert.True(token.ValueGenerated.HasFlag(Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAddOrUpdate));
+        }
+    }
+
     [Fact]
     public void DeletingOperationClaimCascadesOnlyAssignmentRows()
     {
@@ -81,6 +109,43 @@ public sealed class OperationClaimDeleteBehaviorTests
         Assert.Contains(roleAssignments, item => Convert.ToInt32(item["RoleId"]) == 1 && Convert.ToInt32(item["OperationClaimId"]) == 12);
         Assert.Contains(roleAssignments, item => Convert.ToInt32(item["RoleId"]) == 2 && Convert.ToInt32(item["OperationClaimId"]) == 10);
         Assert.Contains(roleAssignments, item => Convert.ToInt32(item["RoleId"]) == 3 && Convert.ToInt32(item["OperationClaimId"]) == 10);
+    }
+
+    [Fact]
+    public void UserManagementPermissionIsReservedForTheAdminRole()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var claims = model.FindEntityType(typeof(OperationClaim))!.GetSeedData();
+        var userManagementClaim = Assert.Single(claims, seed => seed["Name"] as string == "User.Manage");
+        Assert.Equal(13, Convert.ToInt32(userManagementClaim["Id"]));
+
+        var assignments = model.FindEntityType(typeof(RoleOperationClaim))!.GetSeedData()
+            .Where(seed => Convert.ToInt32(seed["OperationClaimId"]) == 13)
+            .Select(seed => Convert.ToInt32(seed["RoleId"]))
+            .ToArray();
+        Assert.Equal([3], assignments);
+    }
+
+    [Fact]
+    public void AuditRevertPermissionIsReservedForTheAdminRole()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var claims = model.FindEntityType(typeof(OperationClaim))!.GetSeedData();
+        var auditClaim = Assert.Single(claims, seed => seed["Name"] as string == "Audit.Revert");
+        Assert.Equal(14, Convert.ToInt32(auditClaim["Id"]));
+        var assignments = model.FindEntityType(typeof(RoleOperationClaim))!.GetSeedData()
+            .Where(seed => Convert.ToInt32(seed["OperationClaimId"]) == 14)
+            .Select(seed => Convert.ToInt32(seed["RoleId"]))
+            .ToArray();
+        Assert.Equal([3], assignments);
     }
 
     [Fact]

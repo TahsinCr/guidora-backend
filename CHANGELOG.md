@@ -6,6 +6,18 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Restricted user ban, restore, and authorization invalidation to the
+  Admin-only `User.Manage` OperationClaim; added Admin-only audit reversion for
+  Product/Category snapshots with state checks, PostgreSQL xmin optimistic
+  concurrency, append-only reversal records, and HTTP conflict responses.
+  Added the `Audit.Revert` permission and migration. Moved
+  physical deletion out of the generic repository contract into explicit
+  opt-in purge DALs and made list reads no-tracking by default. Added focused
+  permissions, repository, session invalidation, revert, and PostgreSQL
+  concurrency tests. Session invalidation now commits authorization-version
+  changes and revocations before evicting token-validation cache entries, and
+  defers eviction until ambient transaction completion.
+
 - Added a locally built Aho-Corasick moderation matcher with attributed English
   and Turkish lexicons for user-authored catalog/community content, plus tests
   for normalization, obfuscation, token boundaries, and allowed text.

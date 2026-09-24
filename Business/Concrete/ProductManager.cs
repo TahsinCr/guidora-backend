@@ -366,7 +366,7 @@ namespace Business.Concrete
                 return categoryRule;
             }
 
-            _productCategoryDal.DeleteRange(await _productCategoryDal.GetAllAsync(
+            _productCategoryDal.PurgeRange(await _productCategoryDal.GetAllAsync(
                 item => item.ProductId == productId, cancellationToken));
             _productCategoryDal.AddRange(normalizedCategoryIds.Select(categoryId =>
                 new ProductCategory { ProductId = productId, CategoryId = categoryId }));
@@ -388,7 +388,7 @@ namespace Business.Concrete
 
         private async Task ReplaceTagsAsync(int productId, int[] tagIds, CancellationToken cancellationToken)
         {
-            _productTagDal.DeleteRange(await _productTagDal.GetAllAsync(
+            _productTagDal.PurgeRange(await _productTagDal.GetAllAsync(
                 item => item.ProductId == productId, cancellationToken));
             _productTagDal.AddRange(tagIds.Select(tagId => new ProductTag { ProductId = productId, TagId = tagId }));
         }

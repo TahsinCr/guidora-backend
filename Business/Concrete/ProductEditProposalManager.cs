@@ -208,9 +208,9 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
     private async Task ReplaceLinksAsync(int productId, int[] categoryIds, int[] tagIds,
         CancellationToken cancellationToken)
     {
-        _productCategoryDal.DeleteRange(await _productCategoryDal.GetAllAsync(
+        _productCategoryDal.PurgeRange(await _productCategoryDal.GetAllAsync(
             item => item.ProductId == productId, cancellationToken));
-        _productTagDal.DeleteRange(await _productTagDal.GetAllAsync(item => item.ProductId == productId, cancellationToken));
+        _productTagDal.PurgeRange(await _productTagDal.GetAllAsync(item => item.ProductId == productId, cancellationToken));
         _productCategoryDal.AddRange(categoryIds.Select(categoryId =>
             new ProductCategory { ProductId = productId, CategoryId = categoryId }));
         _productTagDal.AddRange(tagIds.Select(tagId => new ProductTag { ProductId = productId, TagId = tagId }));

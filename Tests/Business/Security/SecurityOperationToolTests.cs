@@ -1,5 +1,7 @@
 using System.Reflection;
+using Business.Abstract;
 using Business.BusinessAspect.Autofac;
+using Business.Concrete;
 using Business.Security;
 using Core.Entities.Concrete;
 using DataAccess.Abstract;
@@ -28,6 +30,20 @@ public sealed class SecurityOperationToolTests
         Assert.Contains("operation-claim-discovery-fixture.get-by-slug", claims);
         Assert.Contains("class.permission", claims);
         Assert.DoesNotContain("ignored.class.permission", claims);
+    }
+
+    [Fact]
+    public void UserSecurityOperationsRequireTheUserManagementClaim()
+    {
+        var claims = SecurityOperationTool.DiscoverOperationClaims(typeof(IUserSecurityService).Assembly);
+        var methods = typeof(UserSecurityManager).GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly);
+
+        Assert.Contains("User.Manage", claims);
+        Assert.Contains("Audit.Revert", claims);
+        Assert.All(methods, method => Assert.Contains(method.CustomAttributes,
+            attribute => attribute.AttributeType == typeof(SecuredOperationAspect) &&
+                         attribute.ConstructorArguments.Single().Value is IList<CustomAttributeTypedArgument> claims &&
+                         claims.Any(claim => claim.Value as string == "User.Manage")));
     }
 
     [Fact]

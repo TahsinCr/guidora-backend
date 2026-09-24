@@ -3,7 +3,7 @@ using Entities;
 
 namespace DataAccess.Abstract
 {
-    public interface IProductTagDal : IEntityRepository<ProductTag>
+    public interface IProductTagDal : IEntityRepository<ProductTag>, IEntityPurgeRepository<ProductTag>
     {
     }
 }

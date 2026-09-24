@@ -16,4 +16,8 @@ public sealed class AuditLogDalStub : IAuditLogDal
         Entries.Where(entry => entry.EntityType == entityType && entry.EntityId == entityId).ToArray();
     public Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, string entityId,
         CancellationToken cancellationToken = default) => Task.FromResult(GetByEntity(entityType, entityId));
+    public Task<AuditLog?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Entries.SingleOrDefault(entry => entry.Id == id));
+    public Task<bool> HasRevertAsync(long auditLogId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Entries.Any(entry => entry.RevertsAuditLogId == auditLogId));
 }

@@ -19,6 +19,10 @@ public sealed class CommunityAuditDalStub : IAuditLogDal
         _entries.Where(item => item.EntityType == entityType && item.EntityId == entityId).ToArray();
     public Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, string entityId,
         CancellationToken cancellationToken = default) => Task.FromResult(GetByEntity(entityType, entityId));
+    public Task<AuditLog?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_entries.SingleOrDefault(entry => entry.Id == id));
+    public Task<bool> HasRevertAsync(long auditLogId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_entries.Any(entry => entry.RevertsAuditLogId == auditLogId));
 }
 
 public sealed class CommunityFavoriteDalStub(IEnumerable<Favorite>? items = null)

@@ -109,7 +109,7 @@ public sealed class ProductDocumentManager : IProductDocumentService
         var document = await _documentDal.GetAsync(item => item.Id == documentId && item.ProductId == productId,
             cancellationToken);
         if (document is null) return new ErrorResult("Product document was not found.");
-        _documentDal.Delete(document);
+        _documentDal.Purge(document);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(ProductDocument), documentId.ToString(),
             "Deleted", new { document.ProductId, document.DocumentType, document.Title, document.Content }, new { }),
             cancellationToken);

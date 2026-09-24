@@ -113,7 +113,7 @@ public sealed class ProductContributorManager : IProductContributorService
         var contributor = await _contributorDal.GetAsync(item => item.ProductId == productId && item.UserId == userId,
             cancellationToken);
         if (contributor is null) return new SuccessResult("Contributor was not listed.");
-        _contributorDal.Delete(contributor);
+        _contributorDal.Purge(contributor);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(ProductContributor),
             $"{productId}:{userId}", "Removed", new
             {

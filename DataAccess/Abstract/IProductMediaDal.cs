@@ -3,7 +3,7 @@ using Entities;
 
 namespace DataAccess.Abstract
 {
-    public interface IProductMediaDal : IEntityRepository<ProductMedia>
+    public interface IProductMediaDal : IEntityRepository<ProductMedia>, IEntityPurgeRepository<ProductMedia>
     {
     }
 }

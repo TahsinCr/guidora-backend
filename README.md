@@ -110,6 +110,28 @@ view-event and aggregation model is approved; it is intentionally not populated
 from an invented metric. Per-user state, authorization, favorites, reports,
 and mutable moderation data are not catalog-cached.
 
+User ban, restore, and explicit authorization invalidation require the seeded
+`User.Manage` OperationClaim, assigned only to the Admin role. Invalidation
+increments the user's authorization version, revokes active refresh sessions,
+commits those database changes together, then evicts their token-validation
+cache entries only after the outer transaction commits (or immediately after
+the local commit when no ambient transaction exists). Generic repository
+physical deletion is deliberately excluded;
+only explicitly opted-in DAL contracts expose `Purge`, not the normal domain
+delete workflow.
+Synchronous and asynchronous repository list reads are no-tracking by default;
+single-entity lookup remains tracked for update workflows.
+
+Audit reversion is available to Admins through
+`POST /api/audit/{auditLogId}/revert`, gated by the `Audit.Revert` claim.
+V1 reverses Product create/update/delete and accepted-edit-proposal snapshots,
+and Category create/update/deactivation snapshots. Each reversal verifies that
+the live fields still match the audited new state, appends a linked immutable
+audit entry, and uses PostgreSQL `xmin` optimistic concurrency so a concurrent
+write returns HTTP 409 rather than being overwritten. Unsupported audit entity
+types/actions and repeated reversals are rejected; audit history is never
+rewritten or deleted.
+
 RabbitMQ is configured as a durable topic exchange named `guidora.events`.
 `IEventPublisher` publishes JSON events with persistent delivery mode. No
 consumer, worker, scheduler, or synchronous Product workflow is coupled to the

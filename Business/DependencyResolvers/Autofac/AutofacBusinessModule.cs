@@ -54,6 +54,7 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<EfProductEditProposalTagDal>().As<IProductEditProposalTagDal>();
             builder.RegisterType<EfProductEditProposalCategoryDal>().As<IProductEditProposalCategoryDal>();
             builder.RegisterType<EfAuditLogDal>().As<IAuditLogDal>();
+            builder.RegisterType<AuditRevertManager>().As<IAuditRevertService>();
             builder.RegisterType<EfUserAuthenticationStateDal>().As<IUserAuthenticationStateDal>();
             builder.RegisterType<EfUserSessionDal>().As<IUserSessionDal>();
 

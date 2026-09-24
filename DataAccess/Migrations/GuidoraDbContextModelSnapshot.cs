@@ -103,6 +103,16 @@ namespace DataAccess.Migrations
                         {
                             Id = 12,
                             Name = "Product.Contributor.Manage"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Name = "User.Manage"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Name = "Audit.Revert"
                         });
                 });
 
@@ -313,6 +323,18 @@ namespace DataAccess.Migrations
                             Id = 22,
                             OperationClaimId = 12,
                             RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 23,
+                            OperationClaimId = 13,
+                            RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 24,
+                            OperationClaimId = 14,
+                            RoleId = 3
                         });
                 });
 
@@ -508,9 +530,14 @@ namespace DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<long?>("RevertsAuditLogId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActorUserId");
+
+                    b.HasIndex("RevertsAuditLogId");
 
                     b.HasIndex("EntityType", "EntityId", "CreatedAt");
 
@@ -547,6 +574,12 @@ namespace DataAccess.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("CategoryId");
 
@@ -731,6 +764,12 @@ namespace DataAccess.Migrations
                         .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("ProductId");
 
@@ -1553,6 +1592,11 @@ namespace DataAccess.Migrations
                     b.HasOne("Core.Entities.Concrete.User", null)
                         .WithMany()
                         .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Entities.AuditLog", null)
+                        .WithMany()
+                        .HasForeignKey("RevertsAuditLogId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

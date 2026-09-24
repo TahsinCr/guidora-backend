@@ -33,13 +33,6 @@ namespace Core.DataAccess.EntityFramework
         public Task AddRangeAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) =>
             Context.Set<TEntity>().AddRangeAsync(entities, cancellationToken);
 
-        public void Delete(TEntity entity)
-        {
-            Context.Entry(entity).State = EntityState.Deleted;
-        }
-
-        public void DeleteRange(IEnumerable<TEntity> entities) => Context.Set<TEntity>().RemoveRange(entities);
-
         public TEntity? Get(Expression<Func<TEntity, bool>> filter)
         {
             return Context.Set<TEntity>().SingleOrDefault(filter);
@@ -50,9 +43,8 @@ namespace Core.DataAccess.EntityFramework
 
         public List<TEntity> GetAll(Expression<Func<TEntity, bool>>? filter = null)
         {
-            return filter == null
-                ? Context.Set<TEntity>().ToList()
-                : Context.Set<TEntity>().Where(filter).ToList();
+            var query = Context.Set<TEntity>().AsNoTracking();
+            return filter == null ? query.ToList() : query.Where(filter).ToList();
         }
 
         public Task<List<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>>? filter = null,

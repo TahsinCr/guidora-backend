@@ -13,5 +13,7 @@ namespace DataAccess.Abstract
         IReadOnlyList<AuditLog> GetByEntity(string entityType, string entityId);
         Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, string entityId,
             CancellationToken cancellationToken = default);
+        Task<AuditLog?> GetByIdAsync(long id, CancellationToken cancellationToken = default);
+        Task<bool> HasRevertAsync(long auditLogId, CancellationToken cancellationToken = default);
     }
 }

@@ -230,14 +230,14 @@ public sealed class GovernanceWorkflowTests
     private sealed class ProductCategoryDal(IEnumerable<ProductCategory>? values = null)
         : EntityRepositoryStub<ProductCategory>(values), IProductCategoryDal
     {
-        public override void DeleteRange(IEnumerable<ProductCategory> entities)
+        public override void PurgeRange(IEnumerable<ProductCategory> entities)
         {
             var removed = entities.ToArray();
-            foreach (var entity in removed) Delete(entity);
+            foreach (var entity in removed) Purge(entity);
         }
-        public override void Delete(ProductCategory entity)
+        public override void Purge(ProductCategory entity)
         {
-            base.Delete(entity);
+            base.Purge(entity);
             Entities.Remove(entity);
         }
     }
@@ -245,14 +245,14 @@ public sealed class GovernanceWorkflowTests
     private sealed class ProductTagDal(IEnumerable<ProductTag>? values = null)
         : EntityRepositoryStub<ProductTag>(values), IProductTagDal
     {
-        public override void DeleteRange(IEnumerable<ProductTag> entities)
+        public override void PurgeRange(IEnumerable<ProductTag> entities)
         {
             var removed = entities.ToArray();
-            foreach (var entity in removed) Delete(entity);
+            foreach (var entity in removed) Purge(entity);
         }
-        public override void Delete(ProductTag entity)
+        public override void Purge(ProductTag entity)
         {
-            base.Delete(entity);
+            base.Purge(entity);
             Entities.Remove(entity);
         }
     }
@@ -285,5 +285,9 @@ public sealed class GovernanceWorkflowTests
             Entries.Where(entry => entry.EntityType == entityType && entry.EntityId == entityId).ToArray();
         public Task<IReadOnlyList<AuditLog>> GetByEntityAsync(string entityType, string entityId,
             CancellationToken cancellationToken = default) => Task.FromResult(GetByEntity(entityType, entityId));
+        public Task<AuditLog?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Entries.SingleOrDefault(entry => entry.Id == id));
+        public Task<bool> HasRevertAsync(long auditLogId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Entries.Any(entry => entry.RevertsAuditLogId == auditLogId));
     }
 }

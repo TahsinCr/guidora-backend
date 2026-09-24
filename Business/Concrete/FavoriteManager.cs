@@ -76,7 +76,7 @@ public sealed class FavoriteManager : IFavoriteService
             cancellationToken);
         if (favorite is null) return new SuccessResult("Product was not in favorites.");
 
-        _favoriteDal.Delete(favorite);
+        _favoriteDal.Purge(favorite);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(userId, nameof(Favorite), $"{userId}:{productId}",
             "Removed", new { favorite.UserId, favorite.ProductId, favorite.CreatedAt }, new { }), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

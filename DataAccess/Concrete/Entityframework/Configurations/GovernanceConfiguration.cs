@@ -162,6 +162,9 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(log => log.OldValues).HasColumnType("jsonb").IsRequired();
             builder.Property(log => log.NewValues).HasColumnType("jsonb").IsRequired();
             builder.HasIndex(log => new { log.EntityType, log.EntityId, log.CreatedAt });
+            builder.HasIndex(log => log.RevertsAuditLogId);
+            builder.HasOne<AuditLog>().WithMany().HasForeignKey(log => log.RevertsAuditLogId)
+                .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<User>().WithMany().HasForeignKey(log => log.ActorUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         }

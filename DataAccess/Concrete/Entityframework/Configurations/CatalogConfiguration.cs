@@ -9,6 +9,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<Category> builder)
         {
             builder.HasKey(category => category.CategoryId);
+            builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(category => category.CategoryName).HasMaxLength(150).IsRequired();
             builder.Property(category => category.Slug).HasColumnType("citext").HasMaxLength(180).IsRequired();
             builder.HasIndex(category => category.Slug).IsUnique();
@@ -20,6 +21,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<Product> builder)
         {
             builder.HasKey(product => product.ProductId);
+            builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(product => product.Name).HasColumnType("citext").HasMaxLength(200).IsRequired();
             builder.Property(product => product.Slug).HasColumnType("citext").HasMaxLength(220).IsRequired();
             builder.Property(product => product.ShortDescription).HasMaxLength(500).IsRequired();

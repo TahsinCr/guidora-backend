@@ -111,28 +111,28 @@ public sealed class VerifiedProductEditTests
     private sealed class ProductCategoryDalStub(IEnumerable<ProductCategory>? values = null)
         : EntityRepositoryStub<ProductCategory>(values), IProductCategoryDal
     {
-        public override void DeleteRange(IEnumerable<ProductCategory> entities)
+        public override void PurgeRange(IEnumerable<ProductCategory> entities)
         {
-            foreach (var entity in entities.ToArray()) Delete(entity);
+            foreach (var entity in entities.ToArray()) Purge(entity);
         }
 
-        public override void Delete(ProductCategory entity)
+        public override void Purge(ProductCategory entity)
         {
             Entities.Remove(entity);
-            base.Delete(entity);
+            base.Purge(entity);
         }
     }
     private sealed class ProductTagDalStub(IEnumerable<ProductTag>? values = null)
         : EntityRepositoryStub<ProductTag>(values), IProductTagDal
     {
-        public override void DeleteRange(IEnumerable<ProductTag> entities)
+        public override void PurgeRange(IEnumerable<ProductTag> entities)
         {
-            foreach (var entity in entities.ToArray()) Delete(entity);
+            foreach (var entity in entities.ToArray()) Purge(entity);
         }
-        public override void Delete(ProductTag entity)
+        public override void Purge(ProductTag entity)
         {
             Entities.Remove(entity);
-            base.Delete(entity);
+            base.Purge(entity);
         }
     }
     private sealed class TagDalStub(IEnumerable<Tag>? values = null) : EntityRepositoryStub<Tag>(values), ITagDal;

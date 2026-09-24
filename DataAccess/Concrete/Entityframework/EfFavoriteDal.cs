@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace DataAccess.Concrete.Entityframework
 {
-    public class EfFavoriteDal : EfEntityRepositoryBase<Favorite, GuidoraDbContext>, IFavoriteDal
+    public class EfFavoriteDal : EfEntityPurgeRepositoryBase<Favorite, GuidoraDbContext>, IFavoriteDal
     {
         public EfFavoriteDal(GuidoraDbContext context) : base(context) { }
 

@@ -107,7 +107,7 @@ public sealed class ProductMediaManager : IProductMediaService
         var media = await _mediaDal.GetAsync(item => item.ProductId == productId && item.Id == mediaId,
             cancellationToken);
         if (media is null) return new ErrorResult("Product media was not found.");
-        _mediaDal.Delete(media);
+        _mediaDal.Purge(media);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(ProductMedia), mediaId.ToString(),
             "Deleted", new { media.ProductId, media.MediaType, media.Url, media.AltText, media.DisplayOrder }, new { }),
             cancellationToken);

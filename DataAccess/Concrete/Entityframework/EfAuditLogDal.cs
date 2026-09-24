@@ -35,5 +35,11 @@ namespace DataAccess.Concrete.Entityframework
                 .Where(log => log.EntityType == entityType && log.EntityId == entityId)
                 .OrderByDescending(log => log.CreatedAt)
                 .ToListAsync(cancellationToken);
+
+        public Task<AuditLog?> GetByIdAsync(long id, CancellationToken cancellationToken = default) =>
+            _context.AuditLogs.AsNoTracking().SingleOrDefaultAsync(log => log.Id == id, cancellationToken);
+
+        public Task<bool> HasRevertAsync(long auditLogId, CancellationToken cancellationToken = default) =>
+            _context.AuditLogs.AsNoTracking().AnyAsync(log => log.RevertsAuditLogId == auditLogId, cancellationToken);
     }
 }

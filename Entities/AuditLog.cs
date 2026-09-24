@@ -12,6 +12,7 @@ namespace Entities
         public string Action { get; set; } = string.Empty;
         public string OldValues { get; set; } = "{}";
         public string NewValues { get; set; } = "{}";
+        public long? RevertsAuditLogId { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

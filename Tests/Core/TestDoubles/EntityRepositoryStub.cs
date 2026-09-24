@@ -38,8 +38,8 @@ public abstract class EntityRepositoryStub<TEntity> : IEntityRepository<TEntity>
         return Task.CompletedTask;
     }
     public void Update(TEntity entity) => UpdateCount++;
-    public virtual void Delete(TEntity entity) => DeleteCount++;
-    public virtual void DeleteRange(IEnumerable<TEntity> entities) => DeleteCount += entities.Count();
+    public virtual void Purge(TEntity entity) => DeleteCount++;
+    public virtual void PurgeRange(IEnumerable<TEntity> entities) => DeleteCount += entities.Count();
 }
 
 public sealed class UnitOfWorkStub : IUnitOfWork

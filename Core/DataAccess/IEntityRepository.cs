@@ -21,7 +21,5 @@ namespace Core.DataAccess
         void AddRange(IEnumerable<T> entities);
         Task AddRangeAsync(IEnumerable<T> entities, CancellationToken cancellationToken = default);
         void Update(T entity);
-        void Delete(T entity);
-        void DeleteRange(IEnumerable<T> entities);
     }
 }
