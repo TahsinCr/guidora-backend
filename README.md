@@ -93,6 +93,13 @@ their concrete result type; PostgreSQL remains the source of truth.
 Authentication session validation uses a separate, one-minute distributed
 Redis entry.
 
+Aspect priorities define wrapper nesting, not the timestamp of each aspect's
+callback. Authorization and validation guard the use case; `CacheRemoveAspect`
+wraps the transaction so its success hook executes after the inner transaction
+commits. Failed business results and rollbacks do not invalidate caches.
+Operation logging runs from the post-operation hook after the wrapped pipeline
+finishes.
+
 Redis is configured as disposable cache infrastructure: AOF and RDB persistence
 are disabled, and the global eviction policy is `allkeys-lfu`. Compose defaults
 to `REDIS_MAXMEMORY=256mb` and `REDIS_CONTAINER_MEMORY_LIMIT=320m`; override

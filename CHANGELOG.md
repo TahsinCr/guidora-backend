@@ -58,7 +58,8 @@ All notable changes to the Guidora backend are documented here.
   stale claims are not automatically pruned.
 - Added result-aware transaction commit/rollback and cache invalidation, stable
   interceptor ordering, post-operation logging, and convention-based secured
-  operation claim names.
+  operation claim names. The cache-after-commit test now obtains interceptors
+  from the production selector rather than manually arranging them.
 - Made CacheAspect TTL explicit at the use case; absent TTL has no time-based
   expiry. Redis now uses disposable allkeys-LFU caching with separate data and
   container memory limits and persistence disabled.

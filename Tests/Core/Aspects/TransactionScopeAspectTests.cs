@@ -4,6 +4,7 @@ using Core.Aspects.Transaction;
 using Core.Aspects.Caching;
 using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.IoC;
+using Core.Utilities.Interceptors.Autofac;
 using Core.Utilities.Results;
 using Microsoft.Extensions.DependencyInjection;
 using Tests.Core.TestDoubles;
@@ -63,8 +64,7 @@ public sealed class TransactionScopeAspectTests
         var cache = new CacheManagerStub(events);
         ServiceTool.SetProvider(new ServiceCollection().AddSingleton<ICacheManager>(cache).BuildServiceProvider());
         var probe = new TransactionProbe(events);
-        var proxy = new ProxyGenerator().CreateInterfaceProxyWithTarget<ICacheTransactionalTarget>(
-            new CacheTransactionalTarget(probe), new CacheRemoveAspect("catalog"), new TransactionScopeAspect());
+        var proxy = CreateCacheProxy(probe);
 
         Assert.True(proxy.Execute(success: true).Success);
 
@@ -78,8 +78,7 @@ public sealed class TransactionScopeAspectTests
         var cache = new CacheManagerStub(events);
         ServiceTool.SetProvider(new ServiceCollection().AddSingleton<ICacheManager>(cache).BuildServiceProvider());
         var probe = new TransactionProbe(events);
-        var proxy = new ProxyGenerator().CreateInterfaceProxyWithTarget<ICacheTransactionalTarget>(
-            new CacheTransactionalTarget(probe), new CacheRemoveAspect("catalog"), new TransactionScopeAspect());
+        var proxy = CreateCacheProxy(probe);
 
         Assert.False(proxy.Execute(success: false).Success);
 
@@ -89,6 +88,15 @@ public sealed class TransactionScopeAspectTests
     private static ITransactionalTarget CreateProxy(TransactionProbe probe) =>
         new ProxyGenerator().CreateInterfaceProxyWithTarget<ITransactionalTarget>(
             new TransactionalTarget(probe), new TransactionScopeAspect());
+
+    private static ICacheTransactionalTarget CreateCacheProxy(TransactionProbe probe)
+    {
+        var target = new CacheTransactionalTarget(probe);
+        var method = typeof(CacheTransactionalTarget).GetMethod(nameof(CacheTransactionalTarget.Execute))!;
+        var interceptors = new AspectInterceptorSelector().SelectInterceptors(
+            typeof(CacheTransactionalTarget), method, Array.Empty<IInterceptor>());
+        return new ProxyGenerator().CreateInterfaceProxyWithTarget<ICacheTransactionalTarget>(target, interceptors);
+    }
 
     public interface ITransactionalTarget
     {
@@ -119,6 +127,8 @@ public sealed class TransactionScopeAspectTests
 
     private sealed class CacheTransactionalTarget(TransactionProbe probe) : ICacheTransactionalTarget
     {
+        [CacheRemoveAspect("catalog")]
+        [TransactionScopeAspect]
         public IResult Execute(bool success)
         {
             probe.Enlist();
