@@ -22,14 +22,31 @@ public sealed class GovernanceWorkflowTests
             WebsiteUrl = "https://new.test", LogoUrl = "https://new.test/logo"
         };
         var products = new ProductDal([product]);
-        var productCategories = new ProductCategoryDal([new ProductCategory { ProductId = 5, CategoryId = 2 }]);
-        var productTags = new ProductTagDal([new ProductTag { ProductId = 5, TagId = 10 }]);
+        var productCategories = new ProductCategoryDal([
+            new ProductCategory { ProductId = 5, CategoryId = 2 },
+            new ProductCategory { ProductId = 5, CategoryId = 4 }
+        ]);
+        var productTags = new ProductTagDal([
+            new ProductTag { ProductId = 5, TagId = 10 },
+            new ProductTag { ProductId = 5, TagId = 22 }
+        ]);
         var proposalDal = new ProposalDal([proposal]);
-        var proposalCategories = new ProposalCategoryDal([new ProductEditProposalCategory
-            { ProductEditProposalId = 12, CategoryId = 4 }]);
-        var proposalTags = new ProposalTagDal([new ProductEditProposalTag { ProductEditProposalId = 12, TagId = 22 }]);
-        var categories = new CategoryDal([new Category { CategoryId = 4, IsActive = true }]);
-        var tags = new TagDal([new Tag { Id = 22, TagCategoryId = 3, IsActive = true }]);
+        var proposalCategories = new ProposalCategoryDal([
+            new ProductEditProposalCategory { ProductEditProposalId = 12, CategoryId = 4 },
+            new ProductEditProposalCategory { ProductEditProposalId = 12, CategoryId = 6 }
+        ]);
+        var proposalTags = new ProposalTagDal([
+            new ProductEditProposalTag { ProductEditProposalId = 12, TagId = 22 },
+            new ProductEditProposalTag { ProductEditProposalId = 12, TagId = 23 }
+        ]);
+        var categories = new CategoryDal([
+            new Category { CategoryId = 4, IsActive = true },
+            new Category { CategoryId = 6, IsActive = true }
+        ]);
+        var tags = new TagDal([
+            new Tag { Id = 22, TagCategoryId = 3, IsActive = true },
+            new Tag { Id = 23, TagCategoryId = 3, IsActive = true }
+        ]);
         var tagCategories = new TagCategoryDal([new TagCategory { Id = 3, IsActive = true, AllowsMultipleSelection = true }]);
         var audit = new AuditDal();
         var unitOfWork = new UnitOfWorkStub();
@@ -46,8 +63,10 @@ public sealed class GovernanceWorkflowTests
         Assert.Equal("New", product.Name);
         Assert.Equal(ProductEditProposalStatus.Accepted, proposal.Status);
         Assert.Equal(99, proposal.ReviewedByUserId);
-        Assert.Equal([4], productCategories.GetAll().Select(item => item.CategoryId));
-        Assert.Equal([22], productTags.GetAll().Select(item => item.TagId));
+        Assert.Equal([4, 6], productCategories.GetAll().Select(item => item.CategoryId).Order());
+        Assert.Equal(1, productCategories.DeleteCount);
+        Assert.Equal([22, 23], productTags.GetAll().Select(item => item.TagId).Order());
+        Assert.Equal(1, productTags.DeleteCount);
         Assert.Equal(2, audit.Entries.Count);
         var auditEntry = Assert.Single(audit.Entries, entry => entry.Action == "EditProposalAccepted");
         Assert.Equal("EditProposalAccepted", auditEntry.Action);

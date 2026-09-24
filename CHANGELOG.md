@@ -31,6 +31,8 @@ All notable changes to the Guidora backend are documented here.
   their intended rate-limit policies.
 - Preserved full IPv6 client addresses in authentication rate-limit partitions
   while normalizing only IPv4-mapped IPv6 addresses.
+- Applied accepted Product edit snapshots using relationship deltas, retaining
+  unchanged category and tag links instead of deleting and reinserting them.
 - Added explicit selector-order regression tests for Product create, update,
   and status-based delete so authorization, validation, cache invalidation, and
   transaction nesting cannot silently drift.

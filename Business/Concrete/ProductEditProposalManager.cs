@@ -225,11 +225,19 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
     private async Task ReplaceLinksAsync(int productId, int[] categoryIds, int[] tagIds,
         CancellationToken cancellationToken)
     {
-        _productCategoryDal.PurgeRange(await _productCategoryDal.GetAllAsync(
-            item => item.ProductId == productId, cancellationToken));
-        _productTagDal.PurgeRange(await _productTagDal.GetAllAsync(item => item.ProductId == productId, cancellationToken));
-        _productCategoryDal.AddRange(categoryIds.Select(categoryId =>
+        var existingCategories = await _productCategoryDal.GetAllAsync(
+            item => item.ProductId == productId, cancellationToken);
+        var requestedCategoryIds = categoryIds.ToHashSet();
+        var existingCategoryIds = existingCategories.Select(item => item.CategoryId).ToHashSet();
+        _productCategoryDal.PurgeRange(existingCategories.Where(item => !requestedCategoryIds.Contains(item.CategoryId)));
+        _productCategoryDal.AddRange(requestedCategoryIds.Except(existingCategoryIds).Select(categoryId =>
             new ProductCategory { ProductId = productId, CategoryId = categoryId }));
-        _productTagDal.AddRange(tagIds.Select(tagId => new ProductTag { ProductId = productId, TagId = tagId }));
+
+        var existingTags = await _productTagDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
+        var requestedTagIds = tagIds.ToHashSet();
+        var existingTagIds = existingTags.Select(item => item.TagId).ToHashSet();
+        _productTagDal.PurgeRange(existingTags.Where(item => !requestedTagIds.Contains(item.TagId)));
+        _productTagDal.AddRange(requestedTagIds.Except(existingTagIds)
+            .Select(tagId => new ProductTag { ProductId = productId, TagId = tagId }));
     }
 }
