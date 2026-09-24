@@ -119,6 +119,9 @@ Aspect priorities define wrapper nesting, not the timestamp of each aspect's
 callback. Authorization and validation guard the use case; `CacheRemoveAspect`
 wraps the transaction so its success hook executes after the inner transaction
 commits. Failed business results and rollbacks do not invalidate caches.
+`PerformanceAspect` wraps cache and transaction interceptors, so its elapsed
+time includes cache hits, database commit, and post-commit invalidation; its
+completion hook therefore runs after those inner callbacks.
 Business Manager attributes are declared in the selector's outer-to-inner
 priority order, and a contract test checks every decorated public Manager
 method against the production selector. Thus cache removal is declared before

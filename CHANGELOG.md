@@ -6,6 +6,9 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Corrected `PerformanceAspect` nesting so elapsed time includes cache hits,
+  transaction commit, and post-commit invalidation; synchronous exceptions are
+  measured before being rethrown. Added an interceptor-order contract test.
 - Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
   nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
   omits values it cannot safely serialize; added recursive redaction tests.

@@ -8,7 +8,9 @@ namespace Core.Aspects.Performance
 {
     public class PerformanceAspect : MethodInterception
     {
-        public const int InterceptorPriority = 500;
+        // Performance wraps cache and transaction interceptors so elapsed time includes
+        // cache hits, database commit, and post-commit cache invalidation.
+        public const int InterceptorPriority = 250;
         private readonly int _interval;
         public PerformanceAspect(int interval)
         {
@@ -19,7 +21,16 @@ namespace Core.Aspects.Performance
         public override void Intercept(IInvocation invocation)
         {
             var stopwatch = Stopwatch.StartNew();
-            invocation.Proceed();
+            try
+            {
+                invocation.Proceed();
+            }
+            catch
+            {
+                ReportIfSlow(invocation, stopwatch);
+                throw;
+            }
+
             if (invocation.ReturnValue is Task task && invocation.Method.ReturnType.IsGenericType &&
                 invocation.Method.ReturnType.GetGenericTypeDefinition() == typeof(Task<>))
             {

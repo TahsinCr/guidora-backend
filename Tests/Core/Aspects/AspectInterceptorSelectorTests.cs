@@ -2,6 +2,7 @@ using Business.BusinessAspect.Autofac;
 using Business.Concrete;
 using Castle.DynamicProxy;
 using Core.Aspects.Caching;
+using Core.Aspects.Performance;
 using Core.Aspects.Transaction;
 using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Interceptors.Autofac;
@@ -31,10 +32,11 @@ public sealed class AspectInterceptorSelectorTests
             typeof(AspectSelectionTarget), method, Array.Empty<IInterceptor>());
 
         Assert.Equal(
-            [typeof(SecuredOperationAspect), typeof(CacheRemoveAspect), typeof(TransactionScopeAspect)],
+            [typeof(SecuredOperationAspect), typeof(PerformanceAspect), typeof(CacheRemoveAspect),
+                typeof(TransactionScopeAspect)],
             interceptors.Select(interceptor => interceptor.GetType()).ToArray());
         Assert.Equal(
-            [100, 300, 400],
+            [100, 250, 300, 400],
             interceptors.Cast<MethodInterceptionBaseAttribute>().Select(interceptor => interceptor.Priority).ToArray());
     }
 
@@ -91,6 +93,7 @@ public sealed class AspectInterceptorSelectorTests
 }
 
 [SecuredOperationAspect("class.permission")]
+[PerformanceAspect(1)]
 public sealed class AspectSelectionTarget
 {
     [SecuredOperationAspect("method.permission")]
