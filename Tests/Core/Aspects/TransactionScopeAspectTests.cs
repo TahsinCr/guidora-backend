@@ -68,7 +68,7 @@ public sealed class TransactionScopeAspectTests
 
         Assert.True(proxy.Execute(success: true).Success);
 
-        Assert.Equal(["commit", "invalidate:catalog:*"], events);
+        Assert.Equal(["commit", $"invalidate:product-detail:*:arg:0:{CacheKeySegment.Hash(42)}"], events);
     }
 
     [Fact]
@@ -132,7 +132,10 @@ public sealed class TransactionScopeAspectTests
         public IResult Execute(bool success)
         {
             probe.Enlist();
-            return success ? new SuccessResult() : new ErrorResult("failed");
+            return success
+                ? new CacheInvalidationSuccessResult("done",
+                    new CacheInvalidationTarget("product-detail", ArgumentIndex: 0, ArgumentValue: 42))
+                : new ErrorResult("failed");
         }
     }
 

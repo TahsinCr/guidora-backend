@@ -1,5 +1,6 @@
 using Core.CrossCuttingConcerns.Messaging;
 using Core.CrossCuttingConcerns.Caching.Redis;
+using Core.CrossCuttingConcerns.Caching;
 using Business.BusinessRules.Catalog;
 using Business.Concrete;
 using Core.Entities.Concrete;
@@ -8,8 +9,11 @@ using DataAccess.Concrete.Entityframework;
 using DataAccess.Concrete.Entityframework.Contexts;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using RabbitMQ.Client;
 using StackExchange.Redis;
+using System.Reflection;
 using System.Text.Json;
 using GuidoraRole = global::Core.Entities.Concrete.Role;
 
@@ -417,6 +421,13 @@ public sealed class InfrastructureIntegrationTests
 
         Assert.True(productResult.Success, productResult.Message);
         Assert.True(categoryResult.Success, categoryResult.Message);
+        var productCacheDirective = Assert.IsAssignableFrom<ICacheInvalidationDirective>(productResult);
+        Assert.Contains(productCacheDirective.CacheInvalidations, target =>
+            target.Profile == CacheProfiles.ProductDetail && target.ArgumentIndex == 0 &&
+            Equals(target.ArgumentValue, product.ProductId));
+        var categoryCacheDirective = Assert.IsAssignableFrom<ICacheInvalidationDirective>(categoryResult);
+        Assert.Contains(categoryCacheDirective.CacheInvalidations,
+            target => target.Profile == CacheProfiles.CatalogNavigation);
         Assert.Equal($"Product-Before-{suffix}", product.Name);
         Assert.Equal($"Before-{suffix}", category.CategoryName);
         Assert.Equal($"before-{suffix}", category.Slug);
@@ -514,6 +525,42 @@ public sealed class InfrastructureIntegrationTests
         cache.RemoveByPattern($"{profile}:*");
 
         Assert.All(keys, key => Assert.False(cache.IsExists(key)));
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task BotVerificationSeedMigrationPreservesReferencedHistoricalLookup()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        await using var context = new GuidoraDbContext(options);
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        await context.Database.ExecuteSqlRawAsync("""
+            CREATE TEMP TABLE "VerificationTypes" ("Id" integer PRIMARY KEY, "Code" text, "Name" text);
+            CREATE TEMP TABLE "ProductVerifications" ("VerificationTypeId" integer NOT NULL);
+            INSERT INTO "VerificationTypes" VALUES (3, 'bot', 'Bot verified');
+            INSERT INTO "ProductVerifications" VALUES (3);
+            """);
+
+        var migration = new global::DataAccess.Migrations.RemoveFutureBotVerificationSeed();
+        var migrationBuilder = new MigrationBuilder("Npgsql.EntityFrameworkCore.PostgreSQL");
+        typeof(Migration).GetMethod("Up", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(migration, [migrationBuilder]);
+        var cleanupSql = Assert.IsType<SqlOperation>(Assert.Single(migrationBuilder.Operations)).Sql!;
+
+        await context.Database.ExecuteSqlRawAsync(cleanupSql);
+        var remainsWhileReferenced = await context.Database.SqlQueryRaw<bool>(
+            "SELECT EXISTS (SELECT 1 FROM \"VerificationTypes\" WHERE \"Code\" = 'bot') AS \"Value\"")
+            .SingleAsync();
+        Assert.True(remainsWhileReferenced);
+
+        await context.Database.ExecuteSqlRawAsync("DELETE FROM \"ProductVerifications\"");
+        await context.Database.ExecuteSqlRawAsync(cleanupSql);
+        var remainsAfterReferenceRemoval = await context.Database.SqlQueryRaw<bool>(
+            "SELECT EXISTS (SELECT 1 FROM \"VerificationTypes\" WHERE \"Code\" = 'bot') AS \"Value\"")
+            .SingleAsync();
+        Assert.False(remainsAfterReferenceRemoval);
+        await transaction.RollbackAsync();
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_RABBITMQ_HOST", "GUIDORA_TEST_RABBITMQ_PASSWORD")]

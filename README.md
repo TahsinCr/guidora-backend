@@ -126,8 +126,10 @@ are disabled, and the global eviction policy is `allkeys-lfu`. Compose defaults
 to `REDIS_MAXMEMORY=256mb` and `REDIS_CONTAINER_MEMORY_LIMIT=320m`; override
 these deployment settings through `.env` after measuring the target host.
 
-The V1 verification lookup contains only `admin` and `community`; Bot
-Verification remains out of scope and is not seeded until its workflow exists.
+Fresh V1 databases seed only `admin` and `community` verification types; Bot
+Verification remains out of scope until its workflow exists. The cleanup
+migration preserves a legacy `bot` lookup if historical verification rows still
+reference it.
 
 Secured-operation claims are discovered from Business aspects. Startup
 synchronization is additive and idempotent: it creates missing claims but never

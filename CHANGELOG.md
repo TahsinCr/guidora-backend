@@ -7,8 +7,8 @@ All notable changes to the Guidora backend are documented here.
 ### Added
 
 - Removed the V1-out-of-scope Bot Verification type from the active lookup seed;
-  added a reversible migration and bounded Redis pattern invalidation to avoid
-  materializing an unbounded matching-key set in application memory.
+  added a reversible, reference-preserving cleanup migration and bounded Redis
+  pattern invalidation to avoid materializing unbounded matching keys in memory.
 - Added result-driven post-commit cache invalidation for proposal acceptance and
   audit reversion, targeting the affected Product detail rather than evicting
   every detail entry in the cache profile.

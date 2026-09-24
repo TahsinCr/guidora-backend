@@ -1,5 +1,6 @@
 using Business.BusinessRules.Catalog;
 using Business.Concrete;
+using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -39,6 +40,9 @@ public sealed class GovernanceWorkflowTests
         var result = await manager.AcceptAsync(12, 99, new ReviewNoteRequest { Note = "Reviewed" });
 
         Assert.True(result.Success);
+        var cacheDirective = Assert.IsAssignableFrom<ICacheInvalidationDirective>(result);
+        Assert.Contains(cacheDirective.CacheInvalidations, target => target.Profile == CacheProfiles.ProductDetail &&
+            target.ArgumentIndex == 0 && Equals(target.ArgumentValue, product.ProductId));
         Assert.Equal("New", product.Name);
         Assert.Equal(ProductEditProposalStatus.Accepted, proposal.Status);
         Assert.Equal(99, proposal.ReviewedByUserId);
