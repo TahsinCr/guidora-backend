@@ -25,7 +25,7 @@ namespace Business.Concrete
             var userResult = await _userService.GetByIdAsync(userId, cancellationToken);
             if (!userResult.Success)
             {
-                return new ErrorResult(userResult.Message);
+                return new NotFoundResult(userResult.Message);
             }
 
             userResult.Data.Status = false;
@@ -45,7 +45,7 @@ namespace Business.Concrete
             var userResult = await _userService.GetByIdAsync(userId, cancellationToken);
             if (!userResult.Success)
             {
-                return new ErrorResult(userResult.Message);
+                return new NotFoundResult(userResult.Message);
             }
 
             userResult.Data.Status = true;

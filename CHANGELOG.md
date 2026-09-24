@@ -38,6 +38,8 @@ All notable changes to the Guidora backend are documented here.
 - Added regression coverage for duplicate Tag and TagCategory slug conflicts.
 - Mapped Business ownership/authorization denials to HTTP 403 and invalid
   resource-state operations to HTTP 409.
+- Preserved HTTP 404 semantics when account-management commands target a missing
+  user, without invalidating sessions for nonexistent accounts.
 - Added explicit selector-order regression tests for Product create, update,
   and status-based delete so authorization, validation, cache invalidation, and
   transaction nesting cannot silently drift.
