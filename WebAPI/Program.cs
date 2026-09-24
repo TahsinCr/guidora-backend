@@ -30,6 +30,7 @@ using Core.DataAccess;
 using System.Net;
 using System.Threading.RateLimiting;
 using WebAPI.HealthChecks;
+using WebAPI.Logging;
 
 namespace WebAPI
 {
@@ -192,6 +193,7 @@ namespace WebAPI
             }
 
             app.UseForwardedHeaders();
+            app.UseGuidoraHttpLogging();
             app.ConfigureCustomExceptionMiddleware();
 
             app.UseRouting();

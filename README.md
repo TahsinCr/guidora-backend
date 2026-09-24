@@ -96,7 +96,10 @@ Configure browser origins through `Cors:AllowedOrigins` (Compose:
 `ForwardedHeaders:KnownProxies` to the proxy IP addresses; arbitrary forwarded
 headers must not be trusted. Login, registration, and refresh endpoints have
 configurable IP-partitioned limits under `RateLimiting:Login`, `Register`, and
-`Refresh`. Refresh cookies are Secure outside Development.
+`Refresh`. Refresh cookies are Secure outside Development. HTTP request logs
+record method, path, response status, duration, and trace ID only. Query strings,
+headers, and request/response bodies are excluded so secret query parameters and
+payloads are not recorded.
 
 ## Redis cache and RabbitMQ
 

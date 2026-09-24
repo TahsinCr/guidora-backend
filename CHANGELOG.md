@@ -11,6 +11,9 @@ All notable changes to the Guidora backend are documented here.
   structured logging, and synchronous exceptions are measured before rethrow.
   Enabled one-second instrumentation on the main catalog read paths and added
   timing and interceptor-order contract tests.
+- Added production HTTP request logging for method, path, response status,
+  duration, and trace ID only; a TestServer test verifies query strings and
+  message bodies are excluded.
 - Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
   nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
   omits values it cannot safely serialize; added recursive redaction tests.
