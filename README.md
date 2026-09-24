@@ -63,6 +63,11 @@ another address only when remote host access is intentionally required; for a
 production deployment, prefer keeping PostgreSQL, Redis, and RabbitMQ private
 to the Docker network.
 
+When the API runs behind a TLS-terminating reverse proxy, set
+`FORWARDED_HEADERS_KNOWN_PROXIES_0` in `.env` to the proxy's IP address as seen
+by the API container. Forwarded headers from unlisted proxies are not trusted;
+do not use a wildcard or trust arbitrary clients.
+
 See [infra/README.md](infra/README.md) for infrastructure details.
 
 The Compose configuration targets PostgreSQL 18 and mounts its named volume at

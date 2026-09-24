@@ -27,10 +27,10 @@ using StackExchange.Redis;
 using Business.Security;
 using DataAccess.Abstract;
 using Core.DataAccess;
-using System.Net;
 using System.Threading.RateLimiting;
 using WebAPI.HealthChecks;
 using WebAPI.Logging;
+using WebAPI.Configuration;
 
 namespace WebAPI
 {
@@ -55,21 +55,7 @@ namespace WebAPI
                 );
             });
 
-            builder.Services.Configure<ForwardedHeadersOptions>(options =>
-            {
-                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-                foreach (var proxyAddress in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies")
-                             .Get<string[]>() ?? [])
-                {
-                    if (!IPAddress.TryParse(proxyAddress, out var address))
-                    {
-                        throw new InvalidOperationException(
-                            $"Forwarded proxy address '{proxyAddress}' is not a valid IP address.");
-                    }
-
-                    options.KnownProxies.Add(address);
-                }
-            });
+            builder.Services.ConfigureOptions<ForwardedHeadersOptionsSetup>();
 
             builder.Services.AddRateLimiter(options =>
             {

@@ -4,6 +4,11 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Made the trusted forwarded-header proxy configurable in Docker Compose without
+  trusting arbitrary forwarded headers by default.
+
 ### Added
 
 - Corrected `PerformanceAspect` nesting so elapsed time includes cache hits,
