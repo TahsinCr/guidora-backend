@@ -4,6 +4,7 @@ using DataAccess.Abstract;
 using Entities;
 using System.Collections.Generic;
 using Core.Aspects.Caching;
+using Core.Aspects.Performance;
 using Core.CrossCuttingConcerns.Caching;
 using Business.BusinessAspect.Autofac;
 using Core.DataAccess;
@@ -35,6 +36,7 @@ namespace Business.Concrete
             _auditLogDal = auditLogDal;
         }
 
+        [PerformanceAspect(1)]
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
         public async Task<IDataResult<List<Category>>> GetAllAsync(CancellationToken cancellationToken = default)
         {
@@ -42,6 +44,7 @@ namespace Business.Concrete
                 await _categoryDal.GetAllAsync(category => category.IsActive, cancellationToken));
         }
 
+        [PerformanceAspect(1)]
         [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
         public async Task<IDataResult<Category>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {

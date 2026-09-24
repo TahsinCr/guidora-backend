@@ -8,6 +8,7 @@ using Business.Constants;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
 using Core.Aspects.Caching;
+using Core.Aspects.Performance;
 using Core.CrossCuttingConcerns.Caching;
 using Core.Entities;
 using Core.Utilities.Results;
@@ -69,6 +70,7 @@ namespace Business.Concrete
         }
 
         [ValidationAspect(typeof(PageRequestValidator))]
+        [PerformanceAspect(1)]
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
         public async Task<IDataResult<PagedResult<Product>>> GetPageAsync(PageRequest request, int? categoryId = null,
             CancellationToken cancellationToken = default)
@@ -92,6 +94,7 @@ namespace Business.Concrete
         }
 
 
+        [PerformanceAspect(1)]
         [CacheAspect(CacheProfiles.ProductDetail, duration: 15, VaryByArgumentIndexes = new[] { 0 })]
         public async Task<IDataResult<Product>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {

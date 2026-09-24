@@ -123,7 +123,9 @@ commits. Failed business results and rollbacks do not invalidate caches.
 time includes cache hits, database commit, and post-commit invalidation; its
 completion hook therefore runs after those inner callbacks. Threshold breaches
 are emitted as structured `ILogger` warnings, including slow synchronous
-exceptions, rather than being limited to Debug-only output.
+exceptions, rather than being limited to Debug-only output. The paged Product
+catalog, Product detail, and Category navigation reads currently use a
+one-second threshold; measurements include both cache-hit and cache-miss paths.
 Business Manager attributes are declared in the selector's outer-to-inner
 priority order, and a contract test checks every decorated public Manager
 method against the production selector. Thus cache removal is declared before
