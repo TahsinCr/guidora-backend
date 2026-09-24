@@ -68,7 +68,7 @@ public sealed class AuditRevertManager : IAuditRevertService
         var source = await _auditLogDal.GetByIdAsync(auditLogId, cancellationToken);
         if (source is null) return new NotFoundResult("Audit entry was not found.");
         if (await _auditLogDal.HasRevertAsync(source.Id, cancellationToken))
-            return new ErrorResult("This audit entry has already been reverted.");
+            return new ConflictResult("This audit entry has already been reverted.");
 
         try
         {

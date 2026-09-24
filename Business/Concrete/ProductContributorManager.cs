@@ -60,9 +60,9 @@ public sealed class ProductContributorManager : IProductContributorService
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (product is null) return new NotFoundResult("Product was not found.");
         if (actorUserId != request.UserId && actorUserId != product.CreatedByUserId)
-            return new ErrorResult("Only the Product creator may credit another contributor.");
+            return new ForbiddenResult("Only the Product creator may credit another contributor.");
         var user = await _userDal.GetAsync(item => item.Id == request.UserId, cancellationToken);
-        if (user is not { Status: true }) return new ErrorResult("Contributor account is unavailable.");
+        if (user is not { Status: true }) return new NotFoundResult("Contributor account is unavailable.");
         var existing = await _contributorDal.GetAsync(item => item.ProductId == productId && item.UserId == request.UserId,
             cancellationToken);
         if (existing is not null)
@@ -105,7 +105,7 @@ public sealed class ProductContributorManager : IProductContributorService
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (product is null) return new NotFoundResult("Product was not found.");
         if (actorUserId != userId && actorUserId != product.CreatedByUserId)
-            return new ErrorResult("Only the contributor or Product creator may remove this credit.");
+            return new ForbiddenResult("Only the contributor or Product creator may remove this credit.");
         var contributor = await _contributorDal.GetAsync(item => item.ProductId == productId && item.UserId == userId,
             cancellationToken);
         if (contributor is null) return new SuccessResult("Contributor was not listed.");

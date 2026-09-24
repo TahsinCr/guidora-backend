@@ -31,7 +31,7 @@ public sealed class ProductResourceRules : IProductResourceRules
         var status = await _statusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
         return status?.Code == "published"
             ? new SuccessResult()
-            : new ErrorResult("Product is not published.");
+            : new ConflictResult("Product is not published.");
     }
 
     public async Task<IResult> EnsureDirectContentChangeAllowedAsync(int productId,
@@ -41,7 +41,7 @@ public sealed class ProductResourceRules : IProductResourceRules
         if (!publishedResult.Success) return publishedResult;
         if (await _verificationDal.AnyAsync(item => item.ProductId == productId && item.RevokedAt == null,
                 cancellationToken))
-            return new ErrorResult("Verified Product content changes require a review proposal; this resource is not proposal-enabled in V1.");
+            return new ConflictResult("Verified Product content changes require a review proposal; this resource is not proposal-enabled in V1.");
         return new SuccessResult();
     }
 }

@@ -36,6 +36,8 @@ All notable changes to the Guidora backend are documented here.
 - Mapped duplicate catalog identities and stale governance state transitions to
   conflict results so the API returns HTTP 409 rather than generic HTTP 400.
 - Added regression coverage for duplicate Tag and TagCategory slug conflicts.
+- Mapped Business ownership/authorization denials to HTTP 403 and invalid
+  resource-state operations to HTTP 409.
 - Added explicit selector-order regression tests for Product create, update,
   and status-based delete so authorization, validation, cache invalidation, and
   transaction nesting cannot silently drift.

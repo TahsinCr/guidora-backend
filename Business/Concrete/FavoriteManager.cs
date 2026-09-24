@@ -51,11 +51,11 @@ public sealed class FavoriteManager : IFavoriteService
     [TransactionScopeAspect]
     public async Task<IResult> AddAsync(int productId, int userId, CancellationToken cancellationToken = default)
     {
-        if (!await IsActiveUserAsync(userId, cancellationToken)) return new ErrorResult("User is unavailable.");
+        if (!await IsActiveUserAsync(userId, cancellationToken)) return new ForbiddenResult("User is unavailable.");
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (product is null) return new NotFoundResult("Product was not found.");
         var status = await _productStatusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
-        if (status?.Code != "published") return new ErrorResult("Only published Products can be favorited.");
+        if (status?.Code != "published") return new ConflictResult("Only published Products can be favorited.");
 
         var favorite = new Favorite { UserId = userId, ProductId = productId, CreatedAt = System.DateTime.UtcNow };
         if (!await _favoriteDal.TryAddAsync(favorite, cancellationToken))

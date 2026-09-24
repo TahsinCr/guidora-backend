@@ -66,11 +66,11 @@ public sealed class CommentManager : ICommentService
         if (!moderationResult.Success) return moderationResult;
 
         var user = await _userDal.GetAsync(item => item.Id == userId, cancellationToken);
-        if (user is not { Status: true }) return new ErrorResult("User is unavailable.");
+        if (user is not { Status: true }) return new ForbiddenResult("User is unavailable.");
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (product is null) return new NotFoundResult("Product was not found.");
         var productStatus = await _productStatusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
-        if (productStatus?.Code != "published") return new ErrorResult("Comments are available only for published Products.");
+        if (productStatus?.Code != "published") return new ConflictResult("Comments are available only for published Products.");
         var activeStatus = await _commentStatusDal.GetAsync(item => item.Code == "active", cancellationToken);
         if (activeStatus is null) return new ErrorResult("Active comment status is not configured.");
 
@@ -98,7 +98,7 @@ public sealed class CommentManager : ICommentService
     {
         var comment = await _commentDal.GetAsync(item => item.Id == commentId, cancellationToken);
         if (comment is null) return new NotFoundResult("Comment was not found.");
-        if (comment.UserId != actorUserId) return new ErrorResult("Only the author can delete this comment.");
+        if (comment.UserId != actorUserId) return new ForbiddenResult("Only the author can delete this comment.");
         var currentStatus = await _commentStatusDal.GetAsync(item => item.Id == comment.CommentStatusId, cancellationToken);
         if (currentStatus?.Code == "deleted") return new SuccessResult("Comment is already deleted.");
         var deletedStatus = await _commentStatusDal.GetAsync(item => item.Code == "deleted", cancellationToken);
@@ -123,7 +123,7 @@ public sealed class CommentManager : ICommentService
         if (comment is null) return new NotFoundResult("Comment was not found.");
         var currentStatus = await _commentStatusDal.GetAsync(item => item.Id == comment.CommentStatusId, cancellationToken);
         if (currentStatus is null || currentStatus.Code is "deleted" or "blocked")
-            return new ErrorResult("This comment status cannot be changed by this operation.");
+            return new ConflictResult("This comment status cannot be changed by this operation.");
         var targetCode = isVisible ? "active" : "hidden";
         if (currentStatus.Code == targetCode) return new SuccessResult("Comment already has the requested visibility.");
         var targetStatus = await _commentStatusDal.GetAsync(item => item.Code == targetCode, cancellationToken);
@@ -150,7 +150,7 @@ public sealed class CommentManager : ICommentService
         if (currentStatus is null || currentStatus.Code is "deleted" or "blocked")
             return currentStatus?.Code == "blocked"
                 ? new SuccessResult("Comment is already blocked.")
-                : new ErrorResult("This comment cannot be blocked from its current status.");
+                : new ConflictResult("This comment cannot be blocked from its current status.");
         var blockedStatus = await _commentStatusDal.GetAsync(item => item.Code == "blocked", cancellationToken);
         if (blockedStatus is null) return new ErrorResult("Blocked comment status is not configured.");
 

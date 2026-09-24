@@ -73,6 +73,7 @@ public sealed class CommunityFeatureWorkflowTests
         var deleted = await manager.DeleteAsync(12, 7);
 
         Assert.False(forbidden.Success);
+        Assert.IsAssignableFrom<IForbiddenResult>(forbidden);
         Assert.True(deleted.Success);
         Assert.Equal(3, comment.CommentStatusId);
         Assert.Equal(0, comments.DeleteCount);
@@ -266,6 +267,7 @@ public sealed class CommunityFeatureWorkflowTests
             { UserId = 8, ContributionType = "Documentation" });
 
         Assert.False(denied.Success);
+        Assert.IsAssignableFrom<IForbiddenResult>(denied);
         Assert.True(allowed.Success);
         Assert.Equal(8, Assert.Single(contributors.GetAll()).UserId);
     }
