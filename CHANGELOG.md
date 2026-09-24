@@ -6,6 +6,8 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Mapped derived FluentValidation exceptions to HTTP 400 as well as the base
+  exception type, preventing specialized validation failures from becoming 500s.
 - Removed the unused synchronous OperationClaim service surface; permission
   synchronization remains owned by the dedicated startup security tool.
 - Made the trusted forwarded-header proxy configurable in Docker Compose without

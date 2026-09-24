@@ -2,6 +2,7 @@ using System.Text;
 using Core.Exceptions;
 using Core.Extensions;
 using Core.Utilities.Security.Authorization;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -9,6 +10,21 @@ namespace Tests.Core.Extensions;
 
 public sealed class ExceptionMiddlewareTests
 {
+    [Fact]
+    public async Task DerivedValidationExceptionsAlsoMapToBadRequest()
+    {
+        var context = new DefaultHttpContext();
+        await using var response = new MemoryStream();
+        context.Response.Body = response;
+        var middleware = new ExceptionMiddleware(
+            _ => Task.FromException(new SpecializedValidationException("The input is invalid.")),
+            NullLogger<ExceptionMiddleware>.Instance);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, context.Response.StatusCode);
+    }
+
     [Theory]
     [InlineData(typeof(AuthenticationRequiredException), StatusCodes.Status401Unauthorized)]
     [InlineData(typeof(AuthorizationDeniedException), StatusCodes.Status403Forbidden)]
@@ -45,4 +61,6 @@ public sealed class ExceptionMiddlewareTests
         var body = await new StreamReader(response, Encoding.UTF8).ReadToEndAsync();
         Assert.DoesNotContain("sensitive database detail", body);
     }
+
+    private sealed class SpecializedValidationException(string message) : ValidationException(message);
 }

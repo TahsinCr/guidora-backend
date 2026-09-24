@@ -49,10 +49,10 @@ namespace Core.Extensions
 
             string message = "Internal Server Error";
             IEnumerable<ValidationFailure> errors;
-            if (e.GetType() == typeof(ValidationException))
+            if (e is ValidationException validationException)
             {
-                message = e.Message;
-                errors = ((ValidationException)e).Errors;
+                message = validationException.Message;
+                errors = validationException.Errors;
                 httpContext.Response.StatusCode = 400;
                 return httpContext.Response.WriteAsync(new ValidationErrorDetails()
                 {
