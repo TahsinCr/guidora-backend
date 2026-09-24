@@ -27,6 +27,8 @@ All notable changes to the Guidora backend are documented here.
   HTTP 401 and denied permissions map to HTTP 403.
 - Added a PostgreSQL integration test for the full seeded community-user to
   `Product.Update` effective-permission path.
+- Added controller contract tests that pin login, registration, and refresh to
+  their intended rate-limit policies.
 - Added explicit selector-order regression tests for Product create, update,
   and status-based delete so authorization, validation, cache invalidation, and
   transaction nesting cannot silently drift.
