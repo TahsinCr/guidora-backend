@@ -21,6 +21,8 @@ All notable changes to the Guidora backend are documented here.
 - Added production HTTP request logging for method, path, response status,
   duration, and trace ID only; a TestServer test verifies query strings and
   message bodies are excluded.
+- Added middleware regression coverage ensuring missing authentication maps to
+  HTTP 401 and denied permissions map to HTTP 403.
 - Added explicit selector-order regression tests for Product create, update,
   and status-based delete so authorization, validation, cache invalidation, and
   transaction nesting cannot silently drift.

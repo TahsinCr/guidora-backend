@@ -1,6 +1,7 @@
 using System.Text;
 using Core.Exceptions;
 using Core.Extensions;
+using Core.Utilities.Security.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -8,6 +9,26 @@ namespace Tests.Core.Extensions;
 
 public sealed class ExceptionMiddlewareTests
 {
+    [Theory]
+    [InlineData(typeof(AuthenticationRequiredException), StatusCodes.Status401Unauthorized)]
+    [InlineData(typeof(AuthorizationDeniedException), StatusCodes.Status403Forbidden)]
+    public async Task AuthenticationAndAuthorizationFailuresMapToTheirHttpStatusCodes(
+        Type exceptionType, int expectedStatusCode)
+    {
+        Exception exception = exceptionType == typeof(AuthenticationRequiredException)
+            ? new AuthenticationRequiredException("Authentication is required.")
+            : new AuthorizationDeniedException("Authorization denied.");
+        var context = new DefaultHttpContext();
+        await using var response = new MemoryStream();
+        context.Response.Body = response;
+        var middleware = new ExceptionMiddleware(_ => Task.FromException(exception),
+            NullLogger<ExceptionMiddleware>.Instance);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(expectedStatusCode, context.Response.StatusCode);
+    }
+
     [Fact]
     public async Task DatabaseUniqueConflictMapsToHttp409WithoutExposingDatabaseDetails()
     {
