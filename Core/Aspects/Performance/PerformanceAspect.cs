@@ -2,7 +2,11 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using Castle.DynamicProxy;
+using Core.Utilities.IoC;
 using Core.Utilities.Interceptors.Autofac;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Core.Aspects.Performance
 {
@@ -12,10 +16,19 @@ namespace Core.Aspects.Performance
         // cache hits, database commit, and post-commit cache invalidation.
         public const int InterceptorPriority = 250;
         private readonly int _interval;
+        private readonly ILogger<PerformanceAspect> _logger;
+
         public PerformanceAspect(int interval)
+            : this(interval, ServiceTool.ServiceProvider?.GetService<ILogger<PerformanceAspect>>()
+                            ?? NullLogger<PerformanceAspect>.Instance)
+        {
+        }
+
+        internal PerformanceAspect(int interval, ILogger<PerformanceAspect> logger)
         {
             Priority = InterceptorPriority;
             _interval = interval;
+            _logger = logger;
         }
 
         public override void Intercept(IInvocation invocation)
@@ -73,7 +86,11 @@ namespace Core.Aspects.Performance
             stopwatch.Stop();
             if (stopwatch.Elapsed.TotalSeconds > _interval)
             {
-                Debug.WriteLine($"Performance : {invocation.Method.DeclaringType?.FullName ?? "<Unknown>"}.{invocation.Method.Name}-->{stopwatch.Elapsed.TotalSeconds}");
+                _logger.LogWarning(
+                    "Slow operation {OperationName} took {ElapsedMilliseconds} ms, exceeding the {ThresholdSeconds} second threshold.",
+                    $"{invocation.Method.DeclaringType?.FullName ?? "<Unknown>"}.{invocation.Method.Name}",
+                    stopwatch.Elapsed.TotalMilliseconds,
+                    _interval);
             }
         }
     }
