@@ -147,6 +147,7 @@ namespace Business.Concrete
             
         }
 
+        // Aspect declarations are outer-to-inner: CacheRemove wraps Transaction so its success hook runs after commit.
         [SecuredOperationAspect("Product.Create")]
         [ValidationAspect(typeof(CreateProductRequestValidator))]
         [CacheRemoveAspect(CacheProfiles.CatalogListing)]
@@ -197,6 +198,7 @@ namespace Business.Concrete
             return new SuccessResult(Messages.ProductAdded);
         }
 
+        // Keep CacheRemove outside Transaction; invalidation must follow a successful commit.
         [SecuredOperationAspect("Product.Update")]
         [ValidationAspect(typeof(UpdateProductRequestValidator))]
         [CacheRemoveAspect(CacheProfiles.CatalogListing)]
@@ -338,6 +340,7 @@ namespace Business.Concrete
             return new CacheInvalidationSuccessResult("Edit proposal submitted for review.");
         }
 
+        // Both cache removals wrap Transaction and therefore run only after commit.
         [SecuredOperationAspect("Product.Delete")]
         [CacheRemoveAspect(CacheProfiles.CatalogListing)]
         [CacheRemoveAspect(CacheProfiles.ProductDetail, ArgumentIndex = 0)]

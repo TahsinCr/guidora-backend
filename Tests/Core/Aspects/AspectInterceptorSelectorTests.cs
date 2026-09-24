@@ -2,6 +2,7 @@ using Business.BusinessAspect.Autofac;
 using Business.Concrete;
 using Castle.DynamicProxy;
 using Core.Aspects.Caching;
+using Core.Aspects.Autofac.Validation;
 using Core.Aspects.Performance;
 using Core.Aspects.Transaction;
 using Core.CrossCuttingConcerns.Caching;
@@ -45,6 +46,39 @@ public sealed class AspectInterceptorSelectorTests
     public void CacheRemovalWrapsTransactionSoItRunsAfterCommit()
     {
         Assert.True(CacheRemoveAspect.InterceptorPriority < TransactionScopeAspect.InterceptorPriority);
+    }
+
+    [Theory]
+    [InlineData(nameof(ProductManager.CreateAsync), true, 1)]
+    [InlineData(nameof(ProductManager.UpdateAsync), true, 1)]
+    [InlineData(nameof(ProductManager.DeleteAsync), false, 2)]
+    public void ProductWritesResolveAuthorizationValidationCacheAndTransactionInStableNestingOrder(
+        string methodName, bool hasValidation, int cacheRemovalCount)
+    {
+        var services = new ServiceCollection()
+            .AddSingleton<ICacheManager>(new CacheManagerStub())
+            .AddSingleton<IHttpContextAccessor, HttpContextAccessor>()
+            .BuildServiceProvider();
+        ServiceTool.SetProvider(services);
+
+        var method = typeof(ProductManager).GetMethod(methodName)!;
+        var interceptors = new AspectInterceptorSelector().SelectInterceptors(
+            typeof(ProductManager), method, Array.Empty<IInterceptor>());
+        var expectedTypes = new List<Type> { typeof(SecuredOperationAspect) };
+        var expectedPriorities = new List<int> { SecuredOperationAspect.InterceptorPriority };
+        if (hasValidation)
+        {
+            expectedTypes.Add(typeof(ValidationAspect));
+            expectedPriorities.Add(ValidationAspect.InterceptorPriority);
+        }
+        expectedTypes.AddRange(Enumerable.Repeat(typeof(CacheRemoveAspect), cacheRemovalCount));
+        expectedPriorities.AddRange(Enumerable.Repeat(CacheRemoveAspect.InterceptorPriority, cacheRemovalCount));
+        expectedTypes.Add(typeof(TransactionScopeAspect));
+        expectedPriorities.Add(TransactionScopeAspect.InterceptorPriority);
+
+        Assert.Equal(expectedTypes, interceptors.Select(interceptor => interceptor.GetType()));
+        Assert.Equal(expectedPriorities,
+            interceptors.Cast<MethodInterceptionBaseAttribute>().Select(interceptor => interceptor.Priority));
     }
 
     [Fact]

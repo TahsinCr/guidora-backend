@@ -21,6 +21,9 @@ All notable changes to the Guidora backend are documented here.
 - Added production HTTP request logging for method, path, response status,
   duration, and trace ID only; a TestServer test verifies query strings and
   message bodies are excluded.
+- Added explicit selector-order regression tests for Product create, update,
+  and status-based delete so authorization, validation, cache invalidation, and
+  transaction nesting cannot silently drift.
 - Added regression coverage confirming public Category list/detail reads omit
   inactive categories.
 - Product listing by an inactive or unknown Category now returns 404 before
