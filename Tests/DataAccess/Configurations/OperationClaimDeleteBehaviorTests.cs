@@ -1,5 +1,6 @@
 using Core.Entities.Concrete;
 using DataAccess.Concrete.Entityframework.Contexts;
+using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -80,5 +81,21 @@ public sealed class OperationClaimDeleteBehaviorTests
         Assert.Contains(roleAssignments, item => Convert.ToInt32(item["RoleId"]) == 1 && Convert.ToInt32(item["OperationClaimId"]) == 12);
         Assert.Contains(roleAssignments, item => Convert.ToInt32(item["RoleId"]) == 2 && Convert.ToInt32(item["OperationClaimId"]) == 10);
         Assert.Contains(roleAssignments, item => Convert.ToInt32(item["RoleId"]) == 3 && Convert.ToInt32(item["OperationClaimId"]) == 10);
+    }
+
+    [Fact]
+    public void ProductIdentityHasCaseInsensitiveNameAndUniqueSlugWithoutUniqueWebsiteConstraint()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+
+        var product = context.Model.FindEntityType(typeof(Product))!;
+        Assert.Equal("citext", product.FindProperty(nameof(Product.Name))!.GetColumnType());
+        Assert.True(product.GetIndexes().Single(index => index.Properties.Single().Name == nameof(Product.Name)).IsUnique);
+        Assert.True(product.GetIndexes().Single(index => index.Properties.Single().Name == nameof(Product.Slug)).IsUnique);
+        Assert.DoesNotContain(product.GetIndexes(), index => index.IsUnique && index.Properties.Any(property =>
+            property.Name == nameof(Product.WebsiteUrl)));
     }
 }

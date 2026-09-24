@@ -20,4 +20,9 @@
     <ProjectReference Include="..\Entities\Entities.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources/Moderation/en.txt" LogicalName="Guidora.Moderation.en.txt" />
+    <EmbeddedResource Include="Resources/Moderation/tr.txt" LogicalName="Guidora.Moderation.tr.txt" />
+  </ItemGroup>
+
 </Project>

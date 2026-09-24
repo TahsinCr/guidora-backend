@@ -127,6 +127,23 @@ acceptance revalidates the snapshot before atomically applying it; rejection
 leaves the canonical Product unchanged. Document and media edits are not part of
 the V1 proposal snapshot.
 
+Product names are unique case-insensitively and slugs are unique in PostgreSQL.
+Website URLs are normalized before persistence, but are not used as a hard
+duplicate constraint: a shared vendor homepage may legitimately host multiple
+Products. Domain-wide or semantic duplicate detection remains undecided. Public
+catalog reads expose only `published` Products.
+
+User-submitted Product text, comments, document/changelog content, media alt
+text, and contributor labels pass through a local deterministic moderation
+matcher. Its English and Turkish lexicons are embedded in the Business assembly
+and attributed in `Business/Resources/Moderation/ATTRIBUTION.md`; the matcher is
+built once during Autofac container startup. The matcher
+normalizes common obfuscations and uses token boundaries; it is a heuristic
+baseline, not a complete language policy or an automated truth/quality check.
+Report descriptions are intentionally not filtered so users can quote content
+they are reporting. Updating the word lists requires preserving upstream
+attribution and reviewing false-positive/false-negative behavior.
+
 Moderators and Admins can page through the oldest pending proposal and open
 report queues (`GET /api/product-edit-proposals/pending` and
 `GET /api/product-reports/open`; `pageSize` is capped at 100). They can accept
@@ -177,6 +194,20 @@ ConnectionStrings__Guidora='Host=localhost;Port=5432;Database=guidora;Username=g
   --project DataAccess --startup-project WebAPI \
   --output-dir Migrations
 ```
+
+Before applying `ProductIdentityConstraints` to a database that already has
+Product rows, check for names that would collide under its new case-insensitive
+unique index:
+
+```sql
+SELECT lower(btrim("Name")) AS normalized_name, count(*)
+FROM "Products"
+GROUP BY lower(btrim("Name"))
+HAVING count(*) > 1;
+```
+
+Resolve any returned rows deliberately before applying the migration; no Product
+data is automatically removed or renamed.
 
 ## Authentication sessions
 

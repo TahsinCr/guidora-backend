@@ -1,5 +1,6 @@
 using Business.Abstract;
 using Business.BusinessAspect.Autofac;
+using Business.BusinessRules.Moderation;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
 using Core.Aspects.Autofac.Validation;
@@ -24,9 +25,11 @@ public sealed class CommentManager : ICommentService
     private readonly IProductStatusDal _productStatusDal;
     private readonly IAuditLogDal _auditLogDal;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IContentModerationRule _contentModerationRule;
 
     public CommentManager(ICommentDal commentDal, ICommentStatusDal commentStatusDal, IUserDal userDal,
-        IProductDal productDal, IProductStatusDal productStatusDal, IAuditLogDal auditLogDal, IUnitOfWork unitOfWork)
+        IProductDal productDal, IProductStatusDal productStatusDal, IAuditLogDal auditLogDal, IUnitOfWork unitOfWork,
+        IContentModerationRule contentModerationRule)
     {
         _commentDal = commentDal;
         _commentStatusDal = commentStatusDal;
@@ -35,6 +38,7 @@ public sealed class CommentManager : ICommentService
         _productStatusDal = productStatusDal;
         _auditLogDal = auditLogDal;
         _unitOfWork = unitOfWork;
+        _contentModerationRule = contentModerationRule;
     }
 
     public async Task<IDataResult<PagedResult<Comment>>> GetVisibleByProductAsync(int productId,
@@ -58,6 +62,9 @@ public sealed class CommentManager : ICommentService
     public async Task<IResult> CreateAsync(int productId, int userId, CommentRequest request,
         CancellationToken cancellationToken = default)
     {
+        var moderationResult = _contentModerationRule.EnsureAllowed(request.Content);
+        if (!moderationResult.Success) return moderationResult;
+
         var user = await _userDal.GetAsync(item => item.Id == userId, cancellationToken);
         if (user is not { Status: true }) return new ErrorResult("User is unavailable.");
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);

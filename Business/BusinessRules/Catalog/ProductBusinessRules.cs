@@ -2,8 +2,10 @@ using Core.Utilities.Results;
 using DataAccess.Abstract;
 using System.Linq;
 using System.Collections.Generic;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Business.Utilities;
 
 namespace Business.BusinessRules.Catalog;
 
@@ -18,42 +20,31 @@ public sealed class ProductBusinessRules : IProductBusinessRules
         _categoryDal = categoryDal;
     }
 
-    public IResult EnsureNameIsAvailable(string name, int? excludingProductId = null)
+    public async Task<IResult> EnsureIdentityIsAvailableAsync(string name, string slug, string websiteUrl,
+        int? excludingProductId = null, CancellationToken cancellationToken = default)
     {
-        var duplicate = _productDal.Get(product =>
-            product.Name == name && (!excludingProductId.HasValue || product.ProductId != excludingProductId));
-
-        return duplicate is null
-            ? new SuccessResult()
-            : new ErrorResult("A product with this name already exists.");
-    }
-
-    public IResult EnsureCategoriesAreActive(IEnumerable<int> categoryIds)
-    {
-        var requestedIds = categoryIds.Distinct().ToArray();
-        if (requestedIds.Length == 0)
+        string normalizedName;
+        string normalizedSlug;
+        string normalizedWebsiteUrl;
+        try
         {
-            return new ErrorResult("At least one category is required.");
+            normalizedName = ProductIdentityNormalizer.NormalizeName(name);
+            normalizedSlug = ProductIdentityNormalizer.NormalizeSlug(slug);
+            normalizedWebsiteUrl = ProductIdentityNormalizer.NormalizeWebsiteUrl(websiteUrl);
+        }
+        catch (ArgumentException)
+        {
+            return new ErrorResult("Product identity fields are invalid.");
         }
 
-        var activeIds = _categoryDal.GetAll(category => requestedIds.Contains(category.CategoryId) && category.IsActive)
-            .Select(category => category.CategoryId)
-            .ToHashSet();
-
-        return activeIds.Count == requestedIds.Length
-            ? new SuccessResult()
-            : new ErrorResult("One or more categories are missing or inactive.");
-    }
-
-    public async Task<IResult> EnsureNameIsAvailableAsync(string name, int? excludingProductId = null,
-        CancellationToken cancellationToken = default)
-    {
         var duplicate = await _productDal.GetAsync(product =>
-            product.Name == name && (!excludingProductId.HasValue || product.ProductId != excludingProductId),
-            cancellationToken);
+            (!excludingProductId.HasValue || product.ProductId != excludingProductId) &&
+            (product.Name.Trim().ToUpper() == normalizedName.ToUpper() ||
+             product.Slug == normalizedSlug), cancellationToken);
+
         return duplicate is null
             ? new SuccessResult()
-            : new ErrorResult("A product with this name already exists.");
+            : new ErrorResult("A Product with the same name or slug already exists.");
     }
 
     public async Task<IResult> EnsureCategoriesAreActiveAsync(IEnumerable<int> categoryIds,

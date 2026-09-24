@@ -7,10 +7,8 @@ namespace Business.BusinessRules.Catalog;
 
 public interface IProductBusinessRules
 {
-    IResult EnsureNameIsAvailable(string name, int? excludingProductId = null);
-    IResult EnsureCategoriesAreActive(IEnumerable<int> categoryIds);
-    Task<IResult> EnsureNameIsAvailableAsync(string name, int? excludingProductId = null,
-        CancellationToken cancellationToken = default);
+    Task<IResult> EnsureIdentityIsAvailableAsync(string name, string slug, string websiteUrl,
+        int? excludingProductId = null, CancellationToken cancellationToken = default);
     Task<IResult> EnsureCategoriesAreActiveAsync(IEnumerable<int> categoryIds,
         CancellationToken cancellationToken = default);
 }

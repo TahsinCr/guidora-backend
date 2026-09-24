@@ -56,6 +56,8 @@ public sealed class ProductContributorManager : IProductContributorService
     public async Task<IResult> AddAsync(int productId, int actorUserId, ProductContributorRequest request,
         CancellationToken cancellationToken = default)
     {
+        var moderationResult = _rules.EnsureContentAllowed(request.ContributionType);
+        if (!moderationResult.Success) return moderationResult;
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);

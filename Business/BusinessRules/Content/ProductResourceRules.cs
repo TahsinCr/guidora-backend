@@ -1,4 +1,5 @@
 using Core.Utilities.Results;
+using Business.BusinessRules.Moderation;
 using DataAccess.Abstract;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,14 +11,18 @@ public sealed class ProductResourceRules : IProductResourceRules
     private readonly IProductDal _productDal;
     private readonly IProductStatusDal _statusDal;
     private readonly IProductVerificationDal _verificationDal;
+    private readonly IContentModerationRule _contentModerationRule;
 
     public ProductResourceRules(IProductDal productDal, IProductStatusDal statusDal,
-        IProductVerificationDal verificationDal)
+        IProductVerificationDal verificationDal, IContentModerationRule contentModerationRule)
     {
         _productDal = productDal;
         _statusDal = statusDal;
         _verificationDal = verificationDal;
+        _contentModerationRule = contentModerationRule;
     }
+
+    public IResult EnsureContentAllowed(params string?[] values) => _contentModerationRule.EnsureAllowed(values);
 
     public async Task<IResult> EnsurePublishedAsync(int productId, CancellationToken cancellationToken = default)
     {

@@ -2,6 +2,7 @@
 using Autofac.Extras.DynamicProxy;
 using Business.Abstract;
 using Business.Concrete;
+using Business.BusinessRules.Moderation;
 using Castle.DynamicProxy;
 using Core.Utilities.Interceptors.Autofac;
 using Core.Utilities.Security.JWT;
@@ -69,6 +70,11 @@ namespace Business.DependencyResolvers.Autofac
                 {
                     Selector = new AspectInterceptorSelector()
                 }).InstancePerLifetimeScope();
+
+            builder.RegisterType<DeterministicContentModerationRule>()
+                .As<IContentModerationRule>()
+                .SingleInstance();
+            builder.RegisterBuildCallback(scope => scope.Resolve<IContentModerationRule>());
 
         }
     }

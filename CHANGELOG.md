@@ -6,6 +6,16 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Added a locally built Aho-Corasick moderation matcher with attributed English
+  and Turkish lexicons for user-authored catalog/community content, plus tests
+  for normalization, obfuscation, token boundaries, and allowed text.
+- Added normalized Product name/slug/HTTP(S) website identity handling,
+  case-insensitive name and slug collision checks, PostgreSQL name uniqueness,
+  and public catalog filtering to published Products. Shared vendor URLs remain
+  allowed because semantic Product duplication is still an open domain rule.
+- Added the reviewed `ProductIdentityConstraints` migration; it enforces
+  case-insensitive Product name uniqueness without imposing an unapproved
+  WebsiteUrl uniqueness constraint.
 - Added user-scoped, idempotent Product favorites and Product comments with
   database-paginated reads, author-only status-based deletion, moderator
   visibility controls, public visibility filtering against Product and User

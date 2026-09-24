@@ -56,7 +56,11 @@ public sealed class GovernanceWorkflowTests
     public async Task RejectingProposalDoesNotChangeCanonicalProductAndCannotBeRepeated()
     {
         var product = new Product { ProductId = 5, Name = "Canonical" };
-        var proposal = new ProductEditProposal { Id = 12, ProductId = 5, Status = ProductEditProposalStatus.Pending };
+        var proposal = new ProductEditProposal
+        {
+            Id = 12, ProductId = 5, Status = ProductEditProposalStatus.Pending,
+            Name = "Proposed", Slug = "proposed", WebsiteUrl = "https://proposed.example.test"
+        };
         var audit = new AuditDal();
         var unitOfWork = new UnitOfWorkStub();
         var manager = CreateProposalManager(product, proposal, audit, unitOfWork);

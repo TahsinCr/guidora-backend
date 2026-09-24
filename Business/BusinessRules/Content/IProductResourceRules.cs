@@ -8,4 +8,5 @@ public interface IProductResourceRules
 {
     Task<IResult> EnsurePublishedAsync(int productId, CancellationToken cancellationToken = default);
     Task<IResult> EnsureDirectContentChangeAllowedAsync(int productId, CancellationToken cancellationToken = default);
+    IResult EnsureContentAllowed(params string?[] values);
 }

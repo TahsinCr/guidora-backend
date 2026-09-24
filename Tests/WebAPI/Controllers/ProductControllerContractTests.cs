@@ -17,9 +17,13 @@ public sealed class ProductControllerContractTests
         var create = controller.GetMethod(nameof(ProductsController.Add))!;
         var update = controller.GetMethod(nameof(ProductsController.Update))!;
         var delete = controller.GetMethod(nameof(ProductsController.Delete))!;
+        var getAll = controller.GetMethod(nameof(ProductsController.GetAll))!;
+        var getById = controller.GetMethod(nameof(ProductsController.GetById))!;
         Assert.IsType<HttpPostAttribute>(create.GetCustomAttribute<HttpPostAttribute>());
         Assert.IsType<HttpPutAttribute>(update.GetCustomAttribute<HttpPutAttribute>());
         Assert.IsType<HttpDeleteAttribute>(delete.GetCustomAttribute<HttpDeleteAttribute>());
+        Assert.IsType<HttpGetAttribute>(getAll.GetCustomAttribute<HttpGetAttribute>());
+        Assert.Equal("{id:int}", getById.GetCustomAttribute<HttpGetAttribute>()?.Template);
         Assert.Equal("{id:int}", update.GetCustomAttribute<HttpPutAttribute>()?.Template);
         Assert.Equal(typeof(CreateProductRequest), create.GetParameters()[0].ParameterType);
         Assert.Equal(typeof(UpdateProductRequest), update.GetParameters()[1].ParameterType);

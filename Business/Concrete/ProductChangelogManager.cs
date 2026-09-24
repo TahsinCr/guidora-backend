@@ -53,6 +53,8 @@ public sealed class ProductChangelogManager : IProductChangelogService
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductChangelogRequest request,
         CancellationToken cancellationToken = default)
     {
+        var moderationResult = _rules.EnsureContentAllowed(request.Title, request.Description, request.Content);
+        if (!moderationResult.Success) return moderationResult;
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         if (await _changelogDal.AnyAsync(item => item.ProductId == productId && item.Version == request.Version,

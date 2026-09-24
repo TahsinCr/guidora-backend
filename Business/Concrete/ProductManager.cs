@@ -17,6 +17,7 @@ using Entities.DTOs;
 using Core.Aspects.Transaction;
 using Core.DataAccess;
 using Business.BusinessRules.Catalog;
+using Business.BusinessRules.Moderation;
 using Business.Utilities;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ namespace Business.Concrete
         private readonly IUnitOfWork _unitOfWork;
         private readonly IProductBusinessRules _businessRules;
         private readonly ITagBusinessRules _tagBusinessRules;
+        private readonly IContentModerationRule _contentModerationRule;
 
         public ProductManager(IProductDal productDal, IProductCategoryDal productCategoryDal,
             IProductStatusDal productStatusDal, IProductTagDal productTagDal, ITagDal tagDal,
@@ -46,7 +48,8 @@ namespace Business.Concrete
             IProductVerificationDal productVerificationDal, IProductEditProposalDal productEditProposalDal,
             IProductEditProposalTagDal proposalTagDal, IProductEditProposalCategoryDal proposalCategoryDal,
             IAuditLogDal auditLogDal, IUnitOfWork unitOfWork,
-            IProductBusinessRules businessRules, ITagBusinessRules tagBusinessRules)
+            IProductBusinessRules businessRules, ITagBusinessRules tagBusinessRules,
+            IContentModerationRule contentModerationRule)
         {
             _productDal = productDal;
             _productCategoryDal = productCategoryDal;
@@ -62,29 +65,48 @@ namespace Business.Concrete
             _unitOfWork = unitOfWork;
             _businessRules = businessRules;
             _tagBusinessRules = tagBusinessRules;
+            _contentModerationRule = contentModerationRule;
         }
 
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
         public IDataResult<List<Product>> GetAll()
         {
-            return new SuccessDataResult<List<Product>>(_productDal.GetAll(), Messages.ProductsListed);
+            var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
+            return publishedStatus is null
+                ? new ErrorDataResult<List<Product>>("Published product status is not configured.")
+                : new SuccessDataResult<List<Product>>(
+                    _productDal.GetAll(product => product.ProductStatusId == publishedStatus.Id), Messages.ProductsListed);
         }
 
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
         public IDataResult<List<Product>> GetAllByCategoryId(int id)
         {
+            var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
+            if (publishedStatus is null)
+            {
+                return new ErrorDataResult<List<Product>>("Published product status is not configured.");
+            }
+
             var productIds = _productCategoryDal.GetAll(item => item.CategoryId == id)
                 .Select(item => item.ProductId)
                 .ToHashSet();
             return new SuccessDataResult<List<Product>>(
-                _productDal.GetAll(product => productIds.Contains(product.ProductId)));
+                _productDal.GetAll(product => productIds.Contains(product.ProductId) &&
+                                               product.ProductStatusId == publishedStatus.Id));
         }
 
 
         [CacheAspect(CacheProfiles.ProductDetail, duration: 15)]
         public IDataResult<Product> GetById(int id)
         {
-            var product = _productDal.Get(product => product.ProductId == id);
+            var publishedStatus = _productStatusDal.Get(status => status.Code == "published");
+            if (publishedStatus is null)
+            {
+                return new ErrorDataResult<Product>("Published product status is not configured.");
+            }
+
+            var product = _productDal.Get(product => product.ProductId == id &&
+                                                      product.ProductStatusId == publishedStatus.Id);
             return product == null
                 ? new ErrorDataResult<Product>("Product was not found.")
                 : new SuccessDataResult<Product>(product);
@@ -92,7 +114,16 @@ namespace Business.Concrete
 
         private async Task<IResult> AddNewProductAsync(Product product, CancellationToken cancellationToken)
         {
-            IResult result = await _businessRules.EnsureNameIsAvailableAsync(product.Name, cancellationToken: cancellationToken);
+            product.Name = ProductIdentityNormalizer.NormalizeName(product.Name);
+            product.Slug = ProductIdentityNormalizer.NormalizeSlug(product.Slug);
+            product.WebsiteUrl = ProductIdentityNormalizer.NormalizeWebsiteUrl(product.WebsiteUrl);
+
+            var moderationResult = _contentModerationRule.EnsureAllowed(product.Name, product.ShortDescription,
+                product.Description);
+            if (!moderationResult.Success) return moderationResult;
+
+            IResult result = await _businessRules.EnsureIdentityIsAvailableAsync(product.Name, product.Slug,
+                product.WebsiteUrl, cancellationToken: cancellationToken);
             if (!result.Success) return result;
 
             var publishedStatus = await _productStatusDal.GetAsync(status => status.Code == "published", cancellationToken);
@@ -168,15 +199,27 @@ namespace Business.Concrete
                 return new ErrorResult("Product was not found.");
             }
 
-            var duplicateResult = await _businessRules.EnsureNameIsAvailableAsync(request.Name, product.ProductId,
-                cancellationToken);
-            if (!duplicateResult.Success)
+            var normalizedRequest = new UpdateProductRequest
             {
-                return duplicateResult;
-            }
+                Name = ProductIdentityNormalizer.NormalizeName(request.Name),
+                Slug = ProductIdentityNormalizer.NormalizeSlug(request.Slug),
+                ShortDescription = request.ShortDescription.Trim(),
+                Description = request.Description,
+                WebsiteUrl = ProductIdentityNormalizer.NormalizeWebsiteUrl(request.WebsiteUrl),
+                LogoUrl = request.LogoUrl,
+                CategoryIds = request.CategoryIds,
+                TagIds = request.TagIds
+            };
+            var moderationResult = _contentModerationRule.EnsureAllowed(normalizedRequest.Name,
+                normalizedRequest.ShortDescription, normalizedRequest.Description);
+            if (!moderationResult.Success) return moderationResult;
 
-            var normalizedCategoryIds = request.CategoryIds.Distinct().ToArray();
-            var normalizedTagIds = request.TagIds.Distinct().ToArray();
+            var identityResult = await _businessRules.EnsureIdentityIsAvailableAsync(normalizedRequest.Name,
+                normalizedRequest.Slug, normalizedRequest.WebsiteUrl, product.ProductId, cancellationToken);
+            if (!identityResult.Success) return identityResult;
+
+            var normalizedCategoryIds = normalizedRequest.CategoryIds.Distinct().ToArray();
+            var normalizedTagIds = normalizedRequest.TagIds.Distinct().ToArray();
             var tagRule = await EnsureTagSelectionIsValidAsync(normalizedTagIds, cancellationToken);
             if (!tagRule.Success) return tagRule;
 
@@ -187,7 +230,7 @@ namespace Business.Concrete
                 var categoryRule = await _businessRules.EnsureCategoriesAreActiveAsync(normalizedCategoryIds,
                     cancellationToken);
                 if (!categoryRule.Success) return categoryRule;
-                return await CreateEditProposalAsync(productId, updatedByUserId, request, normalizedCategoryIds,
+                return await CreateEditProposalAsync(productId, updatedByUserId, normalizedRequest, normalizedCategoryIds,
                     normalizedTagIds, cancellationToken);
             }
 
@@ -202,12 +245,12 @@ namespace Business.Concrete
                     cancellationToken))
                     .Select(item => item.TagId).ToArray()
             };
-            product.Name = request.Name;
-            product.Slug = request.Slug;
-            product.ShortDescription = request.ShortDescription;
-            product.Description = request.Description;
-            product.WebsiteUrl = request.WebsiteUrl;
-            product.LogoUrl = request.LogoUrl;
+            product.Name = normalizedRequest.Name;
+            product.Slug = normalizedRequest.Slug;
+            product.ShortDescription = normalizedRequest.ShortDescription;
+            product.Description = normalizedRequest.Description;
+            product.WebsiteUrl = normalizedRequest.WebsiteUrl;
+            product.LogoUrl = normalizedRequest.LogoUrl;
             product.UpdatedAt = DateTime.UtcNow;
 
             _productDal.Update(product);

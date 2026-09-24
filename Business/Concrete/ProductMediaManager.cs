@@ -52,6 +52,8 @@ public sealed class ProductMediaManager : IProductMediaService
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductMediaRequest request,
         CancellationToken cancellationToken = default)
     {
+        var moderationResult = _rules.EnsureContentAllowed(request.AltText);
+        if (!moderationResult.Success) return moderationResult;
         var rule = await _rules.EnsureDirectContentChangeAllowedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         var media = new ProductMedia
@@ -75,6 +77,8 @@ public sealed class ProductMediaManager : IProductMediaService
     public async Task<IResult> UpdateAsync(int productId, int mediaId, int actorUserId, ProductMediaRequest request,
         CancellationToken cancellationToken = default)
     {
+        var moderationResult = _rules.EnsureContentAllowed(request.AltText);
+        if (!moderationResult.Success) return moderationResult;
         var rule = await _rules.EnsureDirectContentChangeAllowedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         var media = await _mediaDal.GetAsync(item => item.ProductId == productId && item.Id == mediaId,

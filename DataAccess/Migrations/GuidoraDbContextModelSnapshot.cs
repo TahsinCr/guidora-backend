@@ -709,7 +709,7 @@ namespace DataAccess.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("citext");
 
                     b.Property<int>("ProductStatusId")
                         .HasColumnType("integer");
@@ -735,6 +735,9 @@ namespace DataAccess.Migrations
                     b.HasKey("ProductId");
 
                     b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.HasIndex("ProductStatusId");
 

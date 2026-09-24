@@ -78,8 +78,9 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
                 item => item.ProductEditProposalId == proposalId, cancellationToken))
             .Select(item => item.TagId).Distinct().ToArray();
 
-        var nameResult = await _productRules.EnsureNameIsAvailableAsync(proposal.Name, product.ProductId, cancellationToken);
-        if (!nameResult.Success) return nameResult;
+        var identityResult = await _productRules.EnsureIdentityIsAvailableAsync(proposal.Name, proposal.Slug,
+            proposal.WebsiteUrl, product.ProductId, cancellationToken);
+        if (!identityResult.Success) return identityResult;
         var categoryResult = await _productRules.EnsureCategoriesAreActiveAsync(categoryIds, cancellationToken);
         if (!categoryResult.Success) return categoryResult;
 

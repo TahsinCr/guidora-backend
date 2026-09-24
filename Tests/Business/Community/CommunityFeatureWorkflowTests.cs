@@ -1,4 +1,5 @@
 using Business.BusinessRules.Content;
+using Business.BusinessRules.Moderation;
 using Business.Abstract;
 using Business.Concrete;
 using Business.ValidationRules.FluentValidation;
@@ -65,7 +66,7 @@ public sealed class CommunityFeatureWorkflowTests
                 new CommentStatus { Id = 2, Code = "hidden", IsVisible = false },
                 new CommentStatus { Id = 3, Code = "deleted", IsVisible = false }]),
             new CommunityUserDalStub(), new CommunityProductDalStub(), new CommunityProductStatusDalStub(), audit,
-            unitOfWork);
+            unitOfWork, new DeterministicContentModerationRule());
 
         var forbidden = await manager.DeleteAsync(12, 8);
         var deleted = await manager.DeleteAsync(12, 7);
@@ -92,7 +93,7 @@ public sealed class CommunityFeatureWorkflowTests
         };
         var manager = new CommentManager(comments, new CommunityCommentStatusDalStub(), new CommunityUserDalStub(),
             new CommunityProductDalStub(), new CommunityProductStatusDalStub(), new CommunityAuditDalStub(),
-            new UnitOfWorkStub());
+            new UnitOfWorkStub(), new DeterministicContentModerationRule());
 
         var page = await manager.GetVisibleByProductAsync(5, new PageRequest { Page = 2, PageSize = 1 });
         var invalid = await manager.GetVisibleByProductAsync(5, new PageRequest { Page = 1, PageSize = 101 });
@@ -113,7 +114,8 @@ public sealed class CommunityFeatureWorkflowTests
             new CommunityCommentStatusDalStub([new CommentStatus { Id = 1, Code = "active", IsVisible = true }]),
             new CommunityUserDalStub([new User { Id = 7, Status = true }]),
             new CommunityProductDalStub([new Product { ProductId = 5, ProductStatusId = 2 }]),
-            new CommunityProductStatusDalStub([new ProductStatus { Id = 2, Code = "published" }]), audit, unitOfWork);
+            new CommunityProductStatusDalStub([new ProductStatus { Id = 2, Code = "published" }]), audit, unitOfWork,
+            new DeterministicContentModerationRule());
 
         var result = await manager.CreateAsync(5, 7, new CommentRequest { Content = "  Helpful review  " });
 
@@ -124,12 +126,34 @@ public sealed class CommunityFeatureWorkflowTests
     }
 
     [Fact]
+    public async Task CommentCreationRejectsModeratedTextBeforePersistence()
+    {
+        var comments = new CommunityCommentDalStub();
+        var audit = new CommunityAuditDalStub();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new CommentManager(comments,
+            new CommunityCommentStatusDalStub([new CommentStatus { Id = 1, Code = "active", IsVisible = true }]),
+            new CommunityUserDalStub([new User { Id = 7, Status = true }]),
+            new CommunityProductDalStub([new Product { ProductId = 5, ProductStatusId = 2 }]),
+            new CommunityProductStatusDalStub([new ProductStatus { Id = 2, Code = "published" }]), audit, unitOfWork,
+            new DeterministicContentModerationRule());
+
+        var result = await manager.CreateAsync(5, 7, new CommentRequest { Content = "f.u.c.k" });
+
+        Assert.False(result.Success);
+        Assert.Empty(comments.GetAll());
+        Assert.Empty(audit.Entries);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
     public async Task DocumentAndMediaMutationsAreBlockedForVerifiedProducts()
     {
         var products = new CommunityProductDalStub([new Product { ProductId = 5, ProductStatusId = 1 }]);
         var rules = new ProductResourceRules(products,
             new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
-            new CommunityVerificationDalStub([new ProductVerification { ProductId = 5, RevokedAt = null }]));
+            new CommunityVerificationDalStub([new ProductVerification { ProductId = 5, RevokedAt = null }]),
+            new DeterministicContentModerationRule());
         var documentDal = new CommunityDocumentDalStub();
         var mediaDal = new CommunityMediaDalStub();
         var audit = new CommunityAuditDalStub();
@@ -156,7 +180,7 @@ public sealed class CommunityFeatureWorkflowTests
         var product = new Product { ProductId = 5, ProductStatusId = 1 };
         var rules = new ProductResourceRules(new CommunityProductDalStub([product]),
             new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
-            new CommunityVerificationDalStub());
+            new CommunityVerificationDalStub(), new DeterministicContentModerationRule());
         var documentsDal = new CommunityDocumentDalStub();
         var mediaDal = new CommunityMediaDalStub();
         var audit = new CommunityAuditDalStub();
@@ -185,7 +209,7 @@ public sealed class CommunityFeatureWorkflowTests
         var changelogs = new CommunityChangelogDalStub([new ProductChangelog { Id = 3, ProductId = 5, Version = "1.0" }]);
         var rules = new ProductResourceRules(new CommunityProductDalStub([new Product { ProductId = 5, ProductStatusId = 1 }]),
             new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
-            new CommunityVerificationDalStub());
+            new CommunityVerificationDalStub(), new DeterministicContentModerationRule());
         var audit = new CommunityAuditDalStub();
         var manager = new ProductChangelogManager(changelogs, rules, audit, new UnitOfWorkStub());
         var duplicate = await manager.CreateAsync(5, 7, new ProductChangelogRequest
@@ -206,7 +230,7 @@ public sealed class CommunityFeatureWorkflowTests
         var product = new Product { ProductId = 5, ProductStatusId = 1, CreatedByUserId = 7 };
         var rules = new ProductResourceRules(new CommunityProductDalStub([product]),
             new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
-            new CommunityVerificationDalStub());
+            new CommunityVerificationDalStub(), new DeterministicContentModerationRule());
         var manager = new ProductContributorManager(contributors, new CommunityProductDalStub([product]),
             new CommunityUserDalStub([new User { Id = 7, Status = true }, new User { Id = 8, Status = true }]),
             rules, new CommunityAuditDalStub(), new UnitOfWorkStub());

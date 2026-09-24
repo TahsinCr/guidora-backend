@@ -53,6 +53,8 @@ public sealed class ProductDocumentManager : IProductDocumentService
     public async Task<IResult> CreateAsync(int productId, int actorUserId, ProductDocumentRequest request,
         CancellationToken cancellationToken = default)
     {
+        var moderationResult = _rules.EnsureContentAllowed(request.Title, request.Content);
+        if (!moderationResult.Success) return moderationResult;
         var rule = await _rules.EnsureDirectContentChangeAllowedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         var document = new ProductDocument
@@ -76,6 +78,8 @@ public sealed class ProductDocumentManager : IProductDocumentService
     public async Task<IResult> UpdateAsync(int productId, int documentId, int actorUserId,
         ProductDocumentRequest request, CancellationToken cancellationToken = default)
     {
+        var moderationResult = _rules.EnsureContentAllowed(request.Title, request.Content);
+        if (!moderationResult.Success) return moderationResult;
         var rule = await _rules.EnsureDirectContentChangeAllowedAsync(productId, cancellationToken);
         if (!rule.Success) return rule;
         var document = await _documentDal.GetAsync(item => item.Id == documentId && item.ProductId == productId,

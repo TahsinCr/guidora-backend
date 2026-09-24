@@ -1,5 +1,6 @@
 using Business.BusinessRules.Catalog;
 using Business.Concrete;
+using Business.BusinessRules.Moderation;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -89,7 +90,8 @@ public sealed class VerifiedProductEditTests
             new TagCategoryDalStub([new TagCategory { Id = 3, IsActive = true, AllowsMultipleSelection = true }]),
             verificationDal, proposalDal, proposalTagDal,
             proposalCategoryDal, auditLogDal, unitOfWork,
-            new ProductBusinessRules(productDal, categoryDal), new TagBusinessRules());
+            new ProductBusinessRules(productDal, categoryDal), new TagBusinessRules(),
+            new DeterministicContentModerationRule());
     }
 
     private static UpdateProductRequest Request(string name, List<int> categoryIds) => new()
