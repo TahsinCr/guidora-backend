@@ -21,6 +21,8 @@ All notable changes to the Guidora backend are documented here.
   caches after commit.
 - Added a `Category.Manage`-secured management catalog endpoint so moderators
   and Admins can inspect inactive Categories without exposing them publicly.
+- Added a PostgreSQL unique index for normalized Product website URLs so
+  concurrent requests cannot bypass the exact-URL duplicate rule.
 - Hardened `LogAspect`/`ExceptionLogAspect` parameter redaction recursively for
   nested DTOs, collections, credentials, cookies, keys, and tokens. Logging now
   omits values it cannot safely serialize; added recursive redaction tests.

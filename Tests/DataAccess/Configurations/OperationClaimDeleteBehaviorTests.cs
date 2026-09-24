@@ -218,7 +218,7 @@ public sealed class OperationClaimDeleteBehaviorTests
     }
 
     [Fact]
-    public void ProductIdentityHasCaseInsensitiveNameAndUniqueSlugWithoutUniqueWebsiteConstraint()
+    public void ProductIdentityHasDatabaseUniquenessForNameSlugAndExactNormalizedWebsiteUrl()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()
             .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
@@ -227,9 +227,11 @@ public sealed class OperationClaimDeleteBehaviorTests
 
         var product = context.Model.FindEntityType(typeof(Product))!;
         Assert.Equal("citext", product.FindProperty(nameof(Product.Name))!.GetColumnType());
-        Assert.True(product.GetIndexes().Single(index => index.Properties.Single().Name == nameof(Product.Name)).IsUnique);
-        Assert.True(product.GetIndexes().Single(index => index.Properties.Single().Name == nameof(Product.Slug)).IsUnique);
-        Assert.DoesNotContain(product.GetIndexes(), index => index.IsUnique && index.Properties.Any(property =>
-            property.Name == nameof(Product.WebsiteUrl)));
+        Assert.True(product.GetIndexes()
+            .Single(index => index.Properties.Single().Name == nameof(Product.Name)).IsUnique);
+        Assert.True(product.GetIndexes()
+            .Single(index => index.Properties.Single().Name == nameof(Product.Slug)).IsUnique);
+        Assert.True(product.GetIndexes()
+            .Single(index => index.Properties.Single().Name == nameof(Product.WebsiteUrl)).IsUnique);
     }
 }

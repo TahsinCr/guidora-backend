@@ -198,13 +198,14 @@ leaves the canonical Product unchanged. Document and media edits are not part of
 the V1 proposal snapshot.
 
 Product names are unique case-insensitively and slugs are unique in PostgreSQL.
-Website URLs are normalized before persistence and exact normalized URL matches
-are rejected by the Business identity rule. Whether different URLs on the same
-canonical domain should be treated as duplicates remains undecided. Public
-catalog reads expose only `published` Products. Product listing endpoints are
-database-paginated (`page`, `pageSize`, capped at 100) and category filtering is
-performed in the database rather than materializing category Product IDs in
-the API process.
+Website URLs are normalized before persistence; exact normalized URL matches
+are rejected by the Business identity rule and a PostgreSQL unique index also
+protects against concurrent duplicate submissions. Whether different URLs on
+the same canonical domain should be treated as duplicates remains undecided.
+Public catalog reads expose only `published` Products. Product listing
+endpoints are database-paginated (`page`, `pageSize`, capped at 100) and
+category filtering is performed in the database rather than materializing
+category Product IDs in the API process.
 Only active Categories are public: listing Products by an inactive or unknown
 Category returns 404. Deactivating a Category invalidates both navigation and
 Product-listing caches after the database transaction commits.

@@ -837,6 +837,9 @@ namespace DataAccess.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
+                    b.HasIndex("WebsiteUrl")
+                        .IsUnique();
+
                     b.ToTable("Products");
                 });
 

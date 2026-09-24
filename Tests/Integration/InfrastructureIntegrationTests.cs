@@ -5,6 +5,7 @@ using Business.BusinessRules.Catalog;
 using Business.Concrete;
 using Core.Entities.Concrete;
 using Core.Utilities.Results;
+using Core.Exceptions;
 using DataAccess.Concrete.Entityframework;
 using DataAccess.Concrete.Entityframework.Contexts;
 using Entities;
@@ -94,6 +95,87 @@ public sealed class InfrastructureIntegrationTests
         _ = await dal.GetAllAsync();
 
         Assert.Empty(context.ChangeTracker.Entries());
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task PostgreSqlAllowsOnlyOneConcurrentProductWithTheSameNormalizedWebsiteUrl()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        var suffix = Guid.NewGuid().ToString("N");
+        var websiteUrl = $"https://duplicate-{suffix}.example.test/product";
+        int userId;
+
+        await using (var setup = new GuidoraDbContext(options))
+        {
+            var user = new User
+            {
+                FirstName = "Unique",
+                LastName = "Index",
+                Email = $"unique-index-{suffix}@example.test",
+                PasswordHash = [1],
+                PasswordSalt = [1],
+                Status = true
+            };
+            setup.Users.Add(user);
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+        }
+
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readyCount = 0;
+
+        async Task<Exception?> InsertProductAsync(string name, string slug)
+        {
+            await using var context = new GuidoraDbContext(options);
+            context.Products.Add(new Product
+            {
+                Name = name,
+                Slug = slug,
+                ShortDescription = "Unique URL test",
+                Description = "Concurrent uniqueness regression test.",
+                WebsiteUrl = websiteUrl,
+                LogoUrl = "https://example.test/logo.png",
+                CreatedByUserId = userId,
+                ProductStatusId = 1,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            if (Interlocked.Increment(ref readyCount) == 2) ready.SetResult();
+            await ready.Task;
+
+            try
+            {
+                await new GuidoraUnitOfWork(context).SaveChangesAsync();
+                return null;
+            }
+            catch (DataConflictException exception)
+            {
+                return exception;
+            }
+        }
+
+        try
+        {
+            var outcomes = await Task.WhenAll(
+                InsertProductAsync($"Concurrent A {suffix}", $"concurrent-a-{suffix}"),
+                InsertProductAsync($"Concurrent B {suffix}", $"concurrent-b-{suffix}"));
+
+            Assert.Single(outcomes, outcome => outcome is null);
+            Assert.IsType<DataConflictException>(Assert.Single(outcomes, outcome => outcome is not null));
+            await using var verification = new GuidoraDbContext(options);
+            Assert.Equal(1, await verification.Products.CountAsync(product => product.WebsiteUrl == websiteUrl));
+        }
+        finally
+        {
+            await using var cleanup = new GuidoraDbContext(options);
+            var product = await cleanup.Products.SingleOrDefaultAsync(item => item.WebsiteUrl == websiteUrl);
+            if (product is not null) cleanup.Products.Remove(product);
+            var user = await cleanup.Users.SingleOrDefaultAsync(item => item.Id == userId);
+            if (user is not null) cleanup.Users.Remove(user);
+            await cleanup.SaveChangesAsync();
+        }
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]

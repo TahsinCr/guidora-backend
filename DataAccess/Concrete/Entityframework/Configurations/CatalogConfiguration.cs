@@ -29,6 +29,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(product => product.LogoUrl).HasMaxLength(2048).IsRequired();
             builder.HasIndex(product => product.Name).IsUnique();
             builder.HasIndex(product => product.Slug).IsUnique();
+            builder.HasIndex(product => product.WebsiteUrl).IsUnique();
             builder.HasIndex(product => product.ProductStatusId);
             builder.HasIndex(product => product.CreatedByUserId);
             builder.HasOne<ProductStatus>().WithMany().HasForeignKey(product => product.ProductStatusId)
