@@ -6,6 +6,7 @@ namespace Entities
     public class Product : IEntity
     {
         public int ProductId { get; set; }
+        public uint Version { get; set; }
 
         public string Name { get; set; } = string.Empty;
 

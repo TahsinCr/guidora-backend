@@ -315,19 +315,27 @@ invalidated on logout, ban, or authorization invalidation.
 
 The default token settings are deliberately persistent without being
 indefinite: access token 15 minutes, refresh session 30 days, remembered
-session 90 days, and an absolute rolling-session limit of 180 days. A ban,
+session 90 days, and an absolute session lifetime of 180 days. Refresh rotation
+preserves the login session's fixed absolute expiry. Replayed rotated tokens are
+recorded once, so the same old token cannot repeatedly invalidate sessions created
+after the first replay response. A ban,
 direct user-claim change, or explicit authorization invalidation revokes all
 of the user's sessions and increments its authorization version. The Admin-only
 role API assigns/removes roles and grants/revokes OperationClaims; affected
 users' authorization versions and sessions are invalidated in the same
 transaction. The last active Admin assignment and the Admin role's
-`Role.Manage` permission are protected from removal.
+`Role.Manage` permission are protected from removal. Admin removal and ban checks
+share a PostgreSQL transaction advisory lock so concurrent operations cannot
+remove the final active Admin.
 
 Authentication, user-security, Product, and Category request paths use
 cancellation-aware asynchronous database operations. Refresh rotation consumes
 the prior session with one conditional PostgreSQL update, so concurrent reuse
 cannot create multiple replacement sessions; replay invalidation happens only
-after the failed rotation transaction has rolled back. Logout uses an atomic,
+after the failed rotation transaction has rolled back. Product edit proposals
+store their base PostgreSQL `xmin` revision and are rejected with HTTP 409 after
+the canonical Product changes. Product and Category stale writes also return
+HTTP 409. Cache keys omit request cancellation tokens. Logout uses an atomic,
 idempotent session revocation as well.
 
 ## Project structure

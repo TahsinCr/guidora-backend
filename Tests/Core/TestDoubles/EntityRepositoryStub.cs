@@ -55,4 +55,6 @@ public sealed class UnitOfWorkStub : IUnitOfWork
         SaveCount++;
         return Task.FromResult(1);
     }
+
+    public Task AcquireTransactionLockAsync(long key, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }

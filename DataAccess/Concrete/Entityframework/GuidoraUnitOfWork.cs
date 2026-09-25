@@ -18,6 +18,11 @@ namespace DataAccess.Concrete.Entityframework
             _context = context;
         }
 
+        public async Task AcquireTransactionLockAsync(long key, CancellationToken cancellationToken = default)
+        {
+            await _context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({key})", cancellationToken);
+        }
+
         public int SaveChanges()
         {
             try { return _context.SaveChanges(); }

@@ -54,7 +54,8 @@ namespace Business.Concrete
 
             var session = await _userSessionDal.GetAsync(item => item.Id == parsedSessionId && item.UserId == userId,
                 cancellationToken);
-            if (session == null || session.RevokedAt.HasValue || session.ExpiresAt <= DateTime.UtcNow)
+            if (session == null || session.RevokedAt.HasValue || session.ExpiresAt <= DateTime.UtcNow ||
+                session.AbsoluteExpiresAt <= DateTime.UtcNow)
             {
                 return new ErrorResult("Access token session is no longer valid.");
             }

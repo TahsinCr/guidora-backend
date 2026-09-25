@@ -22,7 +22,9 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         {
             builder.HasKey(session => session.Id);
             builder.Property<uint>("xmin").IsRowVersion();
+            builder.Property(session => session.ReplayDetectedAt);
             builder.Property(session => session.RefreshTokenHash).HasMaxLength(128).IsRequired();
+            builder.Property(session => session.AbsoluteExpiresAt).IsRequired();
             builder.Property(session => session.DeviceName).HasMaxLength(250).IsRequired();
             builder.HasIndex(session => session.RefreshTokenHash).IsUnique();
             builder.HasIndex(session => new { session.UserId, session.RevokedAt, session.ExpiresAt });

@@ -2,8 +2,11 @@ using Business.Abstract;
 using Business.BusinessAspect.Autofac;
 using Core.Aspects.Transaction;
 using Core.Utilities.Results;
+using DataAccess.Abstract;
+using Core.DataAccess;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Business.Concrete
 {
@@ -11,11 +14,30 @@ namespace Business.Concrete
     {
         private readonly IUserService _userService;
         private readonly IUserSessionInvalidationService _sessionInvalidationService;
+        private readonly IRoleDal _roleDal;
+        private readonly IUserDal _userDal;
+        private readonly IUserRoleDal _userRoleDal;
+        private readonly IUnitOfWork _unitOfWork;
+
+        public UserSecurityManager(IUserService userService, IUserSessionInvalidationService sessionInvalidationService,
+            IRoleDal roleDal, IUserDal userDal, IUserRoleDal userRoleDal, IUnitOfWork unitOfWork)
+        {
+            _userService = userService;
+            _sessionInvalidationService = sessionInvalidationService;
+            _roleDal = roleDal;
+            _userDal = userDal;
+            _userRoleDal = userRoleDal;
+            _unitOfWork = unitOfWork;
+        }
 
         public UserSecurityManager(IUserService userService, IUserSessionInvalidationService sessionInvalidationService)
         {
             _userService = userService;
             _sessionInvalidationService = sessionInvalidationService;
+            _roleDal = null!;
+            _userDal = null!;
+            _userRoleDal = null!;
+            _unitOfWork = null!;
         }
 
         [SecuredOperationAspect("User.Manage")]
@@ -26,6 +48,17 @@ namespace Business.Concrete
             if (!userResult.Success)
             {
                 return new NotFoundResult(userResult.Message);
+            }
+
+            var adminRole = await _roleDal.GetAsync(role => role.Code == "admin", cancellationToken);
+            if (adminRole is not null)
+            {
+                await _unitOfWork.AcquireTransactionLockAsync(7319842101L, cancellationToken);
+                var adminUserIds = (await _userRoleDal.GetAllAsync(item => item.RoleId == adminRole.Id, cancellationToken))
+                    .Select(item => item.UserId).Distinct().ToArray();
+                var activeAdmins = await _userDal.CountAsync(user => user.Status && adminUserIds.Contains(user.Id), cancellationToken);
+                if (activeAdmins <= 1 && adminUserIds.Contains(userId) && userResult.Data.Status)
+                    return new ConflictResult("The last active Admin account cannot be banned.");
             }
 
             userResult.Data.Status = false;

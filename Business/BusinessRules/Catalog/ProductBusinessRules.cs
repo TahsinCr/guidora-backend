@@ -39,7 +39,7 @@ public sealed class ProductBusinessRules : IProductBusinessRules
 
         var duplicate = await _productDal.GetAsync(product =>
             (!excludingProductId.HasValue || product.ProductId != excludingProductId) &&
-            (product.Name.Trim().ToUpper() == normalizedName.ToUpper() ||
+            (product.Name == normalizedName ||
              product.Slug == normalizedSlug ||
              product.WebsiteUrl == normalizedWebsiteUrl), cancellationToken);
 

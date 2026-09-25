@@ -22,6 +22,7 @@ using Business.BusinessRules.Moderation;
 using Business.Utilities;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete
 {
@@ -243,7 +244,7 @@ namespace Business.Concrete
                 var categoryRule = await _businessRules.EnsureCategoriesAreActiveAsync(normalizedCategoryIds,
                     cancellationToken);
                 if (!categoryRule.Success) return categoryRule;
-                return await CreateEditProposalAsync(productId, updatedByUserId, normalizedRequest, normalizedCategoryIds,
+                return await CreateEditProposalAsync(productId, product.Version, updatedByUserId, normalizedRequest, normalizedCategoryIds,
                     normalizedTagIds, cancellationToken);
             }
 
@@ -282,20 +283,28 @@ namespace Business.Concrete
                     CategoryIds = normalizedCategoryIds,
                     TagIds = normalizedTagIds
                 }), cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return new ConflictResult("Product changed while this update was being applied. Reload and try again.");
+            }
             return new CacheInvalidationSuccessResult(Messages.ProductUpdated,
                 new CacheInvalidationTarget(CacheProfiles.CatalogListing),
                 new CacheInvalidationTarget(CacheProfiles.ProductDetail, ArgumentIndex: 0,
                     ArgumentValue: product.ProductId));
         }
 
-        private async Task<IResult> CreateEditProposalAsync(int productId, int proposedByUserId,
+        private async Task<IResult> CreateEditProposalAsync(int productId, uint baseProductVersion, int proposedByUserId,
             UpdateProductRequest request, IReadOnlyCollection<int> categoryIds, IReadOnlyCollection<int> tagIds,
             CancellationToken cancellationToken)
         {
             var proposal = new ProductEditProposal
             {
                 ProductId = productId,
+                BaseProductVersion = baseProductVersion,
                 ProposedByUserId = proposedByUserId,
                 Status = ProductEditProposalStatus.Pending,
                 Name = request.Name,

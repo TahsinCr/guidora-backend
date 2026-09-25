@@ -71,6 +71,8 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
 
         var product = await _productDal.GetAsync(item => item.ProductId == proposal.ProductId, cancellationToken);
         if (product is null) return new NotFoundResult("The canonical product was not found.");
+        if (proposal.BaseProductVersion != product.Version)
+            return new ConflictResult("Product changed after this proposal was created. Submit a new proposal.");
 
         var categoryIds = (await _proposalCategoryDal.GetAllAsync(
                 item => item.ProductEditProposalId == proposalId, cancellationToken))

@@ -18,6 +18,7 @@ using Core.Aspects.Autofac.Validation;
 using Core.DataAccess;
 using System.Threading;
 using System.Transactions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete
 {
@@ -150,15 +151,18 @@ namespace Business.Concrete
             var claims = (await _userService.GetClaimsAsync(user, cancellationToken)).Data;
             var refreshToken = RefreshTokenHasher.CreateToken();
             var now = DateTime.UtcNow;
+            var absoluteExpiresAt = now.AddDays(_tokenOptions.SessionAbsoluteExpirationDays);
+            var configuredExpiresAt = now.AddDays(rememberMe
+                ? _tokenOptions.RememberMeExpirationDays
+                : _tokenOptions.RefreshTokenExpirationDays);
             var session = new UserSession
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
                 RefreshTokenHash = RefreshTokenHasher.Hash(refreshToken),
                 CreatedAt = now,
-                ExpiresAt = now.AddDays(rememberMe
-                    ? _tokenOptions.RememberMeExpirationDays
-                    : _tokenOptions.RefreshTokenExpirationDays),
+                AbsoluteExpiresAt = absoluteExpiresAt,
+                ExpiresAt = configuredExpiresAt < absoluteExpiresAt ? configuredExpiresAt : absoluteExpiresAt,
                 IsPersistent = rememberMe,
                 DeviceName = deviceName
             };
@@ -184,11 +188,37 @@ namespace Business.Concrete
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is invalid.");
             }
 
-            if (session.RevokedAt.HasValue || session.ExpiresAt <= DateTime.UtcNow)
+            if (session.RevokedAt.HasValue)
             {
-                await _sessionInvalidationService.InvalidateUserSessionsAsync(session.UserId, cancellationToken);
+                if (session.ReplacedBySessionId.HasValue && !session.ReplayDetectedAt.HasValue)
+                {
+                    session.ReplayDetectedAt = DateTime.UtcNow;
+                    _userSessionDal.Update(session);
+                    using var transaction = new TransactionScope(TransactionScopeOption.Required,
+                        new TransactionOptions
+                        {
+                            IsolationLevel = IsolationLevel.ReadCommitted,
+                            Timeout = TransactionManager.DefaultTimeout
+                        }, TransactionScopeAsyncFlowOption.Enabled);
+                    try
+                    {
+                        await _unitOfWork.SaveChangesAsync(cancellationToken);
+                        var invalidation = await _sessionInvalidationService.InvalidateUserSessionsAsync(
+                            session.UserId, cancellationToken);
+                        if (!invalidation.Success)
+                            return new ErrorDataResult<AuthenticationResultDto>(invalidation.Message);
+                        transaction.Complete();
+                    }
+                    catch (DbUpdateConcurrencyException)
+                    {
+                        return new ErrorDataResult<AuthenticationResultDto>("Refresh session replay was already handled.");
+                    }
+                }
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is no longer valid.");
             }
+
+            if (session.ExpiresAt <= DateTime.UtcNow || session.AbsoluteExpiresAt <= DateTime.UtcNow)
+                return new ErrorDataResult<AuthenticationResultDto>("Refresh session is no longer valid.");
 
             var userResult = await _userService.GetByIdAsync(session.UserId, cancellationToken);
             if (!userResult.Success || !userResult.Data.Status)
@@ -199,7 +229,7 @@ namespace Business.Concrete
 
             var now = DateTime.UtcNow;
             var nextRefreshToken = RefreshTokenHasher.CreateToken();
-            var absoluteExpiration = session.CreatedAt.AddDays(_tokenOptions.SessionAbsoluteExpirationDays);
+            var absoluteExpiration = session.AbsoluteExpiresAt;
             var configuredExpiration = now.AddDays(session.IsPersistent
                 ? _tokenOptions.RememberMeExpirationDays
                 : _tokenOptions.RefreshTokenExpirationDays);
@@ -209,6 +239,7 @@ namespace Business.Concrete
                 UserId = session.UserId,
                 RefreshTokenHash = RefreshTokenHasher.Hash(nextRefreshToken),
                 CreatedAt = now,
+                AbsoluteExpiresAt = session.AbsoluteExpiresAt,
                 ExpiresAt = configuredExpiration < absoluteExpiration ? configuredExpiration : absoluteExpiration,
                 IsPersistent = session.IsPersistent,
                 DeviceName = deviceName

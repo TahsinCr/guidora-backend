@@ -21,7 +21,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<Product> builder)
         {
             builder.HasKey(product => product.ProductId);
-            builder.Property<uint>("xmin").IsRowVersion();
+            builder.Property(product => product.Version).HasColumnName("xmin").IsRowVersion();
             builder.Property(product => product.Name).HasColumnType("citext").HasMaxLength(200).IsRequired();
             builder.Property(product => product.Slug).HasColumnType("citext").HasMaxLength(220).IsRequired();
             builder.Property(product => product.ShortDescription).HasMaxLength(500).IsRequired();

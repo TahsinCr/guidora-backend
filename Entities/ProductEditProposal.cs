@@ -7,6 +7,7 @@ namespace Entities
     {
         public int Id { get; set; }
         public int ProductId { get; set; }
+        public uint BaseProductVersion { get; set; }
         public int ProposedByUserId { get; set; }
         public ProductEditProposalStatus Status { get; set; } = ProductEditProposalStatus.Pending;
         public string Name { get; set; } = string.Empty;

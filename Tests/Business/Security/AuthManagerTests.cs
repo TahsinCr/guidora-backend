@@ -24,7 +24,8 @@ public sealed class AuthManagerTests
         {
             Id = Guid.NewGuid(), UserId = user.Id,
             RefreshTokenHash = RefreshTokenHasher.Hash(rawRefreshToken),
-            CreatedAt = DateTime.UtcNow.AddDays(-1), ExpiresAt = DateTime.UtcNow.AddDays(10)
+            CreatedAt = DateTime.UtcNow.AddDays(-1), ExpiresAt = DateTime.UtcNow.AddDays(10),
+            AbsoluteExpiresAt = DateTime.UtcNow.AddDays(179)
         };
         var sessions = new UserSessionDalStub([oldSession]);
         var cache = new RecordingDistributedCache();
@@ -50,7 +51,8 @@ public sealed class AuthManagerTests
         {
             Id = Guid.NewGuid(), UserId = 17,
             RefreshTokenHash = RefreshTokenHasher.Hash(rawRefreshToken),
-            CreatedAt = DateTime.UtcNow.AddDays(-1), ExpiresAt = DateTime.UtcNow.AddDays(10)
+            CreatedAt = DateTime.UtcNow.AddDays(-1), ExpiresAt = DateTime.UtcNow.AddDays(10),
+            AbsoluteExpiresAt = DateTime.UtcNow.AddDays(179)
         };
         var cache = new RecordingDistributedCache();
         var manager = CreateManager(new UserServiceStub(new User { Id = 17, Status = true }),
@@ -70,7 +72,8 @@ public sealed class AuthManagerTests
             Id = Guid.NewGuid(), UserId = 23,
             RefreshTokenHash = RefreshTokenHasher.Hash(rawRefreshToken),
             CreatedAt = DateTime.UtcNow.AddDays(-1), ExpiresAt = DateTime.UtcNow.AddDays(10),
-            RevokedAt = DateTime.UtcNow.AddMinutes(-1)
+            AbsoluteExpiresAt = DateTime.UtcNow.AddDays(179), RevokedAt = DateTime.UtcNow.AddMinutes(-1),
+            ReplacedBySessionId = Guid.NewGuid()
         };
         var invalidation = new SessionInvalidationStub();
         var manager = CreateManager(new UserServiceStub(new User { Id = 23, Status = true }),

@@ -90,16 +90,24 @@ namespace Core.Aspects.Caching
         private string BuildCacheKey(IInvocation invocation)
         {
             var methodName = $"{invocation.Method.ReflectedType?.FullName ?? invocation.Method.DeclaringType?.FullName ?? "Unknown"}.{invocation.Method.Name}";
-            var arguments = JsonConvert.SerializeObject(invocation.Arguments);
+            var cacheArguments = invocation.Arguments
+                .Where((_, index) => invocation.Method.GetParameters()[index].ParameterType != typeof(System.Threading.CancellationToken))
+                .ToArray();
+            var arguments = JsonConvert.SerializeObject(cacheArguments);
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(arguments)));
-            var keySegments = VaryByArgumentIndexes.Select(index =>
-            {
-                if (index < 0 || index >= invocation.Arguments.Length)
+            var keySegments = VaryByArgumentIndexes
+                .Where(index =>
                 {
-                    throw new InvalidOperationException(
-                        $"Cache argument index {index} is outside the parameter list for '{methodName}'.");
-                }
+                    if (index < 0 || index >= invocation.Arguments.Length)
+                    {
+                        throw new InvalidOperationException(
+                            $"Cache argument index {index} is outside the parameter list for '{methodName}'.");
+                    }
 
+                    return invocation.Method.GetParameters()[index].ParameterType != typeof(System.Threading.CancellationToken);
+                })
+                .Select(index =>
+            {
                 return $":arg:{index}:{CacheKeySegment.Hash(invocation.Arguments[index])}";
             });
             return $"{_profile}:{methodName}:{hash}{string.Concat(keySegments)}";

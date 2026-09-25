@@ -110,6 +110,7 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasKey(proposal => proposal.Id);
             builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(proposal => proposal.Status).HasConversion<string>().HasMaxLength(80).IsRequired();
+            builder.Property(proposal => proposal.BaseProductVersion).IsRequired();
             builder.Property(proposal => proposal.Name).HasMaxLength(200).IsRequired();
             builder.Property(proposal => proposal.Slug).HasMaxLength(220).IsRequired();
             builder.Property(proposal => proposal.WebsiteUrl).HasMaxLength(2048).IsRequired();

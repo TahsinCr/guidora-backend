@@ -88,6 +88,7 @@ public sealed class RoleManager : IRoleService
         var role = await _roleDal.GetAsync(item => item.Id == roleId, cancellationToken);
         if (role?.Code == "admin")
         {
+            await _unitOfWork.AcquireTransactionLockAsync(7319842101L, cancellationToken);
             var adminUserIds = (await _userRoleDal.GetAllAsync(item => item.RoleId == roleId, cancellationToken))
                 .Select(item => item.UserId).Distinct().ToArray();
             var activeAdmins = await _userDal.CountAsync(user => user.Status && adminUserIds.Contains(user.Id), cancellationToken);

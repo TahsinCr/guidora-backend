@@ -21,7 +21,8 @@ public sealed class TokenValidationManagerTests
             new AuthenticationStateDalStub([new UserAuthenticationState { UserId = 7, AuthorizationVersion = 4 }]),
             new UserSessionDalStub([new UserSession
             {
-                Id = sessionId, UserId = 7, ExpiresAt = DateTime.UtcNow.AddMinutes(5)
+                Id = sessionId, UserId = 7, ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+                AbsoluteExpiresAt = DateTime.UtcNow.AddDays(5)
             }]), cache);
 
         var result = await manager.ValidateAsync(7, sessionId.ToString(), 4);
@@ -39,7 +40,8 @@ public sealed class TokenValidationManagerTests
             new AuthenticationStateDalStub([new UserAuthenticationState { UserId = 7, AuthorizationVersion = 5 }]),
             new UserSessionDalStub([new UserSession
             {
-                Id = sessionId, UserId = 7, ExpiresAt = DateTime.UtcNow.AddMinutes(5), RevokedAt = DateTime.UtcNow
+                Id = sessionId, UserId = 7, ExpiresAt = DateTime.UtcNow.AddMinutes(5),
+                AbsoluteExpiresAt = DateTime.UtcNow.AddDays(5), RevokedAt = DateTime.UtcNow
             }]), new InMemoryDistributedCacheStub());
 
         var result = await manager.ValidateAsync(7, sessionId.ToString(), 4);

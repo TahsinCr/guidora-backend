@@ -17,6 +17,7 @@ using Core.Aspects.Autofac.Validation;
 using Business.ValidationRules.FluentValidation;
 using Business.Utilities;
 using Core.Aspects.Transaction;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete
 {
@@ -123,7 +124,14 @@ namespace Business.Concrete
                     category.CategoryName, category.Slug, category.Description, category.IsActive,
                     category.UpdatedAt
                 }), cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return new ConflictResult("Category changed while this update was being applied. Reload and try again.");
+            }
             return new SuccessResult();
         }
 

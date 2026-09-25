@@ -6,6 +6,20 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Preserved each refresh session's fixed absolute expiry across token rotations,
+  and recorded refresh-token replay once so a previously rotated token cannot
+  repeatedly revoke sessions created after its first replay.
+- Rejected Product edit proposals based on an older PostgreSQL `xmin` revision;
+  Product and Category optimistic concurrency conflicts now return HTTP 409.
+- Serialized last-active-Admin removal and ban checks with a transaction-scoped
+  PostgreSQL advisory lock.
+- Excluded `CancellationToken` arguments from cache keys and changed Product name
+  duplicate checks to compare the indexed `citext` column directly.
+- Prevented a user from creating another open report for the same Product while
+  their previous report is awaiting moderation.
+- Added migration backfills for existing absolute session expiry and pending
+  proposal base revisions.
+
 - Mapped derived FluentValidation exceptions to HTTP 400 as well as the base
   exception type, preventing specialized validation failures from becoming 500s.
 - Removed the unused synchronous OperationClaim service surface; permission

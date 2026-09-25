@@ -48,6 +48,9 @@ public sealed class ProductReportManager : IProductReportService
         if (reason is null) return new ErrorResult("Report reason is unavailable.");
         var openStatus = await _statusDal.GetAsync(status => status.Code == "open", cancellationToken);
         if (openStatus is null) return new ErrorResult("Open report status is not configured.");
+        if (await _reportDal.AnyAsync(report => report.ProductId == productId &&
+                report.ReportedByUserId == reporterUserId && report.ReportStatusId == openStatus.Id, cancellationToken))
+            return new ConflictResult("You already have an open report for this Product.");
 
         var report = new ProductReport
         {

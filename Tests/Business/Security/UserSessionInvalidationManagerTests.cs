@@ -189,6 +189,8 @@ public sealed class UserSessionInvalidationManagerTests
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(SaveChanges());
+
+        public Task AcquireTransactionLockAsync(long key, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class FailingUnitOfWork : IUnitOfWork
@@ -196,6 +198,8 @@ public sealed class UserSessionInvalidationManagerTests
         public int SaveChanges() => throw new InvalidOperationException("Simulated database failure.");
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
             Task.FromException<int>(new InvalidOperationException("Simulated database failure."));
+
+        public Task AcquireTransactionLockAsync(long key, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class RecordingDistributedCache : IDistributedCache
