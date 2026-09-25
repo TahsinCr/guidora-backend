@@ -16,7 +16,21 @@ All notable changes to the Guidora backend are documented here.
 - Excluded `CancellationToken` arguments from cache keys and changed Product name
   duplicate checks to compare the indexed `citext` column directly.
 - Prevented a user from creating another open report for the same Product while
-  their previous report is awaiting moderation.
+  their previous report is awaiting moderation; a partial unique index protects
+  this rule from concurrent submissions, and the migration preserves old rows
+  while closing duplicate open reports.
+- Replaced TagCategory assignment materialization with a database-side grouped
+  existence query, and deactivated category Tags with one bulk update.
+- Replaced broad catalog-listing Redis key scans with profile-generation bumps;
+  targeted Product detail invalidation remains scoped to the Product ID. Changed
+  Redis eviction to `volatile-lfu` so non-expiring generation counters survive.
+- Compacted large Document and Changelog audit content to hashes, sizes, and a
+  bounded single-range change summary.
+- Added the V1 Community Verification vote workflow: active User-role members
+  other than the Product creator may vote once per Product; five affirmative
+  votes verify it, and Moderators/Admins may revoke with a note.
+- Settled Product website identity: exact normalized URLs are unique, while
+  different URLs on the same vendor domain are allowed.
 - Added migration backfills for existing absolute session expiry and pending
   proposal base revisions.
 

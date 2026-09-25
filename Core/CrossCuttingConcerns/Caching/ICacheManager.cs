@@ -18,5 +18,7 @@ namespace Core.CrossCuttingConcerns.Caching
 
         void Remove(string key);
         void RemoveByPattern(string pattern);
+        long GetProfileGeneration(string profile) => 0;
+        void AdvanceProfileGeneration(string profile) => RemoveByPattern($"{profile}:*");
     }
 }

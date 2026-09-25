@@ -20,5 +20,12 @@ namespace DataAccess.Concrete.Entityframework
                 otherAssignment.ProductId == assignment.ProductId && otherAssignment.TagId != tagId &&
                 Context.Tags.Any(tag => tag.Id == otherAssignment.TagId && tag.TagCategoryId == tagCategoryId)),
                 cancellationToken);
+
+        public Task<bool> HasProductsWithMultipleTagsInCategoryAsync(int tagCategoryId,
+            CancellationToken cancellationToken = default) => Context.ProductTags.AsNoTracking()
+            .Where(assignment => Context.Tags.Any(tag => tag.Id == assignment.TagId && tag.TagCategoryId == tagCategoryId))
+            .GroupBy(assignment => assignment.ProductId)
+            .AnyAsync(group => group.Select(assignment => assignment.TagId).Distinct().Count() > 1,
+                cancellationToken);
     }
 }

@@ -43,6 +43,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(report => report.Description).HasMaxLength(4000).IsRequired();
             builder.HasIndex(report => new { report.ProductId, report.ReportedByUserId, report.ReportStatusId });
+            builder.HasIndex(report => new { report.ProductId, report.ReportedByUserId })
+                .IsUnique().HasFilter("\"ReportStatusId\" = 1");
             builder.HasIndex(report => new { report.ReportStatusId, report.CreatedAt });
             builder.HasOne<Product>().WithMany().HasForeignKey(report => report.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -99,6 +101,20 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.HasOne<VerificationType>().WithMany().HasForeignKey(verification => verification.VerificationTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasOne<User>().WithMany().HasForeignKey(verification => verification.VerifiedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+
+    public sealed class ProductVerificationVoteConfiguration : IEntityTypeConfiguration<ProductVerificationVote>
+    {
+        public void Configure(EntityTypeBuilder<ProductVerificationVote> builder)
+        {
+            builder.HasKey(vote => vote.Id);
+            builder.HasIndex(vote => new { vote.ProductId, vote.UserId }).IsUnique();
+            builder.HasIndex(vote => new { vote.ProductId, vote.Approved });
+            builder.HasOne<Product>().WithMany().HasForeignKey(vote => vote.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne<Core.Entities.Concrete.User>().WithMany().HasForeignKey(vote => vote.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

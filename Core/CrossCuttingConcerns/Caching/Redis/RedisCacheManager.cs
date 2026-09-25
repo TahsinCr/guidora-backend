@@ -127,6 +127,12 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
             }
         }
 
+        public long GetProfileGeneration(string profile) =>
+            (long?)GetDatabase().StringGet(ToRedisKey($"cache-generation:{profile}")) ?? 0L;
+
+        public void AdvanceProfileGeneration(string profile) =>
+            GetDatabase().StringIncrement(ToRedisKey($"cache-generation:{profile}"));
+
         private IDatabase GetDatabase()
         {
             return _connectionMultiplexer.GetDatabase();

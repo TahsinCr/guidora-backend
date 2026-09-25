@@ -698,7 +698,7 @@ public sealed class InfrastructureIntegrationTests
 
         Assert.True((await connection.GetDatabase().PingAsync()) > TimeSpan.Zero);
         var policy = await server.ConfigGetAsync("maxmemory-policy");
-        Assert.Contains(policy, pair => pair.Value == "allkeys-lfu");
+        Assert.Contains(policy, pair => pair.Value == "volatile-lfu");
         var persistence = await server.ConfigGetAsync("appendonly");
         Assert.Contains(persistence, pair => pair.Value == "no");
     }

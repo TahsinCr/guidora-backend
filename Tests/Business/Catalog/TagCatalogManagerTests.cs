@@ -148,6 +148,7 @@ public sealed class TagCatalogManagerTests
             new Tag { Id = 8, TagCategoryId = 4 }, new Tag { Id = 9, TagCategoryId = 4 }]);
         var assignments = new ProductTagDalStub([
             new ProductTag { ProductId = 2, TagId = 8 }, new ProductTag { ProductId = 2, TagId = 9 }]);
+        assignments.HasMultipleTagsInCategory = true;
         var manager = new TagCategoryManager(new TagCategoryDalStub([category]), tags, assignments,
             new CommunityAuditDalStub(), new UnitOfWorkStub());
 
@@ -189,8 +190,12 @@ public sealed class TagCatalogManagerTests
         : EntityRepositoryStub<ProductTag>(values), IProductTagDal
     {
         public bool HasConflictingSameCategoryTag { get; init; }
+        public bool HasMultipleTagsInCategory { get; set; }
 
         public Task<bool> HasOtherTagInSameCategoryForAssignedProductsAsync(int tagId, int tagCategoryId,
             CancellationToken cancellationToken = default) => Task.FromResult(HasConflictingSameCategoryTag);
+
+        public Task<bool> HasProductsWithMultipleTagsInCategoryAsync(int tagCategoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(HasMultipleTagsInCategory);
     }
 }

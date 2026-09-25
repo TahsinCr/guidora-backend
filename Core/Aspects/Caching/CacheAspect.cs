@@ -110,7 +110,8 @@ namespace Core.Aspects.Caching
             {
                 return $":arg:{index}:{CacheKeySegment.Hash(invocation.Arguments[index])}";
             });
-            return $"{_profile}:{methodName}:{hash}{string.Concat(keySegments)}";
+            var generation = _cacheManager.GetProfileGeneration(_profile);
+            return $"{_profile}:generation:{generation}:{methodName}:{hash}{string.Concat(keySegments)}";
         }
     }
 }

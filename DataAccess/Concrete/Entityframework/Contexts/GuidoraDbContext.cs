@@ -45,6 +45,7 @@ namespace DataAccess.Concrete.Entityframework.Contexts
         public DbSet<ProductContributor> ProductContributors { get; set; }
         public DbSet<VerificationType> VerificationTypes { get; set; }
         public DbSet<ProductVerification> ProductVerifications { get; set; }
+        public DbSet<ProductVerificationVote> ProductVerificationVotes { get; set; }
         public DbSet<ProductEditProposal> ProductEditProposals { get; set; }
         public DbSet<ProductEditProposalTag> ProductEditProposalTags { get; set; }
         public DbSet<ProductEditProposalCategory> ProductEditProposalCategories { get; set; }

@@ -120,8 +120,10 @@ Redis entry.
 
 Use cases that know the affected Product return an internal cache-invalidation
 directive so detail entries are targeted by Product ID while affected catalog
-listings are invalidated by profile. The directive is not serialized in the HTTP
-result. Redis pattern invalidation deletes matching keys in bounded batches.
+listings advance a Redis profile generation. Old listing keys expire naturally;
+global listing invalidation does not scan the Redis keyspace. Targeted Product
+detail eviction remains key-pattern scoped. The directive is not serialized in
+the HTTP result.
 
 Aspect priorities define wrapper nesting, not the timestamp of each aspect's
 callback. Authorization and validation guard the use case; `CacheRemoveAspect`
@@ -142,7 +144,9 @@ transaction commits. Operation logging runs from the post-operation hook after
 the wrapped pipeline finishes.
 
 Redis is configured as disposable cache infrastructure: AOF and RDB persistence
-are disabled, and the global eviction policy is `allkeys-lfu`. Compose defaults
+are disabled, and the global eviction policy is `volatile-lfu`. All cache values
+expire; the small profile-generation counters do not, so Redis cannot evict them.
+Compose defaults
 to `REDIS_MAXMEMORY=256mb` and `REDIS_CONTAINER_MEMORY_LIMIT=320m`; override
 these deployment settings through `.env` after measuring the target host.
 
@@ -205,8 +209,8 @@ the V1 proposal snapshot.
 Product names are unique case-insensitively and slugs are unique in PostgreSQL.
 Website URLs are normalized before persistence; exact normalized URL matches
 are rejected by the Business identity rule and a PostgreSQL unique index also
-protects against concurrent duplicate submissions. Whether different URLs on
-the same canonical domain should be treated as duplicates remains undecided.
+protects against concurrent duplicate submissions. Different URLs on the same
+vendor domain are allowed because one vendor may host multiple Products.
 Public catalog reads expose only `published` Products. Product listing
 endpoints are database-paginated (`page`, `pageSize`, capped at 100) and
 category filtering is performed in the database rather than materializing
@@ -246,12 +250,25 @@ verification through the corresponding governance controllers. These actions
 use OperationClaims (`Product.Proposal.Review`, `ProductReport.Review`, and
 `Product.Verify`), not frontend role checks. Product reports are submitted by
 an authenticated user. Audit entries for Product, Category, proposal,
-verification, and report changes are append-only JSONB old/new snapshots.
+verification, and report changes are append-only JSONB old/new snapshots. A
+user may keep one open report per Product; a partial unique index enforces this
+under concurrent submissions. The migration retains older duplicate reports
+and closes all but the oldest one for each user/Product pair.
 
-Admin and Community verification are separate verification types. Admin
-verification commands are implemented in V1; Community verification remains a
-feature without a voting threshold/eligibility algorithm, so no vote workflow is
-invented or exposed yet. Bot verification remains future scope.
+Large Document and Changelog `Content` values above 32 KiB are represented in
+audit snapshots by SHA-256, UTF-8 byte and character counts, plus a compact
+single-range change when the inserted text is at most one quarter of the new
+content. Large replacements keep hashes and lengths and mark the detailed diff
+as omitted. Small content remains in full.
+
+Admin and Community verification are separate verification types. Community
+votes are limited to active users assigned the User role; Product creators cannot
+vote on their own Product, and each user gets one immutable vote per Product.
+Five affirmative votes from distinct users grant Community verification; negative
+votes are retained but do not count toward the quorum. Moderators and Admins can
+revoke a decision with a required review note. A revoked decision is terminal in
+V1; vote history is retained and another round is not opened. Bot verification
+remains future scope.
 
 ## Community and Product content
 

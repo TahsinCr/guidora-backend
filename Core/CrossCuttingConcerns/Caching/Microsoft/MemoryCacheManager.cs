@@ -7,12 +7,14 @@ using System.Threading.Tasks;
 using Core.Utilities.IoC;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 
 namespace Core.CrossCuttingConcerns.Caching.Microsoft
 {
     internal class MemoryCacheManager : ICacheManager
     {
         private readonly IMemoryCache _memoryCache;
+        private readonly ConcurrentDictionary<string, long> _profileGenerations = new();
 
         public MemoryCacheManager()
         {
@@ -86,5 +88,9 @@ namespace Core.CrossCuttingConcerns.Caching.Microsoft
                 _memoryCache.Remove(key);
             }
         }
+
+        public long GetProfileGeneration(string profile) => _profileGenerations.GetValueOrDefault(profile);
+
+        public void AdvanceProfileGeneration(string profile) => _profileGenerations.AddOrUpdate(profile, 1, (_, current) => current + 1);
     }
 }

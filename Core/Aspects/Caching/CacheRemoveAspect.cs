@@ -35,8 +35,11 @@ namespace Core.Aspects.Caching
                 {
                     var pattern = target.ArgumentIndex is int argumentIndex
                         ? $"{target.Profile}:*:arg:{argumentIndex}:{CacheKeySegment.Hash(target.ArgumentValue)}"
-                        : $"{target.Profile}:*";
-                    _cacheManager.RemoveByPattern(pattern);
+                        : string.Empty;
+                    if (target.ArgumentIndex is int)
+                        _cacheManager.RemoveByPattern(pattern);
+                    else
+                        _cacheManager.AdvanceProfileGeneration(target.Profile);
                 }
 
                 return;
@@ -44,10 +47,10 @@ namespace Core.Aspects.Caching
 
             foreach (string profile in _profiles)
             {
-                var pattern = ArgumentIndex >= 0 && ArgumentIndex < invocation.Arguments.Length
-                    ? $"{profile}:*:arg:{ArgumentIndex}:{CacheKeySegment.Hash(invocation.Arguments[ArgumentIndex])}"
-                    : $"{profile}:*";
-                _cacheManager.RemoveByPattern(pattern);
+                if (ArgumentIndex >= 0 && ArgumentIndex < invocation.Arguments.Length)
+                    _cacheManager.RemoveByPattern($"{profile}:*:arg:{ArgumentIndex}:{CacheKeySegment.Hash(invocation.Arguments[ArgumentIndex])}");
+                else
+                    _cacheManager.AdvanceProfileGeneration(profile);
             }
         }
     }

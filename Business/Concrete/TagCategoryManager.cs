@@ -72,10 +72,7 @@ public sealed class TagCategoryManager : ITagCategoryService
             return new ConflictResult("A TagCategory with this slug already exists.");
         if (entity.AllowsMultipleSelection != request.AllowsMultipleSelection)
         {
-            var tagIds = (await _tagDal.GetAllAsync(item => item.TagCategoryId == id, cancellationToken))
-                .Select(item => item.Id).ToArray();
-            var assignments = await _productTagDal.GetAllAsync(item => tagIds.Contains(item.TagId), cancellationToken);
-            if (assignments.GroupBy(item => item.ProductId).Any(group => group.Select(item => item.TagId).Distinct().Count() > 1))
+            if (await _productTagDal.HasProductsWithMultipleTagsInCategoryAsync(id, cancellationToken))
                 return new ConflictResult("Selection mode cannot change while a Product has multiple Tags from this category.");
         }
         var oldValues = new { entity.Name, entity.Slug, entity.AllowsMultipleSelection, entity.IsActive };
@@ -98,14 +95,9 @@ public sealed class TagCategoryManager : ITagCategoryService
         if (!entity.IsActive) return new SuccessResult("Tag category is already inactive.");
         entity.IsActive = false;
         _dal.Update(entity);
-        var tags = await _tagDal.GetAllAsync(item => item.TagCategoryId == id && item.IsActive, cancellationToken);
-        foreach (var tag in tags)
-        {
-            tag.IsActive = false;
-            _tagDal.Update(tag);
-        }
+        var deactivatedTagCount = await _tagDal.DeactivateByCategoryAsync(id, cancellationToken);
         await _audit.AddAsync(AuditLogFactory.Create(actorUserId, nameof(TagCategory), id.ToString(), "Deactivated",
-            new { IsActive = true }, new { IsActive = false, DeactivatedTagIds = tags.Select(tag => tag.Id).ToArray() }),
+            new { IsActive = true }, new { IsActive = false, DeactivatedTagCount = deactivatedTagCount }),
             cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return new SuccessResult("Tag category deactivated.");

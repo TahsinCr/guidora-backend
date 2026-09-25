@@ -9,5 +9,7 @@ namespace DataAccess.Abstract
     {
         Task<bool> HasOtherTagInSameCategoryForAssignedProductsAsync(int tagId, int tagCategoryId,
             CancellationToken cancellationToken = default);
+        Task<bool> HasProductsWithMultipleTagsInCategoryAsync(int tagCategoryId,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 }

@@ -13,9 +13,14 @@ namespace WebAPI.Controllers;
 public sealed class ProductVerificationsController : ControllerBase
 {
     private readonly IProductVerificationService _verificationService;
+    private readonly ICommunityVerificationService _communityVerificationService;
 
-    public ProductVerificationsController(IProductVerificationService verificationService) =>
+    public ProductVerificationsController(IProductVerificationService verificationService,
+        ICommunityVerificationService communityVerificationService)
+    {
         _verificationService = verificationService;
+        _communityVerificationService = communityVerificationService;
+    }
 
     [HttpPost("admin")]
     public async Task<IActionResult> VerifyAsAdmin(int productId, ReviewNoteRequest request,
@@ -34,6 +39,26 @@ public sealed class ProductVerificationsController : ControllerBase
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
             return Unauthorized();
         var result = await _verificationService.RevokeAdminVerificationAsync(productId, actorId, request, cancellationToken);
+        return this.ToHttpResult(result);
+    }
+
+    [HttpPost("community-votes")]
+    public async Task<IActionResult> VoteCommunity(int productId, CommunityVerificationVoteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+            return Unauthorized();
+        var result = await _communityVerificationService.VoteAsync(productId, userId, request, cancellationToken);
+        return this.ToHttpResult(result);
+    }
+
+    [HttpDelete("community")]
+    public async Task<IActionResult> RevokeCommunity(int productId, [FromBody] ReviewNoteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
+            return Unauthorized();
+        var result = await _communityVerificationService.RevokeAsync(productId, actorId, request, cancellationToken);
         return this.ToHttpResult(result);
     }
 }

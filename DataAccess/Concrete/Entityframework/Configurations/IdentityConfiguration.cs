@@ -42,7 +42,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new OperationClaim { Id = 14, Name = "Audit.Revert" },
                 new OperationClaim { Id = 15, Name = "Tag.Manage" },
                 new OperationClaim { Id = 16, Name = "TagCategory.Manage" },
-                new OperationClaim { Id = 17, Name = "Role.Manage" });
+                new OperationClaim { Id = 17, Name = "Role.Manage" },
+                new OperationClaim { Id = 18, Name = "Product.Verify.Community.Vote" });
         }
     }
 
@@ -146,7 +147,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
                 new RoleOperationClaim { Id = 27, RoleId = 2, OperationClaimId = 16 },
                 new RoleOperationClaim { Id = 28, RoleId = 3, OperationClaimId = 15 },
                 new RoleOperationClaim { Id = 29, RoleId = 3, OperationClaimId = 16 },
-                new RoleOperationClaim { Id = 30, RoleId = 3, OperationClaimId = 17 });
+                new RoleOperationClaim { Id = 30, RoleId = 3, OperationClaimId = 17 },
+                new RoleOperationClaim { Id = 31, RoleId = 1, OperationClaimId = 18 });
         }
     }
 }

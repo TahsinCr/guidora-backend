@@ -128,6 +128,11 @@ namespace DataAccess.Migrations
                         {
                             Id = 17,
                             Name = "Role.Manage"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            Name = "Product.Verify.Community.Vote"
                         });
                 });
 
@@ -386,6 +391,12 @@ namespace DataAccess.Migrations
                             Id = 30,
                             OperationClaimId = 17,
                             RoleId = 3
+                        },
+                        new
+                        {
+                            Id = 31,
+                            OperationClaimId = 18,
+                            RoleId = 1
                         });
                 });
 
@@ -1199,6 +1210,10 @@ namespace DataAccess.Migrations
 
                     b.HasIndex("ResolvedByUserId");
 
+                    b.HasIndex("ProductId", "ReportedByUserId")
+                        .IsUnique()
+                        .HasFilter("\"ReportStatusId\" = 1");
+
                     b.HasIndex("ReportStatusId", "CreatedAt");
 
                     b.HasIndex("ProductId", "ReportedByUserId", "ReportStatusId");
@@ -1326,6 +1341,38 @@ namespace DataAccess.Migrations
                         .IsUnique();
 
                     b.ToTable("ProductVerifications");
+                });
+
+            modelBuilder.Entity("Entities.ProductVerificationVote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Approved")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ProductId", "Approved");
+
+                    b.HasIndex("ProductId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("ProductVerificationVotes");
                 });
 
             modelBuilder.Entity("Entities.ReportReason", b =>
@@ -1907,6 +1954,21 @@ namespace DataAccess.Migrations
                         .WithMany()
                         .HasForeignKey("VerifiedByUserId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Entities.ProductVerificationVote", b =>
+                {
+                    b.HasOne("Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Core.Entities.Concrete.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Entities.Tag", b =>
