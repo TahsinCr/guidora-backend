@@ -10,6 +10,7 @@ namespace Business.Utilities;
 internal static class AuditLogFactory
 {
     private const int LargeContentThresholdBytes = 32 * 1024;
+    private const int MaxInlineAuditDiffBytes = 8 * 1024;
 
     public static AuditLog Create(int? actorUserId, string entityType, string entityId, string action,
         object oldValues, object newValues)
@@ -52,7 +53,7 @@ internal static class AuditLogFactory
                    oldContent[oldContent.Length - suffix - 1] == newContent[newContent.Length - suffix - 1])
                 suffix++;
             var inserted = newContent.Substring(prefix, newContent.Length - prefix - suffix);
-            if (inserted.Length <= Math.Max(256, newContent.Length / 4))
+            if (Encoding.UTF8.GetByteCount(inserted) <= MaxInlineAuditDiffBytes)
             {
                 newMetadata["change"] = new JsonObject
                 {

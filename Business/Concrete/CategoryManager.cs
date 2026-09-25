@@ -150,7 +150,14 @@ namespace Business.Concrete
             _categoryDal.Update(category);
             await _auditLogDal.AddAsync(AuditLogFactory.Create(updatedByUserId, nameof(Category), categoryId.ToString(),
                 "Deactivated", oldValues, new { category.IsActive, category.UpdatedAt }), cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return new ConflictResult("Category changed while it was being deactivated. Reload and try again.");
+            }
             return new SuccessResult();
         }
     }

@@ -230,6 +230,33 @@ public sealed class CommunityFeatureWorkflowTests
     }
 
     [Fact]
+    public async Task LargeDocumentAuditKeepsHashesAndBoundsInlineDiff()
+    {
+        var product = new Product { ProductId = 5, ProductStatusId = 1 };
+        var rules = new ProductResourceRules(new CommunityProductDalStub([product]),
+            new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
+            new CommunityVerificationDalStub(), new DeterministicContentModerationRule());
+        var documents = new CommunityDocumentDalStub();
+        var audit = new CommunityAuditDalStub();
+        var manager = new ProductDocumentManager(documents, rules, audit, new UnitOfWorkStub());
+        var original = new string('a', 40_000);
+        var replacement = new string('b', 40_000);
+        Assert.True((await manager.CreateAsync(5, 7, new ProductDocumentRequest
+            { DocumentType = "README", Title = "Large document", Content = original })).Success);
+        Assert.True((await manager.UpdateAsync(5, 0, 7, new ProductDocumentRequest
+            { DocumentType = "README", Title = "Large document", Content = replacement })).Success);
+
+        var entry = audit.Entries.Last();
+        Assert.DoesNotContain(original, entry.OldValues);
+        Assert.DoesNotContain(replacement, entry.NewValues);
+        Assert.True(entry.OldValues.Length < 1_000);
+        Assert.True(entry.NewValues.Length < 1_000);
+        using var newValues = System.Text.Json.JsonDocument.Parse(entry.NewValues);
+        Assert.True(newValues.RootElement.GetProperty("Content").GetProperty("diffOmitted").GetBoolean());
+        Assert.Equal(40_000, newValues.RootElement.GetProperty("Content").GetProperty("utf8Bytes").GetInt32());
+    }
+
+    [Fact]
     public async Task ChangelogVersionsAreUniqueAndEntriesAreAppendOnly()
     {
         var changelogs = new CommunityChangelogDalStub([new ProductChangelog { Id = 3, ProductId = 5, Version = "1.0" }]);

@@ -14,6 +14,11 @@ namespace Core.Utilities.Interceptors.Autofac
         protected virtual void OnException(IInvocation invocation, Exception e) { }
         protected virtual void OnSuccess(IInvocation invocation) { }
         protected virtual void OnSuccess(IInvocation invocation, object? result) => OnSuccess(invocation);
+        protected virtual Task OnSuccessAsync(IInvocation invocation, object? result)
+        {
+            OnSuccess(invocation, result);
+            return Task.CompletedTask;
+        }
         public override void Intercept(IInvocation invocation)
         {
             OnBefore(invocation);
@@ -55,7 +60,7 @@ namespace Core.Utilities.Interceptors.Autofac
             try
             {
                 await task.ConfigureAwait(false);
-                OnSuccess(invocation, null);
+                await OnSuccessAsync(invocation, null).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -81,7 +86,7 @@ namespace Core.Utilities.Interceptors.Autofac
             try
             {
                 var result = await ((Task<T>)task).ConfigureAwait(false);
-                OnSuccess(invocation, result);
+                await OnSuccessAsync(invocation, result).ConfigureAwait(false);
                 return result;
             }
             catch (Exception e)

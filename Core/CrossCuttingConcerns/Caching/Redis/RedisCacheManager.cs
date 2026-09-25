@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Core.CrossCuttingConcerns.Caching;
 using StackExchange.Redis;
@@ -63,6 +64,31 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
             }
         }
 
+        public async Task<(bool Found, object? Value)> TryGetAsync(string key)
+        {
+            var redisKey = ToRedisKey(key);
+            var serializedEnvelope = await GetDatabase().StringGetAsync(redisKey).ConfigureAwait(false);
+            if (serializedEnvelope.IsNullOrEmpty) return (false, null);
+
+            try
+            {
+                var envelope = JsonConvert.DeserializeObject<CacheValueEnvelope>(serializedEnvelope!);
+                if (envelope is not null && !string.IsNullOrWhiteSpace(envelope.TypeName))
+                {
+                    var valueType = Type.GetType(envelope.TypeName, throwOnError: false);
+                    var value = valueType is null ? null : JsonConvert.DeserializeObject(envelope.Payload, valueType);
+                    if (value is not null) return (true, value);
+                }
+            }
+            catch (JsonException)
+            {
+                // A malformed cache entry is a miss and is removed below.
+            }
+
+            await GetDatabase().KeyDeleteAsync(redisKey).ConfigureAwait(false);
+            return (false, null);
+        }
+
         public void Add(string key, object? value, int? durationMinutes)
         {
             if (value == null)
@@ -82,6 +108,22 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
                 : null;
             GetDatabase().StringSet(ToRedisKey(key), JsonConvert.SerializeObject(envelope), expiration,
                 keepTtl: false, when: When.Always);
+        }
+
+        public async Task AddAsync(string key, object? value, int? durationMinutes)
+        {
+            if (value is null) return;
+            var valueType = value.GetType();
+            var envelope = new CacheValueEnvelope
+            {
+                TypeName = valueType.AssemblyQualifiedName ?? valueType.FullName ?? valueType.Name,
+                Payload = JsonConvert.SerializeObject(value)
+            };
+            TimeSpan? expiration = durationMinutes is > 0
+                ? TimeSpan.FromMinutes(durationMinutes.Value)
+                : null;
+            await GetDatabase().StringSetAsync(ToRedisKey(key), JsonConvert.SerializeObject(envelope),
+                expiration, keepTtl: false, when: When.Always).ConfigureAwait(false);
         }
 
         public bool IsExists(string key)
@@ -127,11 +169,43 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
             }
         }
 
+        public async Task RemoveByPatternAsync(string pattern)
+        {
+            var database = GetDatabase();
+            var redisPattern = ToRedisKey(pattern);
+            foreach (var endpoint in _connectionMultiplexer.GetEndPoints())
+            {
+                var server = _connectionMultiplexer.GetServer(endpoint);
+                if (!server.IsConnected) continue;
+
+                var batch = new List<RedisKey>(KeyDeleteBatchSize);
+                await foreach (var key in server.KeysAsync(database: 0, pattern: redisPattern,
+                                   pageSize: KeyDeleteBatchSize).ConfigureAwait(false))
+                {
+                    batch.Add(key);
+                    if (batch.Count < KeyDeleteBatchSize) continue;
+                    await database.KeyDeleteAsync(batch.ToArray()).ConfigureAwait(false);
+                    batch.Clear();
+                }
+
+                if (batch.Count > 0)
+                    await database.KeyDeleteAsync(batch.ToArray()).ConfigureAwait(false);
+            }
+        }
+
         public long GetProfileGeneration(string profile) =>
             (long?)GetDatabase().StringGet(ToRedisKey($"cache-generation:{profile}")) ?? 0L;
 
         public void AdvanceProfileGeneration(string profile) =>
             GetDatabase().StringIncrement(ToRedisKey($"cache-generation:{profile}"));
+
+        public async Task<long> GetProfileGenerationAsync(string profile) =>
+            (long?)await GetDatabase().StringGetAsync(ToRedisKey($"cache-generation:{profile}"))
+                .ConfigureAwait(false) ?? 0L;
+
+        public async Task AdvanceProfileGenerationAsync(string profile) =>
+            await GetDatabase().StringIncrementAsync(ToRedisKey($"cache-generation:{profile}"))
+                .ConfigureAwait(false);
 
         private IDatabase GetDatabase()
         {

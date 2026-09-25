@@ -20,5 +20,24 @@ namespace Core.CrossCuttingConcerns.Caching
         void RemoveByPattern(string pattern);
         long GetProfileGeneration(string profile) => 0;
         void AdvanceProfileGeneration(string profile) => RemoveByPattern($"{profile}:*");
+
+        Task<(bool Found, object? Value)> TryGetAsync(string key) =>
+            Task.FromResult(TryGet(key, out var value) ? (true, value) : (false, (object?)null));
+        Task AddAsync(string key, object? value, int? durationMinutes)
+        {
+            Add(key, value, durationMinutes);
+            return Task.CompletedTask;
+        }
+        Task RemoveByPatternAsync(string pattern)
+        {
+            RemoveByPattern(pattern);
+            return Task.CompletedTask;
+        }
+        Task<long> GetProfileGenerationAsync(string profile) => Task.FromResult(GetProfileGeneration(profile));
+        Task AdvanceProfileGenerationAsync(string profile)
+        {
+            AdvanceProfileGeneration(profile);
+            return Task.CompletedTask;
+        }
     }
 }

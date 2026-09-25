@@ -16,7 +16,7 @@ public sealed class ProductBusinessRulesTests
     [Fact]
     public async Task RejectsDuplicateNameAndSlugButAllowsCurrentProductDuringUpdate()
     {
-        var product = new Product { ProductId = 8, Name = "Guidora", Slug = "guidora" };
+        var product = new Product { ProductId = 8, Name = "guidora", Slug = "guidora" };
         var rules = new ProductBusinessRules(new ProductDalStub([product]), new CategoryDalStub());
 
         Assert.False((await rules.EnsureIdentityIsAvailableAsync(
@@ -42,12 +42,12 @@ public sealed class ProductBusinessRulesTests
     }
 
     [Fact]
-    public async Task ProductIdentityCheckIsCaseInsensitiveAndCanonicalizesWebAddresses()
+    public async Task ProductIdentityCheckNormalizesSlugAndCanonicalizesWebAddresses()
     {
         var existing = new Product
         {
             ProductId = 8,
-            Name = "Guidora",
+            Name = "guidora",
             Slug = "guidora",
             WebsiteUrl = ProductIdentityNormalizer.NormalizeWebsiteUrl("https://example.test/product")
         };

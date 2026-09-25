@@ -75,6 +75,8 @@ public sealed class TokenValidationManagerTests
             session.RevokedAt = revokedAt;
             return Task.FromResult(true);
         }
+        public Task<bool> TryMarkReplayDetectedAsync(Guid sessionId, DateTime detectedAt,
+            CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 
     private sealed class InMemoryDistributedCacheStub : IDistributedCache

@@ -190,30 +190,7 @@ namespace Business.Concrete
 
             if (session.RevokedAt.HasValue)
             {
-                if (session.ReplacedBySessionId.HasValue && !session.ReplayDetectedAt.HasValue)
-                {
-                    session.ReplayDetectedAt = DateTime.UtcNow;
-                    _userSessionDal.Update(session);
-                    using var transaction = new TransactionScope(TransactionScopeOption.Required,
-                        new TransactionOptions
-                        {
-                            IsolationLevel = IsolationLevel.ReadCommitted,
-                            Timeout = TransactionManager.DefaultTimeout
-                        }, TransactionScopeAsyncFlowOption.Enabled);
-                    try
-                    {
-                        await _unitOfWork.SaveChangesAsync(cancellationToken);
-                        var invalidation = await _sessionInvalidationService.InvalidateUserSessionsAsync(
-                            session.UserId, cancellationToken);
-                        if (!invalidation.Success)
-                            return new ErrorDataResult<AuthenticationResultDto>(invalidation.Message);
-                        transaction.Complete();
-                    }
-                    catch (DbUpdateConcurrencyException)
-                    {
-                        return new ErrorDataResult<AuthenticationResultDto>("Refresh session replay was already handled.");
-                    }
-                }
+                await HandleReplayAsync(session, cancellationToken);
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is no longer valid.");
             }
 
@@ -281,12 +258,30 @@ namespace Business.Concrete
 
             if (rotationRejected)
             {
-                await _sessionInvalidationService.InvalidateUserSessionsAsync(session.UserId, cancellationToken);
+                await HandleReplayAsync(session, cancellationToken);
                 return result!;
             }
 
             await _distributedCache.RemoveAsync($"auth-session:{session.Id}", CancellationToken.None);
             return result!;
+        }
+
+        private async Task HandleReplayAsync(UserSession session, CancellationToken cancellationToken)
+        {
+            using var transaction = new TransactionScope(TransactionScopeOption.Required,
+                new TransactionOptions
+                {
+                    IsolationLevel = IsolationLevel.ReadCommitted,
+                    Timeout = TransactionManager.DefaultTimeout
+                }, TransactionScopeAsyncFlowOption.Enabled);
+            if (!await _userSessionDal.TryMarkReplayDetectedAsync(session.Id, DateTime.UtcNow, cancellationToken))
+                return;
+
+            var invalidation = await _sessionInvalidationService.InvalidateUserSessionsAsync(
+                session.UserId, cancellationToken);
+            if (!invalidation.Success)
+                throw new InvalidOperationException("Refresh replay session invalidation failed.");
+            transaction.Complete();
         }
 
         public async Task<IResult> RevokeSessionAsync(string refreshToken, CancellationToken cancellationToken = default)

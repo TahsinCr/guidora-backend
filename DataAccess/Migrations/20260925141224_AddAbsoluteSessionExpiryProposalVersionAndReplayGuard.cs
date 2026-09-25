@@ -31,8 +31,22 @@ namespace DataAccess.Migrations
                 nullable: false,
                 defaultValue: 0L);
 
-            migrationBuilder.Sql("UPDATE \"UserSessions\" SET \"AbsoluteExpiresAt\" = \"CreatedAt\" + INTERVAL '180 days';");
-            migrationBuilder.Sql("UPDATE \"ProductEditProposals\" AS proposal SET \"BaseProductVersion\" = product.xmin::text::bigint FROM \"Products\" AS product WHERE product.\"ProductId\" = proposal.\"ProductId\";");
+            migrationBuilder.Sql("""
+WITH RECURSIVE ancestry AS (
+    SELECT "Id" AS descendant, "Id" AS ancestor, "CreatedAt" FROM "UserSessions"
+    UNION ALL
+    SELECT ancestry.descendant, parent."Id", parent."CreatedAt"
+    FROM ancestry
+    JOIN "UserSessions" AS parent ON parent."ReplacedBySessionId" = ancestry.ancestor
+), roots AS (
+    SELECT descendant, MIN("CreatedAt") AS first_created FROM ancestry GROUP BY descendant
+)
+UPDATE "UserSessions" AS session
+SET "AbsoluteExpiresAt" = roots.first_created + INTERVAL '180 days'
+FROM roots WHERE session."Id" = roots.descendant;
+""");
+            // The base revision of legacy proposals is unknowable. Their zero value
+            // deliberately makes pending proposals conflict until resubmitted.
 
             migrationBuilder.AlterColumn<DateTime>(
                 name: "AbsoluteExpiresAt",

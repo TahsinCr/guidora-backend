@@ -34,44 +34,42 @@ namespace Core.Aspects.Caching
 
         public override void Intercept(IInvocation invocation)
         {
-            var key = BuildCacheKey(invocation);
             var returnType = invocation.Method.ReturnType;
+            if (IsGenericTask(returnType))
+            {
+                var method = typeof(CacheAspect).GetMethod(nameof(InterceptGenericTaskCore),
+                    BindingFlags.Instance | BindingFlags.NonPublic)!;
+                invocation.ReturnValue = method.MakeGenericMethod(returnType.GetGenericArguments()[0])
+                    .Invoke(this, [invocation])!;
+                return;
+            }
+
+            var key = BuildCacheKey(invocation, _cacheManager.GetProfileGeneration(_profile));
             if (_cacheManager.TryGet(key, out var cachedValue))
             {
-                invocation.ReturnValue = IsGenericTask(returnType)
-                    ? CreateCompletedTask(returnType.GetGenericArguments()[0], cachedValue)
-                    : cachedValue;
+                invocation.ReturnValue = cachedValue;
                 return;
             }
 
             invocation.Proceed();
-            if (invocation.ReturnValue is Task task && IsGenericTask(returnType))
-            {
-                invocation.ReturnValue = CacheGenericTask(task, returnType.GetGenericArguments()[0], key);
-                return;
-            }
-
             CacheIfSuccessful(key, invocation.ReturnValue);
         }
 
-        private object CacheGenericTask(Task task, Type resultType, string key)
+        private async Task<T> InterceptGenericTaskCore<T>(IInvocation invocation)
         {
-            var method = typeof(CacheAspect).GetMethod(nameof(CacheGenericTaskCore),
-                BindingFlags.Instance | BindingFlags.NonPublic)!;
-            return method.MakeGenericMethod(resultType).Invoke(this, [task, key])!;
-        }
+            var generation = await _cacheManager.GetProfileGenerationAsync(_profile).ConfigureAwait(false);
+            var key = BuildCacheKey(invocation, generation);
+            var (found, cachedValue) = await _cacheManager.TryGetAsync(key).ConfigureAwait(false);
+            if (found) return (T)cachedValue!;
 
-        private async Task<T> CacheGenericTaskCore<T>(Task task, string key)
-        {
-            var result = await ((Task<T>)task).ConfigureAwait(false);
-            CacheIfSuccessful(key, result);
+            invocation.Proceed();
+            if (invocation.ReturnValue is not Task<T> pending)
+                throw new InvalidOperationException("Cached asynchronous method did not return a Task.");
+            var result = await pending.ConfigureAwait(false);
+            if (result is not IResult operationResult || operationResult.Success)
+                await _cacheManager.AddAsync(key, result, _duration > 0 ? _duration : null)
+                    .ConfigureAwait(false);
             return result;
-        }
-
-        private static object CreateCompletedTask(Type resultType, object? value)
-        {
-            var method = typeof(Task).GetMethod(nameof(Task.FromResult))!.MakeGenericMethod(resultType);
-            return method.Invoke(null, [value])!;
         }
 
         private void CacheIfSuccessful(string key, object? value)
@@ -87,7 +85,7 @@ namespace Core.Aspects.Caching
         private static bool IsGenericTask(Type returnType) =>
             returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>);
 
-        private string BuildCacheKey(IInvocation invocation)
+        private string BuildCacheKey(IInvocation invocation, long generation)
         {
             var methodName = $"{invocation.Method.ReflectedType?.FullName ?? invocation.Method.DeclaringType?.FullName ?? "Unknown"}.{invocation.Method.Name}";
             var cacheArguments = invocation.Arguments
@@ -110,7 +108,6 @@ namespace Core.Aspects.Caching
             {
                 return $":arg:{index}:{CacheKeySegment.Hash(invocation.Arguments[index])}";
             });
-            var generation = _cacheManager.GetProfileGeneration(_profile);
             return $"{_profile}:generation:{generation}:{methodName}:{hash}{string.Concat(keySegments)}";
         }
     }

@@ -30,9 +30,11 @@ public sealed class OperationClaimDeleteBehaviorTests
 
         foreach (var entityType in new[] { typeof(Product), typeof(Category) })
         {
-            var token = context.Model.FindEntityType(entityType)!.FindProperty("xmin");
+            var token = context.Model.FindEntityType(entityType)!
+                .FindProperty(entityType == typeof(Product) ? nameof(Product.Version) : "xmin");
             Assert.NotNull(token);
             Assert.True(token!.IsConcurrencyToken);
+            Assert.Equal("xmin", token.GetColumnName());
             Assert.True(token.ValueGenerated.HasFlag(Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAddOrUpdate));
         }
     }

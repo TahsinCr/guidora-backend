@@ -84,6 +84,32 @@ public sealed class AuthManagerTests
 
         Assert.False(result.Success);
         Assert.Equal([23], invalidation.InvalidatedUsers);
+        Assert.NotNull(session.ReplayDetectedAt);
+
+        await manager.RefreshSessionAsync(rawRefreshToken, "test client");
+        Assert.Equal([23], invalidation.InvalidatedUsers);
+    }
+
+    [Fact]
+    public async Task FailedConcurrentRotationHandlesReplayOnlyOnce()
+    {
+        const string rawRefreshToken = "racing-refresh-secret";
+        var session = new UserSession
+        {
+            Id = Guid.NewGuid(), UserId = 31,
+            RefreshTokenHash = RefreshTokenHasher.Hash(rawRefreshToken),
+            CreatedAt = DateTime.UtcNow.AddDays(-1), ExpiresAt = DateTime.UtcNow.AddDays(10),
+            AbsoluteExpiresAt = DateTime.UtcNow.AddDays(179)
+        };
+        var sessions = new UserSessionDalStub([session]) { ForceRotationConflict = true };
+        var invalidation = new SessionInvalidationStub();
+        var manager = CreateManager(new UserServiceStub(new User { Id = 31, Status = true }),
+            sessions, new AuthenticationStateDalStub(), new RecordingDistributedCache(), invalidation);
+
+        Assert.False((await manager.RefreshSessionAsync(rawRefreshToken, "test client")).Success);
+        Assert.NotNull(session.ReplayDetectedAt);
+        await manager.RefreshSessionAsync(rawRefreshToken, "test client");
+        Assert.Equal([31], invalidation.InvalidatedUsers);
     }
 
     private static AuthManager CreateManager(IUserService users, UserSessionDalStub sessions,
@@ -123,6 +149,7 @@ public sealed class AuthManagerTests
         : EntityRepositoryStub<UserSession>(values), IUserSessionDal
     {
         public IReadOnlyList<UserSession> Records => GetAll();
+        public bool ForceRotationConflict { get; init; }
         public Task<bool> TryRotateAsync(Guid sessionId, Guid replacementSessionId, DateTime revokedAt,
             CancellationToken cancellationToken = default)
         {
@@ -130,13 +157,22 @@ public sealed class AuthManagerTests
             if (session is null) return Task.FromResult(false);
             session.RevokedAt = revokedAt;
             session.ReplacedBySessionId = replacementSessionId;
-            return Task.FromResult(true);
+            return Task.FromResult(!ForceRotationConflict);
         }
         public Task<bool> TryRevokeAsync(Guid sessionId, DateTime revokedAt, CancellationToken cancellationToken = default)
         {
             var session = Get(item => item.Id == sessionId && item.RevokedAt == null);
             if (session is null) return Task.FromResult(false);
             session.RevokedAt = revokedAt;
+            return Task.FromResult(true);
+        }
+        public Task<bool> TryMarkReplayDetectedAsync(Guid sessionId, DateTime detectedAt,
+            CancellationToken cancellationToken = default)
+        {
+            var session = Get(item => item.Id == sessionId && item.ReplacedBySessionId != null &&
+                                      item.ReplayDetectedAt == null);
+            if (session is null) return Task.FromResult(false);
+            session.ReplayDetectedAt = detectedAt;
             return Task.FromResult(true);
         }
     }

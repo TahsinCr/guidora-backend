@@ -12,6 +12,7 @@ using Business.ValidationRules.FluentValidation;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete;
 
@@ -124,7 +125,14 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
             {
                 Status = "Revoked", verification.RevokedAt, Note = request.Note
             }), cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ConflictResult("Community verification changed concurrently. Reload and try again.");
+        }
         return new SuccessResult("Community verification revoked by a moderator or Admin.");
     }
 }

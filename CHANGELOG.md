@@ -9,8 +9,12 @@ All notable changes to the Guidora backend are documented here.
 - Preserved each refresh session's fixed absolute expiry across token rotations,
   and recorded refresh-token replay once so a previously rotated token cannot
   repeatedly revoke sessions created after its first replay.
+- Marked replay atomically in both revoked-token and concurrent-rotation paths;
+  repeated use of the same old token cannot repeatedly invalidate new sessions.
 - Rejected Product edit proposals based on an older PostgreSQL `xmin` revision;
-  Product and Category optimistic concurrency conflicts now return HTTP 409.
+  Product and Category update, delete, and deactivation concurrency conflicts
+  now return HTTP 409.
+- Returned HTTP 409 for concurrent Community verification revocation.
 - Serialized last-active-Admin removal and ban checks with a transaction-scoped
   PostgreSQL advisory lock.
 - Excluded `CancellationToken` arguments from cache keys and changed Product name
@@ -24,15 +28,18 @@ All notable changes to the Guidora backend are documented here.
 - Replaced broad catalog-listing Redis key scans with profile-generation bumps;
   targeted Product detail invalidation remains scoped to the Product ID. Changed
   Redis eviction to `volatile-lfu` so non-expiring generation counters survive.
+- Switched async catalog reads and post-commit cache invalidation to asynchronous
+  Redis calls, including targeted key scans.
 - Compacted large Document and Changelog audit content to hashes, sizes, and a
-  bounded single-range change summary.
+  single-range change summary capped at 8 KiB.
 - Added the V1 Community Verification vote workflow: active User-role members
   other than the Product creator may vote once per Product; five affirmative
   votes verify it, and Moderators/Admins may revoke with a note.
 - Settled Product website identity: exact normalized URLs are unique, while
   different URLs on the same vendor domain are allowed.
-- Added migration backfills for existing absolute session expiry and pending
-  proposal base revisions.
+- Backfilled existing session absolute expiry from the first linked rotation;
+  legacy pending proposals require resubmission because their original Product
+  revision cannot be reconstructed safely.
 
 - Mapped derived FluentValidation exceptions to HTTP 400 as well as the base
   exception type, preventing specialized validation failures from becoming 500s.

@@ -9,6 +9,7 @@ using Core.Exceptions;
 using DataAccess.Concrete.Entityframework;
 using DataAccess.Concrete.Entityframework.Contexts;
 using Entities;
+using Entities.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
@@ -22,6 +23,101 @@ namespace Tests.Integration;
 
 public sealed class InfrastructureIntegrationTests
 {
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task ProductIdentityRuleUsesCitextForCaseInsensitiveNameAndSlug()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        await using var context = new GuidoraDbContext(options);
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        var suffix = Guid.NewGuid().ToString("N");
+        var user = new User
+        {
+            FirstName = "Identity", LastName = "Check", Email = $"identity-{suffix}@example.test",
+            PasswordHash = [1], PasswordSalt = [1], Status = true
+        };
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        context.Products.Add(new Product
+        {
+            Name = $"Guidora {suffix}", Slug = $"guidora-{suffix}",
+            WebsiteUrl = $"https://identity-{suffix}.example.test",
+            ShortDescription = "Identity check", Description = "Case insensitive identity.",
+            LogoUrl = "https://example.test/logo.png", CreatedByUserId = user.Id,
+            ProductStatusId = 1, CreatedAt = DateTime.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        var rules = new ProductBusinessRules(new EfProductDal(context), new EfCategoryDal(context));
+        Assert.IsType<ConflictResult>(await rules.EnsureIdentityIsAvailableAsync(
+            $"gUIDORA {suffix}", $"different-{suffix}", $"https://other-{suffix}.example.test"));
+        Assert.IsType<ConflictResult>(await rules.EnsureIdentityIsAvailableAsync(
+            $"Other {suffix}", $"GUIDORA-{suffix}", $"https://other-{suffix}.example.test"));
+        await transaction.RollbackAsync();
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task CommunityVerificationRequiresFiveDistinctAffirmativeVotesAndCanBeRevoked()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        await using var context = new GuidoraDbContext(options);
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        var suffix = Guid.NewGuid().ToString("N");
+        var users = Enumerable.Range(0, 8).Select(index => new User
+        {
+            FirstName = "Community", LastName = $"Vote{index}",
+            Email = $"vote-{index}-{suffix}@example.test",
+            PasswordHash = [1], PasswordSalt = [1], Status = true
+        }).ToArray();
+        context.Users.AddRange(users);
+        await context.SaveChangesAsync();
+        var role = await context.Roles.SingleAsync(item => item.Code == "user");
+        context.UserRoles.AddRange(users.Skip(1).Select(user => new UserRole
+            { UserId = user.Id, RoleId = role.Id }));
+        var product = new Product
+        {
+            Name = $"Community {suffix}", Slug = $"community-{suffix}",
+            ShortDescription = "Community voting test", Description = "Verification vote workflow.",
+            WebsiteUrl = $"https://community-{suffix}.example.test",
+            LogoUrl = "https://example.test/logo.png", CreatedByUserId = users[0].Id,
+            ProductStatusId = 1, CreatedAt = DateTime.UtcNow
+        };
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var manager = new CommunityVerificationManager(new EfProductDal(context), new EfUserDal(context),
+            new EfRoleDal(context), new EfUserRoleDal(context), new EfProductVerificationVoteDal(context),
+            new EfProductVerificationDal(context), new EfVerificationTypeDal(context),
+            new EfAuditLogDal(context), new GuidoraUnitOfWork(context));
+        Assert.False((await manager.VoteAsync(product.ProductId, users[0].Id,
+            new CommunityVerificationVoteRequest { Approved = true })).Success);
+        Assert.True((await manager.VoteAsync(product.ProductId, users[1].Id,
+            new CommunityVerificationVoteRequest { Approved = false })).Success);
+        Assert.IsType<ConflictResult>(await manager.VoteAsync(product.ProductId, users[1].Id,
+            new CommunityVerificationVoteRequest { Approved = true }));
+
+        foreach (var voter in users.Skip(2).Take(5))
+            Assert.True((await manager.VoteAsync(product.ProductId, voter.Id,
+                new CommunityVerificationVoteRequest { Approved = true })).Success);
+
+        var communityType = await context.VerificationTypes.SingleAsync(item => item.Code == "community");
+        var verification = await context.ProductVerifications.SingleAsync(item =>
+            item.ProductId == product.ProductId && item.VerificationTypeId == communityType.Id);
+        Assert.Null(verification.RevokedAt);
+        Assert.Equal(5, await context.ProductVerificationVotes.CountAsync(item =>
+            item.ProductId == product.ProductId && item.Approved));
+
+        Assert.True((await manager.RevokeAsync(product.ProductId, users[0].Id,
+            new ReviewNoteRequest { Note = "Invalid community evidence." })).Success);
+        Assert.NotNull(verification.RevokedAt);
+        Assert.IsType<ConflictResult>(await manager.VoteAsync(product.ProductId, users[7].Id,
+            new CommunityVerificationVoteRequest { Approved = true }));
+        await transaction.RollbackAsync();
+    }
+
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
     public async Task PostgreSqlIsReachableAndHasNoPendingMigrations()
     {
@@ -716,11 +812,17 @@ public sealed class InfrastructureIntegrationTests
             .ToArray();
 
         foreach (var key in keys)
-        {
-            cache.Add(key, "value", durationMinutes: 5);
-        }
+            await cache.AddAsync(key, "value", durationMinutes: 5);
 
-        cache.RemoveByPattern($"{profile}:*");
+        var hit = await cache.TryGetAsync(keys[0]);
+        Assert.True(hit.Found);
+        Assert.Equal("value", hit.Value);
+
+        Assert.Equal(0, await cache.GetProfileGenerationAsync(profile));
+        await cache.AdvanceProfileGenerationAsync(profile);
+        Assert.Equal(1, await cache.GetProfileGenerationAsync(profile));
+
+        await cache.RemoveByPatternAsync($"{profile}:*");
 
         Assert.All(keys, key => Assert.False(cache.IsExists(key)));
     }

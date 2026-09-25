@@ -1,4 +1,5 @@
 ﻿using Castle.DynamicProxy;
+using System.Threading.Tasks;
 using Core.CrossCuttingConcerns.Caching;
 using Core.Utilities.Interceptors.Autofac;
 using Core.Utilities.IoC;
@@ -51,6 +52,35 @@ namespace Core.Aspects.Caching
                     _cacheManager.RemoveByPattern($"{profile}:*:arg:{ArgumentIndex}:{CacheKeySegment.Hash(invocation.Arguments[ArgumentIndex])}");
                 else
                     _cacheManager.AdvanceProfileGeneration(profile);
+            }
+        }
+
+        protected override async Task OnSuccessAsync(IInvocation invocation, object? result)
+        {
+            if (result is IResult operationResult && !operationResult.Success) return;
+
+            if (result is ICacheInvalidationDirective directive)
+            {
+                foreach (var target in directive.CacheInvalidations)
+                {
+                    if (target.ArgumentIndex is int argumentIndex)
+                        await _cacheManager.RemoveByPatternAsync(
+                            $"{target.Profile}:*:arg:{argumentIndex}:{CacheKeySegment.Hash(target.ArgumentValue)}")
+                            .ConfigureAwait(false);
+                    else
+                        await _cacheManager.AdvanceProfileGenerationAsync(target.Profile).ConfigureAwait(false);
+                }
+                return;
+            }
+
+            foreach (var profile in _profiles)
+            {
+                if (ArgumentIndex >= 0 && ArgumentIndex < invocation.Arguments.Length)
+                    await _cacheManager.RemoveByPatternAsync(
+                        $"{profile}:*:arg:{ArgumentIndex}:{CacheKeySegment.Hash(invocation.Arguments[ArgumentIndex])}")
+                        .ConfigureAwait(false);
+                else
+                    await _cacheManager.AdvanceProfileGenerationAsync(profile).ConfigureAwait(false);
             }
         }
     }

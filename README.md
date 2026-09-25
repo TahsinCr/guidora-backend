@@ -110,11 +110,15 @@ payloads are not recorded.
 
 Redis is the shared cache provider for public catalog reads. Cache policy is
 declared on each use-case with `CacheAspect(profile, durationMinutes)`. An
-omitted/non-positive duration means no time-based expiration; Redis may still
-evict the entry under memory pressure. Product and category writes invalidate
+omitted/non-positive duration means no time-based expiration; Redis retains
+that entry until explicit invalidation. All production catalog profiles
+set positive lifetimes so Redis can evict their values under memory pressure.
+Product and category writes invalidate
 their related profiles only after a successful business result and, when used,
 after the database transaction commits. Cache values are JSON envelopes with
 their concrete result type; PostgreSQL remains the source of truth.
+Async catalog reads and post-commit invalidation use Redis async operations so
+network waits do not block ASP.NET request threads.
 Authentication session validation uses a separate, one-minute distributed
 Redis entry.
 
@@ -204,7 +208,10 @@ be updated directly; edits to actively verified Products are stored as separate
 pending proposals containing the scalar, Category, and Tag snapshot. Proposal
 acceptance revalidates the snapshot before atomically applying it; rejection
 leaves the canonical Product unchanged. Document and media edits are not part of
-the V1 proposal snapshot.
+the V1 proposal snapshot. Each proposal records the Product revision it was
+created from; accepting a stale revision returns HTTP 409. Legacy proposals
+created before that revision field existed must be resubmitted because their
+original Product revision cannot be reconstructed.
 
 Product names are unique case-insensitively and slugs are unique in PostgreSQL.
 Website URLs are normalized before persistence; exact normalized URL matches
@@ -257,8 +264,7 @@ and closes all but the oldest one for each user/Product pair.
 
 Large Document and Changelog `Content` values above 32 KiB are represented in
 audit snapshots by SHA-256, UTF-8 byte and character counts, plus a compact
-single-range change when the inserted text is at most one quarter of the new
-content. Large replacements keep hashes and lengths and mark the detailed diff
+single-range change when the inserted text is at most 8 KiB. Large replacements keep hashes and lengths and mark the detailed diff
 as omitted. Small content remains in full.
 
 Admin and Community verification are separate verification types. Community

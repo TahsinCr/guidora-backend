@@ -11,5 +11,7 @@ namespace DataAccess.Abstract
         Task<bool> TryRotateAsync(Guid sessionId, Guid replacementSessionId, DateTime revokedAt,
             CancellationToken cancellationToken = default);
         Task<bool> TryRevokeAsync(Guid sessionId, DateTime revokedAt, CancellationToken cancellationToken = default);
+        Task<bool> TryMarkReplayDetectedAsync(Guid sessionId, DateTime detectedAt,
+            CancellationToken cancellationToken = default);
     }
 }

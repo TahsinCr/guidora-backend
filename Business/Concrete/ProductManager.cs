@@ -378,7 +378,14 @@ namespace Business.Concrete
             await _auditLogDal.AddAsync(AuditLogFactory.Create(deletedByUserId, nameof(Product), product.ProductId.ToString(),
                 "Deleted", new { Status = oldStatus?.Code, UpdatedAt = oldUpdatedAt },
                 new { Status = deletedStatus.Code, UpdatedAt = product.UpdatedAt }), cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return new ConflictResult("Product changed while it was being deleted. Reload and try again.");
+            }
             return new SuccessResult();
         }
 

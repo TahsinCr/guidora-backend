@@ -36,5 +36,16 @@ namespace DataAccess.Concrete.Entityframework
 
             return updatedRows == 1;
         }
+
+        public async Task<bool> TryMarkReplayDetectedAsync(Guid sessionId, DateTime detectedAt,
+            CancellationToken cancellationToken = default)
+        {
+            var updatedRows = await Context.UserSessions
+                .Where(session => session.Id == sessionId && session.ReplacedBySessionId != null &&
+                                  session.ReplayDetectedAt == null)
+                .ExecuteUpdateAsync(update => update.SetProperty(session => session.ReplayDetectedAt, detectedAt),
+                    cancellationToken);
+            return updatedRows == 1;
+        }
     }
 }
