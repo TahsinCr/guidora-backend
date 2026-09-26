@@ -22,6 +22,15 @@ public sealed class ProductVerificationsController : ControllerBase
         _communityVerificationService = communityVerificationService;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetSummary(int productId, CancellationToken cancellationToken)
+    {
+        var currentUserId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId)
+            ? parsedUserId : (int?)null;
+        var result = await _verificationService.GetSummaryAsync(productId, currentUserId, cancellationToken);
+        return this.ToHttpResult(result);
+    }
+
     [HttpPost("admin")]
     public async Task<IActionResult> VerifyAsAdmin(int productId, ReviewNoteRequest request,
         CancellationToken cancellationToken)

@@ -20,6 +20,7 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
 {
     private const int PositiveVoteQuorum = 5;
     private readonly IProductDal _productDal;
+    private readonly IProductStatusDal _productStatusDal;
     private readonly IUserDal _userDal;
     private readonly IRoleDal _roleDal;
     private readonly IUserRoleDal _userRoleDal;
@@ -29,11 +30,13 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
     private readonly IAuditLogDal _auditDal;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CommunityVerificationManager(IProductDal productDal, IUserDal userDal, IRoleDal roleDal,
+    public CommunityVerificationManager(IProductDal productDal, IProductStatusDal productStatusDal,
+        IUserDal userDal, IRoleDal roleDal,
         IUserRoleDal userRoleDal, IProductVerificationVoteDal voteDal, IProductVerificationDal verificationDal,
         IVerificationTypeDal verificationTypeDal, IAuditLogDal auditDal, IUnitOfWork unitOfWork)
     {
         _productDal = productDal;
+        _productStatusDal = productStatusDal;
         _userDal = userDal;
         _roleDal = roleDal;
         _userRoleDal = userRoleDal;
@@ -52,8 +55,12 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
         await _unitOfWork.AcquireTransactionLockAsync(7_400_000_000L + productId, cancellationToken);
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (product is null) return new NotFoundResult("Product was not found.");
+        var published = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
+        if (published is null) return new ErrorResult("Published Product status is not configured.");
+        if (product.ProductStatusId != published.Id)
+            return new ConflictResult("Only published Products can receive Community verification votes.");
         if (product.CreatedByUserId == userId)
-            return new ErrorResult("Product creators cannot vote on their own Community verification.");
+            return new ForbiddenResult("Product creators cannot vote on their own Community verification.");
         var user = await _userDal.GetAsync(item => item.Id == userId && item.Status, cancellationToken);
         if (user is null) return new ErrorResult("An active User account is required to vote.");
         var userRole = await _roleDal.GetAsync(role => role.Code == "user" && role.IsActive, cancellationToken);

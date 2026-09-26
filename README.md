@@ -276,6 +276,12 @@ revoke a decision with a required review note. A revoked decision is terminal in
 V1; vote history is retained and another round is not opened. Bot verification
 remains future scope.
 
+Community votes require a published Product; creator self-votes return HTTP 403.
+`GET /api/products/{productId}/verification` returns the public Admin/Community
+state, affirmative vote count, and quorum for a published Product. When called
+with a valid user identity, it also returns whether that user voted and their
+vote; anonymous responses omit these personal fields.
+
 ## Community and Product content
 
 Authenticated users can page through their saved Products with
@@ -333,7 +339,8 @@ Guidora uses a short-lived JWT access token together with a rotating refresh
 session. Refresh tokens are random secrets, stored only as hashes in
 PostgreSQL, and are delivered to the browser in an HttpOnly cookie. The
 PostgreSQL session record is the security source of truth; Redis caches a
-successful access-token session validation for one minute and is explicitly
+successful access-token session validation for at most one minute, capped by
+both the refresh session and absolute session expirations, and is explicitly
 invalidated on logout, ban, or authorization invalidation.
 
 The default token settings are deliberately persistent without being
@@ -341,8 +348,13 @@ indefinite: access token 15 minutes, refresh session 30 days, remembered
 session 90 days, and an absolute session lifetime of 180 days. Refresh rotation
 preserves the login session's fixed absolute expiry. Replayed rotated tokens are
 recorded once, so the same old token cannot repeatedly invalidate sessions created
-after the first replay response. A ban,
-direct user-claim change, or explicit authorization invalidation revokes all
+after the first replay response.
+
+Existing sessions migrated by `AddAbsoluteSessionExpiryProposalVersionAndReplayGuard`
+use the historical V1 180-day absolute lifetime measured from the first
+session in their rotation chain; runtime configuration applies to new sessions.
+
+A ban, direct user-claim change, or explicit authorization invalidation revokes all
 of the user's sessions and increments its authorization version. The Admin-only
 role API assigns/removes roles and grants/revokes OperationClaims; affected
 users' authorization versions and sessions are invalidated in the same

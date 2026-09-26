@@ -12,6 +12,44 @@ namespace Tests.Business.Governance;
 public sealed class GovernanceWorkflowTests
 {
     [Fact]
+    public async Task VerificationSummaryShowsPublicStateAndOnlyCurrentUsersVote()
+    {
+        var product = new Product { ProductId = 5, ProductStatusId = 1 };
+        var manager = new ProductVerificationManager(
+            new ProductDal([product]),
+            new ProductStatusDal([new ProductStatus { Id = 1, Code = "published" }]),
+            new VerificationTypeDal([
+                new VerificationType { Id = 1, Code = "admin" },
+                new VerificationType { Id = 2, Code = "community" }
+            ]),
+            new VerificationDal([
+                new ProductVerification { ProductId = 5, VerificationTypeId = 1 },
+                new ProductVerification { ProductId = 5, VerificationTypeId = 2, RevokedAt = DateTime.UtcNow }
+            ]),
+            new VerificationVoteDal([
+                new ProductVerificationVote { ProductId = 5, UserId = 7, Approved = true },
+                new ProductVerificationVote { ProductId = 5, UserId = 8, Approved = false }
+            ]), new AuditDal(), new UnitOfWorkStub());
+
+        var publicResult = await manager.GetSummaryAsync(5, null);
+        var voterResult = await manager.GetSummaryAsync(5, 8);
+
+        Assert.True(publicResult.Success);
+        Assert.True(publicResult.Data.AdminVerified);
+        Assert.False(publicResult.Data.CommunityVerified);
+        Assert.True(publicResult.Data.CommunityRevoked);
+        Assert.Equal(1, publicResult.Data.PositiveVotes);
+        Assert.Equal(5, publicResult.Data.RequiredPositiveVotes);
+        Assert.Null(publicResult.Data.CurrentUserHasVoted);
+        Assert.Null(publicResult.Data.CurrentUserVote);
+        Assert.True(voterResult.Data.CurrentUserHasVoted);
+        Assert.False(voterResult.Data.CurrentUserVote);
+
+        product.ProductStatusId = 2;
+        Assert.IsAssignableFrom<INotFoundResult>(await manager.GetSummaryAsync(5, null));
+    }
+
+    [Fact]
     public async Task AcceptingPendingProposalAppliesSnapshotAndWritesAuditAtomically()
     {
         var product = new Product { ProductId = 5, Name = "Old", Slug = "old" };
@@ -127,8 +165,8 @@ public sealed class GovernanceWorkflowTests
         var audit = new AuditDal();
         var unitOfWork = new UnitOfWorkStub();
         var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
-            new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
-            audit, unitOfWork);
+            new ProductStatusDal(), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
+            new VerificationVoteDal(), audit, unitOfWork);
 
         var restored = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest { Note = "Checked" });
         var revoked = await manager.RevokeAdminVerificationAsync(5, 99, new ReviewNoteRequest { Note = "Outdated" });
@@ -150,8 +188,8 @@ public sealed class GovernanceWorkflowTests
         var audit = new AuditDal();
         var unitOfWork = new UnitOfWorkStub();
         var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
-            new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
-            audit, unitOfWork);
+            new ProductStatusDal(), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
+            new VerificationVoteDal(), audit, unitOfWork);
 
         var result = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest());
 
@@ -295,6 +333,8 @@ public sealed class GovernanceWorkflowTests
     }
 
     private sealed class VerificationDal(IEnumerable<ProductVerification>? values = null) : EntityRepositoryStub<ProductVerification>(values), IProductVerificationDal;
+    private sealed class VerificationVoteDal(IEnumerable<ProductVerificationVote>? values = null) : EntityRepositoryStub<ProductVerificationVote>(values), IProductVerificationVoteDal;
+    private sealed class ProductStatusDal(IEnumerable<ProductStatus>? values = null) : EntityRepositoryStub<ProductStatus>(values), IProductStatusDal;
     private sealed class VerificationTypeDal(IEnumerable<VerificationType>? values = null) : EntityRepositoryStub<VerificationType>(values), IVerificationTypeDal;
     private sealed class ReportReasonDal(IEnumerable<ReportReason>? values = null) : EntityRepositoryStub<ReportReason>(values), IReportReasonDal;
     private sealed class ReportStatusDal(IEnumerable<ReportStatus>? values = null) : EntityRepositoryStub<ReportStatus>(values), IReportStatusDal;

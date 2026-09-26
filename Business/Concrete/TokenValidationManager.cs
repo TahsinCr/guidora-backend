@@ -54,14 +54,18 @@ namespace Business.Concrete
 
             var session = await _userSessionDal.GetAsync(item => item.Id == parsedSessionId && item.UserId == userId,
                 cancellationToken);
-            if (session == null || session.RevokedAt.HasValue || session.ExpiresAt <= DateTime.UtcNow ||
-                session.AbsoluteExpiresAt <= DateTime.UtcNow)
+            var now = DateTime.UtcNow;
+            if (session == null || session.RevokedAt.HasValue || session.ExpiresAt <= now ||
+                session.AbsoluteExpiresAt <= now)
             {
                 return new ErrorResult("Access token session is no longer valid.");
             }
 
+            var cacheExpiresAt = now.AddMinutes(1);
+            if (session.ExpiresAt < cacheExpiresAt) cacheExpiresAt = session.ExpiresAt;
+            if (session.AbsoluteExpiresAt < cacheExpiresAt) cacheExpiresAt = session.AbsoluteExpiresAt;
             await _distributedCache.SetStringAsync(cacheKey, authorizationVersion.ToString(),
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1) },
+                new DistributedCacheEntryOptions { AbsoluteExpiration = new DateTimeOffset(cacheExpiresAt) },
                 cancellationToken);
 
             return new SuccessResult();

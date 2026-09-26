@@ -19,19 +19,57 @@ namespace Business.Concrete;
 public sealed class ProductVerificationManager : IProductVerificationService
 {
     private readonly IProductDal _productDal;
+    private readonly IProductStatusDal _productStatusDal;
     private readonly IVerificationTypeDal _verificationTypeDal;
     private readonly IProductVerificationDal _verificationDal;
+    private readonly IProductVerificationVoteDal _voteDal;
     private readonly IAuditLogDal _auditLogDal;
     private readonly IUnitOfWork _unitOfWork;
 
-    public ProductVerificationManager(IProductDal productDal, IVerificationTypeDal verificationTypeDal,
-        IProductVerificationDal verificationDal, IAuditLogDal auditLogDal, IUnitOfWork unitOfWork)
+    public ProductVerificationManager(IProductDal productDal, IProductStatusDal productStatusDal,
+        IVerificationTypeDal verificationTypeDal, IProductVerificationDal verificationDal,
+        IProductVerificationVoteDal voteDal, IAuditLogDal auditLogDal, IUnitOfWork unitOfWork)
     {
         _productDal = productDal;
+        _productStatusDal = productStatusDal;
         _verificationTypeDal = verificationTypeDal;
         _verificationDal = verificationDal;
+        _voteDal = voteDal;
         _auditLogDal = auditLogDal;
         _unitOfWork = unitOfWork;
+    }
+
+    public async Task<IDataResult<ProductVerificationSummaryDto>> GetSummaryAsync(int productId, int? currentUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var published = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
+        if (published is null)
+            return new ErrorDataResult<ProductVerificationSummaryDto>("Published Product status is not configured.");
+        if (!await _productDal.AnyAsync(item => item.ProductId == productId &&
+                item.ProductStatusId == published.Id, cancellationToken))
+            return new NotFoundDataResult<ProductVerificationSummaryDto>("Product was not found.");
+
+        var adminType = await _verificationTypeDal.GetAsync(item => item.Code == "admin", cancellationToken);
+        var communityType = await _verificationTypeDal.GetAsync(item => item.Code == "community", cancellationToken);
+        if (adminType is null || communityType is null)
+            return new ErrorDataResult<ProductVerificationSummaryDto>("Product verification types are not configured.");
+
+        var admin = await _verificationDal.GetAsync(item => item.ProductId == productId &&
+            item.VerificationTypeId == adminType.Id, cancellationToken);
+        var community = await _verificationDal.GetAsync(item => item.ProductId == productId &&
+            item.VerificationTypeId == communityType.Id, cancellationToken);
+        var positiveVotes = await _voteDal.CountAsync(item => item.ProductId == productId && item.Approved,
+            cancellationToken);
+        ProductVerificationVote? currentVote = null;
+        if (currentUserId.HasValue)
+            currentVote = await _voteDal.GetAsync(item => item.ProductId == productId &&
+                item.UserId == currentUserId.Value, cancellationToken);
+
+        return new SuccessDataResult<ProductVerificationSummaryDto>(new ProductVerificationSummaryDto(
+            admin is { RevokedAt: null }, community is { RevokedAt: null },
+            community is { RevokedAt: not null }, positiveVotes, 5,
+            currentUserId.HasValue ? currentVote is not null : null,
+            currentVote?.Approved));
     }
 
     [SecuredOperationAspect("Product.Verify")]

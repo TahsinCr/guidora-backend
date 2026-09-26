@@ -1,10 +1,12 @@
 ﻿using Business.Abstract;
+using Core.Utilities.Results;
 using Entities;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using WebAPI.Utilities;
 
 namespace WebAPI.Controllers
@@ -50,7 +52,9 @@ namespace WebAPI.Controllers
         public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
         {
             var result = await _productService.GetByIdAsync(id, cancellationToken);
-            return this.ToHttpResult(result);
+            return result.Success
+                ? this.ToHttpResult(new SuccessDataResult<ProductResponseDto>(ToResponse(result.Data), result.Message))
+                : this.ToHttpResult(result);
         }
 
         [HttpGet("by-category/{id:int}")]
@@ -58,15 +62,29 @@ namespace WebAPI.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _productService.GetPageAsync(request, id, cancellationToken);
-            return this.ToHttpResult(result);
+            return MapPage(result);
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] PageRequest request, CancellationToken cancellationToken)
         {
             var result = await _productService.GetPageAsync(request, cancellationToken: cancellationToken);
-            return this.ToHttpResult(result);
+            return MapPage(result);
         }
+
+        private IActionResult MapPage(IDataResult<PagedResult<Product>> result)
+        {
+            if (!result.Success) return this.ToHttpResult(result);
+            var page = result.Data;
+            return this.ToHttpResult(new SuccessDataResult<PagedResult<ProductResponseDto>>(
+                new PagedResult<ProductResponseDto>(page.Items.Select(ToResponse).ToArray(),
+                    page.Page, page.PageSize, page.TotalCount), result.Message));
+        }
+
+        private static ProductResponseDto ToResponse(Product product) => new(
+            product.ProductId, product.Name, product.Slug, product.ShortDescription,
+            product.Description, product.WebsiteUrl, product.LogoUrl,
+            product.CreatedAt, product.UpdatedAt);
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, UpdateProductRequest request, CancellationToken cancellationToken)

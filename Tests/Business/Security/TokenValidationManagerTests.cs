@@ -49,6 +49,32 @@ public sealed class TokenValidationManagerTests
         Assert.False(result.Success);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CacheLifetimeNeverExtendsBeyondSessionExpiry(bool absoluteExpiresFirst)
+    {
+        var sessionId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var nearExpiry = now.AddSeconds(20);
+        var laterExpiry = now.AddMinutes(5);
+        var cache = new InMemoryDistributedCacheStub();
+        var manager = new TokenValidationManager(
+            new UserDalStub([new User { Id = 7, Status = true }]),
+            new AuthenticationStateDalStub([new UserAuthenticationState { UserId = 7, AuthorizationVersion = 4 }]),
+            new UserSessionDalStub([new UserSession
+            {
+                Id = sessionId, UserId = 7,
+                ExpiresAt = absoluteExpiresFirst ? laterExpiry : nearExpiry,
+                AbsoluteExpiresAt = absoluteExpiresFirst ? nearExpiry : laterExpiry
+            }]), cache);
+
+        Assert.True((await manager.ValidateAsync(7, sessionId.ToString(), 4)).Success);
+        var cacheExpiry = Assert.IsType<DateTimeOffset>(cache.LastOptions?.AbsoluteExpiration);
+        Assert.True(cacheExpiry > now);
+        Assert.True(cacheExpiry <= nearExpiry);
+    }
+
     private sealed class UserDalStub(IEnumerable<User>? values = null) : EntityRepositoryStub<User>(values), IUserDal
     {
         public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) => Task.FromResult(new List<OperationClaim>());
@@ -82,9 +108,14 @@ public sealed class TokenValidationManagerTests
     private sealed class InMemoryDistributedCacheStub : IDistributedCache
     {
         private readonly Dictionary<string, byte[]> _entries = new();
+        public DistributedCacheEntryOptions? LastOptions { get; private set; }
         public byte[]? Get(string key) => _entries.GetValueOrDefault(key);
         public Task<byte[]?> GetAsync(string key, CancellationToken token = default) => Task.FromResult(Get(key));
-        public void Set(string key, byte[] value, DistributedCacheEntryOptions options) => _entries[key] = value;
+        public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
+        {
+            LastOptions = options;
+            _entries[key] = value;
+        }
         public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options,
             CancellationToken token = default)
         {

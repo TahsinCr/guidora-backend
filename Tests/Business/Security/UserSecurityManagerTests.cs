@@ -2,6 +2,8 @@ using Business.Abstract;
 using Business.Concrete;
 using Core.Entities.Concrete;
 using Core.Utilities.Results;
+using DataAccess.Abstract;
+using Tests.Core.TestDoubles;
 
 namespace Tests.Business.Security;
 
@@ -13,7 +15,8 @@ public sealed class UserSecurityManagerTests
     public async Task MissingUserForBanOrRestoreReturnsNotFoundWithoutInvalidatingSessions(bool ban)
     {
         var invalidation = new SessionInvalidationStub();
-        var manager = new UserSecurityManager(new MissingUserService(), invalidation);
+        var manager = new UserSecurityManager(new MissingUserService(), invalidation,
+            new RoleDalStub(), new UserDalStub(), new UserRoleDalStub(), new UnitOfWorkStub());
 
         var result = ban
             ? await manager.BanAsync(42)
@@ -22,6 +25,15 @@ public sealed class UserSecurityManagerTests
         Assert.IsAssignableFrom<INotFoundResult>(result);
         Assert.Equal(0, invalidation.CallCount);
     }
+
+    private sealed class RoleDalStub : EntityRepositoryStub<Role>, IRoleDal;
+    private sealed class UserDalStub : EntityRepositoryStub<User>, IUserDal
+    {
+        public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new List<OperationClaim>());
+        public void AddClaim(User user, OperationClaim operationClaim) { }
+    }
+    private sealed class UserRoleDalStub : EntityRepositoryStub<UserRole>, IUserRoleDal;
 
     private sealed class MissingUserService : IUserService
     {

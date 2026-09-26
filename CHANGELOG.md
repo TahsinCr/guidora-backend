@@ -6,6 +6,15 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Aligned CI Redis eviction policy and pinned infrastructure images with Compose.
+- Capped access-token validation cache lifetime by refresh and absolute session
+  expiry, preventing a cache hit from extending either limit.
+- Restricted Community verification votes to published Products and returned
+  HTTP 403 for creator self-votes.
+- Removed the incomplete public `UserSecurityManager` constructor used by tests.
+- Mapped public Product detail and listing responses to a read DTO that omits
+  PostgreSQL `xmin` and internal status/creator IDs.
+
 - Preserved each refresh session's fixed absolute expiry across token rotations,
   and recorded refresh-token replay once so a previously rotated token cannot
   repeatedly revoke sessions created after its first replay.
@@ -50,6 +59,8 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Added a Product verification summary endpoint with Admin/Community state,
+  positive vote progress, and optional current-user vote details.
 - Corrected `PerformanceAspect` nesting so elapsed time includes cache hits,
   transaction commit, and post-commit invalidation; threshold breaches now use
   structured logging, and synchronous exceptions are measured before rethrow.

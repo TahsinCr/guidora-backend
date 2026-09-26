@@ -30,16 +30,6 @@ namespace Business.Concrete
             _unitOfWork = unitOfWork;
         }
 
-        public UserSecurityManager(IUserService userService, IUserSessionInvalidationService sessionInvalidationService)
-        {
-            _userService = userService;
-            _sessionInvalidationService = sessionInvalidationService;
-            _roleDal = null!;
-            _userDal = null!;
-            _userRoleDal = null!;
-            _unitOfWork = null!;
-        }
-
         [SecuredOperationAspect("User.Manage")]
         [TransactionScopeAspect]
         public async Task<IResult> BanAsync(int userId, CancellationToken cancellationToken = default)

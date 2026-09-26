@@ -88,12 +88,20 @@ public sealed class InfrastructureIntegrationTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var manager = new CommunityVerificationManager(new EfProductDal(context), new EfUserDal(context),
+        var manager = new CommunityVerificationManager(new EfProductDal(context), new EfProductStatusDal(context),
+            new EfUserDal(context),
             new EfRoleDal(context), new EfUserRoleDal(context), new EfProductVerificationVoteDal(context),
             new EfProductVerificationDal(context), new EfVerificationTypeDal(context),
             new EfAuditLogDal(context), new GuidoraUnitOfWork(context));
-        Assert.False((await manager.VoteAsync(product.ProductId, users[0].Id,
-            new CommunityVerificationVoteRequest { Approved = true })).Success);
+        Assert.IsAssignableFrom<IForbiddenResult>(await manager.VoteAsync(product.ProductId, users[0].Id,
+            new CommunityVerificationVoteRequest { Approved = true }));
+        var hiddenStatus = await context.ProductStatuses.SingleAsync(item => item.Code == "hidden");
+        product.ProductStatusId = hiddenStatus.Id;
+        await context.SaveChangesAsync();
+        Assert.IsType<ConflictResult>(await manager.VoteAsync(product.ProductId, users[1].Id,
+            new CommunityVerificationVoteRequest { Approved = true }));
+        product.ProductStatusId = 1;
+        await context.SaveChangesAsync();
         Assert.True((await manager.VoteAsync(product.ProductId, users[1].Id,
             new CommunityVerificationVoteRequest { Approved = false })).Success);
         Assert.IsType<ConflictResult>(await manager.VoteAsync(product.ProductId, users[1].Id,
