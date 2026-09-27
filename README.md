@@ -101,8 +101,18 @@ Configure browser origins through `Cors:AllowedOrigins` (Compose:
 `ForwardedHeaders:KnownProxies` to the proxy IP addresses; arbitrary forwarded
 headers must not be trusted. Login, registration, and refresh endpoints have
 configurable IP-partitioned limits under `RateLimiting:Login`, `Register`, and
-`Refresh`. Refresh cookies are Secure outside Development. HTTP request logs
-record method, path, response status, duration, and trace ID only. Query strings,
+`Refresh`. Refresh cookies are Secure outside Development. The API also applies
+IP-partitioned limits to email-verification code requests and
+confirmation attempts under `RateLimiting:EmailVerificationRequest` and
+`EmailVerificationConfirm`. Configure `EMAIL_SMTP_HOST`, `EMAIL_SMTP_FROM`,
+`EMAIL_SMTP_USERNAME`, and `EMAIL_SMTP_PASSWORD` to enable sending confirmation
+codes; registered users can still sign in before email confirmation, but cannot
+cast Community verification votes. `POST /api/auth/email-verification/request`
+and `POST /api/auth/email-verification/confirm` require a valid session. Codes
+are random, stored only as SHA-256 hashes, expire after 30 minutes, and can be
+used once. SMTP credentials remain outside Git.
+
+HTTP request logs record method, path, response status, duration, and trace ID only. Query strings,
 headers, and request/response bodies are excluded so secret query parameters and
 payloads are not recorded.
 
@@ -267,20 +277,40 @@ audit snapshots by SHA-256, UTF-8 byte and character counts, plus a compact
 single-range change when the inserted text is at most 8 KiB. Large replacements keep hashes and lengths and mark the detailed diff
 as omitted. Small content remains in full.
 
-Admin and Community verification are separate verification types. Community
-votes are limited to active users assigned the User role; Product creators cannot
-vote on their own Product, and each user gets one immutable vote per Product.
-Five affirmative votes from distinct users grant Community verification; negative
-votes are retained but do not count toward the quorum. Moderators and Admins can
-revoke a decision with a required review note. A revoked decision is terminal in
-V1; vote history is retained and another round is not opened. Bot verification
-remains future scope.
+Admin and Community verification are separate verification types. A Community
+voter must have an active User-role account, a confirmed email address, and an
+account at least seven days old. Product creators cannot vote on their own
+Product. Each account gets one immutable vote per Product; negative votes are
+retained but do not count toward the quorum. Thirty eligible affirmative votes
+queue the Product for moderator review; they never issue the badge automatically.
+Moderators and Admins inspect `GET /api/community-verification-reviews/pending`,
+then approve or reject through `POST /api/community-verification-reviews/{productId}/approve`
+or `/reject` with a review note. Approval creates the Community verification;
+rejection and later revocation are terminal in V1. Bot verification remains
+future scope.
+
+The review queue separates votes eligible when cast from the number whose
+accounts are still eligible at review time. It also includes counts of distinct
+HMAC-hashed source IPs and client header signals among positive eligible votes.
+These are investigation clues,
+not identity proof or automatic vote blockers: multiple people can share an IP
+or browser signature, and an attacker can vary either. Raw IPs and user-agent
+values are not stored with votes. The HMAC key is the configured JWT signing
+key; rotating it also changes the signal grouping for later votes.
+
+The migration starts the seven-day age period for existing accounts when it is
+applied. Existing email addresses remain unconfirmed. Historical votes remain
+in the database but do not count under the new rule; their authors cannot cast
+a second vote on the same Product. Existing Community badges issued under the
+five-vote rule are revoked with an audit entry. A Product can regain that badge
+only after 30 new eligible votes and moderator approval.
 
 Community votes require a published Product; creator self-votes return HTTP 403.
 `GET /api/products/{productId}/verification` returns the public Admin/Community
 state, affirmative vote count, and quorum for a published Product. When called
 with a valid user identity, it also returns whether that user voted and their
-vote; anonymous responses omit these personal fields.
+vote; anonymous responses omit these personal fields. The response also shows
+pending or rejected Community review state.
 
 ## Community and Product content
 

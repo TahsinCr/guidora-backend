@@ -66,6 +66,10 @@ namespace WebAPI
                     permitLimit: 5, windowSeconds: 3600);
                 AddIpRateLimitPolicy(options, builder.Configuration, "auth-refresh", "RateLimiting:Refresh",
                     permitLimit: 30, windowSeconds: 60);
+                AddIpRateLimitPolicy(options, builder.Configuration, "email-verification-request",
+                    "RateLimiting:EmailVerificationRequest", permitLimit: 3, windowSeconds: 3600);
+                AddIpRateLimitPolicy(options, builder.Configuration, "email-verification-confirm",
+                    "RateLimiting:EmailVerificationConfirm", permitLimit: 10, windowSeconds: 600);
             });
 
             // Add services to the container.

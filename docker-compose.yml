@@ -13,6 +13,11 @@ services:
       Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}
       Authorization__SyncOperationClaimsOnStartup: ${AUTHORIZATION_SYNC_OPERATION_CLAIMS_ON_STARTUP:-false}
       TokenOptions__SecurityKey: ${TOKEN_OPTIONS__SECURITYKEY:?TOKEN_OPTIONS__SECURITYKEY must be set in .env}
+      EmailVerification__Smtp__Host: ${EMAIL_SMTP_HOST:-}
+      EmailVerification__Smtp__Port: ${EMAIL_SMTP_PORT:-587}
+      EmailVerification__Smtp__From: ${EMAIL_SMTP_FROM:-}
+      EmailVerification__Smtp__Username: ${EMAIL_SMTP_USERNAME:-}
+      EmailVerification__Smtp__Password: ${EMAIL_SMTP_PASSWORD:-}
       Cors__AllowedOrigins__0: ${WEB_CLIENT_ORIGIN:-http://localhost:4200}
       ForwardedHeaders__KnownProxies__0: ${FORWARDED_HEADERS_KNOWN_PROXIES_0:-}
     ports:

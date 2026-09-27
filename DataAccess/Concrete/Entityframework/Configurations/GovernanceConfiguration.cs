@@ -111,10 +111,29 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         {
             builder.HasKey(vote => vote.Id);
             builder.HasIndex(vote => new { vote.ProductId, vote.UserId }).IsUnique();
-            builder.HasIndex(vote => new { vote.ProductId, vote.Approved });
+            builder.HasIndex(vote => new { vote.ProductId, vote.Approved, vote.EligibleAtCast });
+            builder.Property(vote => vote.OriginIpHash).HasMaxLength(64);
+            builder.Property(vote => vote.OriginClientHash).HasMaxLength(64);
             builder.HasOne<Product>().WithMany().HasForeignKey(vote => vote.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
             builder.HasOne<Core.Entities.Concrete.User>().WithMany().HasForeignKey(vote => vote.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+
+    public sealed class CommunityVerificationReviewConfiguration : IEntityTypeConfiguration<CommunityVerificationReview>
+    {
+        public void Configure(EntityTypeBuilder<CommunityVerificationReview> builder)
+        {
+            builder.HasKey(item => item.Id);
+            builder.Property<uint>("xmin").IsRowVersion();
+            builder.Property(item => item.Status).HasMaxLength(20).IsRequired();
+            builder.Property(item => item.Note).HasMaxLength(4000).IsRequired();
+            builder.HasIndex(item => item.ProductId).IsUnique();
+            builder.HasIndex(item => new { item.Status, item.ReachedAt });
+            builder.HasOne<Product>().WithMany().HasForeignKey(item => item.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne<User>().WithMany().HasForeignKey(item => item.ReviewedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

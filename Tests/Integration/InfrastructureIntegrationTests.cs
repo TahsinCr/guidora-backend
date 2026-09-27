@@ -58,7 +58,7 @@ public sealed class InfrastructureIntegrationTests
     }
 
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
-    public async Task CommunityVerificationRequiresFiveDistinctAffirmativeVotesAndCanBeRevoked()
+    public async Task CommunityVerificationRequiresThirtyEligibleVotesAndModeratorApproval()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
@@ -66,17 +66,20 @@ public sealed class InfrastructureIntegrationTests
         await using var context = new GuidoraDbContext(options);
         await using var transaction = await context.Database.BeginTransactionAsync();
         var suffix = Guid.NewGuid().ToString("N");
-        var users = Enumerable.Range(0, 8).Select(index => new User
+        var users = Enumerable.Range(0, 33).Select(index => new User
         {
             FirstName = "Community", LastName = $"Vote{index}",
             Email = $"vote-{index}-{suffix}@example.test",
-            PasswordHash = [1], PasswordSalt = [1], Status = true
+            PasswordHash = [1], PasswordSalt = [1], Status = true,
+            CreatedAt = DateTime.UtcNow.AddDays(-8), EmailVerifiedAt = DateTime.UtcNow.AddDays(-7)
         }).ToArray();
         context.Users.AddRange(users);
         await context.SaveChangesAsync();
         var role = await context.Roles.SingleAsync(item => item.Code == "user");
         context.UserRoles.AddRange(users.Skip(1).Select(user => new UserRole
             { UserId = user.Id, RoleId = role.Id }));
+        var moderatorRole = await context.Roles.SingleAsync(item => item.Code == "moderator");
+        context.UserRoles.Add(new UserRole { UserId = users[1].Id, RoleId = moderatorRole.Id });
         var product = new Product
         {
             Name = $"Community {suffix}", Slug = $"community-{suffix}",
@@ -91,9 +94,19 @@ public sealed class InfrastructureIntegrationTests
         var manager = new CommunityVerificationManager(new EfProductDal(context), new EfProductStatusDal(context),
             new EfUserDal(context),
             new EfRoleDal(context), new EfUserRoleDal(context), new EfProductVerificationVoteDal(context),
-            new EfProductVerificationDal(context), new EfVerificationTypeDal(context),
+            new EfProductVerificationDal(context), new EfCommunityVerificationReviewDal(context),
+            new EfVerificationTypeDal(context),
             new EfAuditLogDal(context), new GuidoraUnitOfWork(context));
         Assert.IsAssignableFrom<IForbiddenResult>(await manager.VoteAsync(product.ProductId, users[0].Id,
+            new CommunityVerificationVoteRequest { Approved = true }));
+        users[32].EmailVerifiedAt = null;
+        await context.SaveChangesAsync();
+        Assert.IsAssignableFrom<IForbiddenResult>(await manager.VoteAsync(product.ProductId, users[32].Id,
+            new CommunityVerificationVoteRequest { Approved = true }));
+        users[32].EmailVerifiedAt = DateTime.UtcNow;
+        users[32].CreatedAt = DateTime.UtcNow.AddDays(-6);
+        await context.SaveChangesAsync();
+        Assert.IsAssignableFrom<IForbiddenResult>(await manager.VoteAsync(product.ProductId, users[32].Id,
             new CommunityVerificationVoteRequest { Approved = true }));
         var hiddenStatus = await context.ProductStatuses.SingleAsync(item => item.Code == "hidden");
         product.ProductStatusId = hiddenStatus.Id;
@@ -107,18 +120,37 @@ public sealed class InfrastructureIntegrationTests
         Assert.IsType<ConflictResult>(await manager.VoteAsync(product.ProductId, users[1].Id,
             new CommunityVerificationVoteRequest { Approved = true }));
 
-        foreach (var voter in users.Skip(2).Take(5))
+        foreach (var voter in users.Skip(2).Take(30))
             Assert.True((await manager.VoteAsync(product.ProductId, voter.Id,
-                new CommunityVerificationVoteRequest { Approved = true })).Success);
+                new CommunityVerificationVoteRequest { Approved = true }, originIpHash: "shared-ip-signal",
+                originClientHash: "shared-client-signal")).Success);
 
         var communityType = await context.VerificationTypes.SingleAsync(item => item.Code == "community");
+        Assert.False(await context.ProductVerifications.AnyAsync(item => item.ProductId == product.ProductId &&
+            item.VerificationTypeId == communityType.Id));
+        Assert.Equal("pending", (await context.CommunityVerificationReviews.SingleAsync(item =>
+            item.ProductId == product.ProductId)).Status);
+        var pending = await manager.GetPendingAsync(new PageRequest { Page = 1, PageSize = 100 });
+        var reviewItem = Assert.Single(pending.Data.Items, item => item.ProductId == product.ProductId);
+        Assert.Equal(30, reviewItem.PositiveVotes);
+        Assert.Equal(30, reviewItem.CurrentlyEligiblePositiveVotes);
+        Assert.Equal(1, reviewItem.DistinctIpSignals);
+        Assert.Equal(1, reviewItem.DistinctClientSignals);
+        users[2].Status = false;
+        await context.SaveChangesAsync();
+        Assert.IsType<ConflictResult>(await manager.ApproveAsync(product.ProductId, users[1].Id,
+            new ReviewNoteRequest { Note = "One voter is inactive." }));
+        users[2].Status = true;
+        await context.SaveChangesAsync();
+        Assert.True((await manager.ApproveAsync(product.ProductId, users[1].Id,
+            new ReviewNoteRequest { Note = "Reviewed voter signals." })).Success);
         var verification = await context.ProductVerifications.SingleAsync(item =>
             item.ProductId == product.ProductId && item.VerificationTypeId == communityType.Id);
         Assert.Null(verification.RevokedAt);
-        Assert.Equal(5, await context.ProductVerificationVotes.CountAsync(item =>
+        Assert.Equal(30, await context.ProductVerificationVotes.CountAsync(item =>
             item.ProductId == product.ProductId && item.Approved));
 
-        Assert.True((await manager.RevokeAsync(product.ProductId, users[0].Id,
+        Assert.True((await manager.RevokeAsync(product.ProductId, users[1].Id,
             new ReviewNoteRequest { Note = "Invalid community evidence." })).Success);
         Assert.NotNull(verification.RevokedAt);
         Assert.IsType<ConflictResult>(await manager.VoteAsync(product.ProductId, users[7].Id,

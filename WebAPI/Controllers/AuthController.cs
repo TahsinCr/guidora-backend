@@ -1,4 +1,5 @@
 ﻿using Business.Abstract;
+using Microsoft.AspNetCore.Authorization;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Security.Claims;
 using WebAPI.Utilities;
 
 namespace WebAPI.Controllers
@@ -18,10 +20,34 @@ namespace WebAPI.Controllers
     public class AuthController:Controller
     {
         private readonly IAuthService _authService;
+        private readonly IEmailVerificationService _emailVerificationService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IEmailVerificationService emailVerificationService)
         {
             _authService = authService;
+            _emailVerificationService = emailVerificationService;
+        }
+
+        [Authorize]
+        [HttpPost("email-verification/request")]
+        [EnableRateLimiting("email-verification-request")]
+        public async Task<IActionResult> RequestEmailVerification(CancellationToken cancellationToken)
+        {
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+                return Unauthorized();
+            return this.ToHttpResult(await _emailVerificationService.RequestAsync(userId, cancellationToken));
+        }
+
+        [Authorize]
+        [HttpPost("email-verification/confirm")]
+        [EnableRateLimiting("email-verification-confirm")]
+        public async Task<IActionResult> ConfirmEmailVerification(ConfirmEmailRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+                return Unauthorized();
+            return this.ToHttpResult(await _emailVerificationService.ConfirmAsync(userId, request.Token,
+                cancellationToken));
         }
 
         [HttpPost("login")]

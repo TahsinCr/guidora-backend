@@ -6,6 +6,13 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Replaced automatic five-vote Community verification with a 30 eligible-vote
+  moderator review gate. Active legacy badges are revoked with an audit record
+  during migration; historical votes remain but do not count toward the new
+  quorum.
+- Restricted Community voting to confirmed email addresses on accounts at least
+  seven days old, while keeping source IP and client header hashes as review
+  signals rather than automatic blockers.
 - Aligned CI Redis eviction policy and pinned infrastructure images with Compose.
 - Capped access-token validation cache lifetime by refresh and absolute session
   expiry, preventing a cache hit from extending either limit.
@@ -41,9 +48,8 @@ All notable changes to the Guidora backend are documented here.
   Redis calls, including targeted key scans.
 - Compacted large Document and Changelog audit content to hashes, sizes, and a
   single-range change summary capped at 8 KiB.
-- Added the V1 Community Verification vote workflow: active User-role members
-  other than the Product creator may vote once per Product; five affirmative
-  votes verify it, and Moderators/Admins may revoke with a note.
+- Added immutable per-Product Community votes and moderator/admin revocation
+  with an audit note; the current quorum and approval policy is described above.
 - Settled Product website identity: exact normalized URLs are unique, while
   different URLs on the same vendor domain are allowed.
 - Backfilled existing session absolute expiry from the first linked rotation;
@@ -59,6 +65,9 @@ All notable changes to the Guidora backend are documented here.
 
 ### Added
 
+- Added authenticated one-time email confirmation codes over configured SMTP,
+  bounded request/confirmation rate limits, and a paged moderator review queue
+  with explicit approval and rejection commands.
 - Added a Product verification summary endpoint with Admin/Community state,
   positive vote progress, and optional current-user vote details.
 - Corrected `PerformanceAspect` nesting so elapsed time includes cache hits,
@@ -194,7 +203,7 @@ All notable changes to the Guidora backend are documented here.
 - Added database-paginated pending-proposal and open-report queues, plus
   `ProductReport.Review` permission seed/migration for Moderator and Admin.
 - Added Business, validation, API, and governance workflow tests in the single
-  Tests project; Community verification voting remains intentionally undefined.
+  Tests project.
 - Consolidated business-rule execution into one null-safe sequential/concurrent
   runner and removed the generic CRUD Business contract.
 - Added test-covered Catalog business rules for duplicate category/product

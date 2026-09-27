@@ -1,4 +1,5 @@
 using Core.Entities.Concrete;
+using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,6 +16,21 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(user => user.LastName).HasMaxLength(100).IsRequired();
             builder.Property(user => user.PasswordHash).IsRequired();
             builder.Property(user => user.PasswordSalt).IsRequired();
+            builder.Property(user => user.CreatedAt).HasDefaultValueSql("NOW()").IsRequired();
+            builder.HasIndex(user => user.EmailVerifiedAt);
+        }
+    }
+
+    public sealed class EmailVerificationChallengeConfiguration : IEntityTypeConfiguration<EmailVerificationChallenge>
+    {
+        public void Configure(EntityTypeBuilder<EmailVerificationChallenge> builder)
+        {
+            builder.HasKey(item => item.Id);
+            builder.Property<uint>("xmin").IsRowVersion();
+            builder.Property(item => item.TokenHash).HasMaxLength(64).IsRequired();
+            builder.HasIndex(item => item.UserId).IsUnique();
+            builder.HasOne<User>().WithMany().HasForeignKey(item => item.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 

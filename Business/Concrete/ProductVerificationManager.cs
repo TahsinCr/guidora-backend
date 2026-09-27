@@ -1,5 +1,6 @@
 using System;
 using Business.Abstract;
+using Business.Constants;
 using Business.BusinessAspect.Autofac;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
@@ -23,18 +24,21 @@ public sealed class ProductVerificationManager : IProductVerificationService
     private readonly IVerificationTypeDal _verificationTypeDal;
     private readonly IProductVerificationDal _verificationDal;
     private readonly IProductVerificationVoteDal _voteDal;
+    private readonly ICommunityVerificationReviewDal _reviewDal;
     private readonly IAuditLogDal _auditLogDal;
     private readonly IUnitOfWork _unitOfWork;
 
     public ProductVerificationManager(IProductDal productDal, IProductStatusDal productStatusDal,
         IVerificationTypeDal verificationTypeDal, IProductVerificationDal verificationDal,
-        IProductVerificationVoteDal voteDal, IAuditLogDal auditLogDal, IUnitOfWork unitOfWork)
+        IProductVerificationVoteDal voteDal, ICommunityVerificationReviewDal reviewDal,
+        IAuditLogDal auditLogDal, IUnitOfWork unitOfWork)
     {
         _productDal = productDal;
         _productStatusDal = productStatusDal;
         _verificationTypeDal = verificationTypeDal;
         _verificationDal = verificationDal;
         _voteDal = voteDal;
+        _reviewDal = reviewDal;
         _auditLogDal = auditLogDal;
         _unitOfWork = unitOfWork;
     }
@@ -58,7 +62,9 @@ public sealed class ProductVerificationManager : IProductVerificationService
             item.VerificationTypeId == adminType.Id, cancellationToken);
         var community = await _verificationDal.GetAsync(item => item.ProductId == productId &&
             item.VerificationTypeId == communityType.Id, cancellationToken);
-        var positiveVotes = await _voteDal.CountAsync(item => item.ProductId == productId && item.Approved,
+        var review = await _reviewDal.GetAsync(item => item.ProductId == productId, cancellationToken);
+        var positiveVotes = await _voteDal.CountAsync(item => item.ProductId == productId && item.Approved &&
+            item.EligibleAtCast,
             cancellationToken);
         ProductVerificationVote? currentVote = null;
         if (currentUserId.HasValue)
@@ -67,7 +73,9 @@ public sealed class ProductVerificationManager : IProductVerificationService
 
         return new SuccessDataResult<ProductVerificationSummaryDto>(new ProductVerificationSummaryDto(
             admin is { RevokedAt: null }, community is { RevokedAt: null },
-            community is { RevokedAt: not null }, positiveVotes, 5,
+            community is { RevokedAt: not null }, review is { Status: "pending" },
+            review is { Status: "rejected" }, positiveVotes,
+            CommunityVerificationPolicy.PositiveVoteQuorum,
             currentUserId.HasValue ? currentVote is not null : null,
             currentVote?.Approved));
     }

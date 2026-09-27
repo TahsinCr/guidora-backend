@@ -27,9 +27,11 @@ public sealed class GovernanceWorkflowTests
                 new ProductVerification { ProductId = 5, VerificationTypeId = 2, RevokedAt = DateTime.UtcNow }
             ]),
             new VerificationVoteDal([
-                new ProductVerificationVote { ProductId = 5, UserId = 7, Approved = true },
+                new ProductVerificationVote { ProductId = 5, UserId = 7, Approved = true, EligibleAtCast = true },
                 new ProductVerificationVote { ProductId = 5, UserId = 8, Approved = false }
-            ]), new AuditDal(), new UnitOfWorkStub());
+            ]), new CommunityReviewDal([new CommunityVerificationReview
+                { ProductId = 5, Status = "pending", ReachedAt = DateTime.UtcNow }]),
+            new AuditDal(), new UnitOfWorkStub());
 
         var publicResult = await manager.GetSummaryAsync(5, null);
         var voterResult = await manager.GetSummaryAsync(5, 8);
@@ -38,8 +40,9 @@ public sealed class GovernanceWorkflowTests
         Assert.True(publicResult.Data.AdminVerified);
         Assert.False(publicResult.Data.CommunityVerified);
         Assert.True(publicResult.Data.CommunityRevoked);
+        Assert.True(publicResult.Data.CommunityPendingReview);
         Assert.Equal(1, publicResult.Data.PositiveVotes);
-        Assert.Equal(5, publicResult.Data.RequiredPositiveVotes);
+        Assert.Equal(30, publicResult.Data.RequiredPositiveVotes);
         Assert.Null(publicResult.Data.CurrentUserHasVoted);
         Assert.Null(publicResult.Data.CurrentUserVote);
         Assert.True(voterResult.Data.CurrentUserHasVoted);
@@ -166,7 +169,7 @@ public sealed class GovernanceWorkflowTests
         var unitOfWork = new UnitOfWorkStub();
         var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
             new ProductStatusDal(), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
-            new VerificationVoteDal(), audit, unitOfWork);
+            new VerificationVoteDal(), new CommunityReviewDal(), audit, unitOfWork);
 
         var restored = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest { Note = "Checked" });
         var revoked = await manager.RevokeAdminVerificationAsync(5, 99, new ReviewNoteRequest { Note = "Outdated" });
@@ -189,7 +192,7 @@ public sealed class GovernanceWorkflowTests
         var unitOfWork = new UnitOfWorkStub();
         var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
             new ProductStatusDal(), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
-            new VerificationVoteDal(), audit, unitOfWork);
+            new VerificationVoteDal(), new CommunityReviewDal(), audit, unitOfWork);
 
         var result = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest());
 
@@ -333,7 +336,25 @@ public sealed class GovernanceWorkflowTests
     }
 
     private sealed class VerificationDal(IEnumerable<ProductVerification>? values = null) : EntityRepositoryStub<ProductVerification>(values), IProductVerificationDal;
-    private sealed class VerificationVoteDal(IEnumerable<ProductVerificationVote>? values = null) : EntityRepositoryStub<ProductVerificationVote>(values), IProductVerificationVoteDal;
+    private sealed class VerificationVoteDal(IEnumerable<ProductVerificationVote>? values = null)
+        : EntityRepositoryStub<ProductVerificationVote>(values), IProductVerificationVoteDal
+    {
+        public Task<int> CountCurrentlyEligiblePositiveVotesAsync(int productId, DateTime registeredBefore,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(GetAll(item => item.ProductId == productId && item.Approved && item.EligibleAtCast).Count);
+        public Task<Dictionary<int, int>> CountCurrentlyEligiblePositiveVotesByProductsAsync(
+            IReadOnlyCollection<int> productIds, DateTime registeredBefore,
+            CancellationToken cancellationToken = default) => Task.FromResult(GetAll(item =>
+                productIds.Contains(item.ProductId) && item.Approved && item.EligibleAtCast)
+            .GroupBy(item => item.ProductId).ToDictionary(group => group.Key, group => group.Count()));
+    }
+    private sealed class CommunityReviewDal(IEnumerable<CommunityVerificationReview>? values = null)
+        : EntityRepositoryStub<CommunityVerificationReview>(values), ICommunityVerificationReviewDal
+    {
+        public Task<List<CommunityVerificationReview>> GetPendingPageAsync(int skip, int take,
+            CancellationToken cancellationToken = default) => Task.FromResult(GetAll(item => item.Status == "pending")
+            .OrderBy(item => item.ReachedAt).Skip(skip).Take(take).ToList());
+    }
     private sealed class ProductStatusDal(IEnumerable<ProductStatus>? values = null) : EntityRepositoryStub<ProductStatus>(values), IProductStatusDal;
     private sealed class VerificationTypeDal(IEnumerable<VerificationType>? values = null) : EntityRepositoryStub<VerificationType>(values), IVerificationTypeDal;
     private sealed class ReportReasonDal(IEnumerable<ReportReason>? values = null) : EntityRepositoryStub<ReportReason>(values), IReportReasonDal;

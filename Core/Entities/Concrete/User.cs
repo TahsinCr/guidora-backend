@@ -14,6 +14,8 @@ namespace Core.Entities.Concrete
         public byte[] PasswordSalt { get; set; } = Array.Empty<byte>();
         public byte[] PasswordHash { get; set; } = Array.Empty<byte>();
         public bool Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? EmailVerifiedAt { get; set; }
 
 
     }

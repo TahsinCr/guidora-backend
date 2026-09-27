@@ -46,6 +46,9 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<EfProductContributorDal>().As<IProductContributorDal>();
             builder.RegisterType<EfVerificationTypeDal>().As<IVerificationTypeDal>();
             builder.RegisterType<EfProductVerificationDal>().As<IProductVerificationDal>();
+            builder.RegisterType<EfProductVerificationVoteDal>().As<IProductVerificationVoteDal>();
+            builder.RegisterType<EfCommunityVerificationReviewDal>().As<ICommunityVerificationReviewDal>();
+            builder.RegisterType<EfEmailVerificationChallengeDal>().As<IEmailVerificationChallengeDal>();
             builder.RegisterType<EfProductEditProposalDal>().As<IProductEditProposalDal>();
             builder.RegisterType<EfProductEditProposalTagDal>().As<IProductEditProposalTagDal>();
             builder.RegisterType<EfProductEditProposalCategoryDal>().As<IProductEditProposalCategoryDal>();
