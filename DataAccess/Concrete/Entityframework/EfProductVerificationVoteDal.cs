@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Entities.DTOs;
 
 namespace DataAccess.Concrete.Entityframework;
 
@@ -42,4 +43,23 @@ public sealed class EfProductVerificationVoteDal :
         .GroupBy(item => item.ProductId)
         .Select(group => new { ProductId = group.Key, Count = group.Count() })
         .ToDictionaryAsync(item => item.ProductId, item => item.Count, cancellationToken);
+
+    public Task<Dictionary<int, CommunityVoteReviewStats>> GetReviewStatsByProductsAsync(
+        IReadOnlyCollection<int> productIds, CancellationToken cancellationToken = default) =>
+        _context.ProductVerificationVotes.AsNoTracking()
+            .Where(vote => productIds.Contains(vote.ProductId))
+            .GroupBy(vote => vote.ProductId)
+            .Select(group => new CommunityVoteReviewStats(
+                group.Key,
+                group.Count(vote => vote.Approved),
+                group.Count(vote => !vote.Approved),
+                group.Count(vote => vote.Approved && vote.EligibleAtCast),
+                group.Count(vote => !vote.Approved && vote.EligibleAtCast),
+                group.Where(vote => vote.Approved && vote.EligibleAtCast && vote.OriginIpHash != null)
+                    .Select(vote => vote.OriginIpHash).Distinct().Count(),
+                group.Count(vote => vote.Approved && vote.EligibleAtCast && vote.OriginIpHash == null),
+                group.Where(vote => vote.Approved && vote.EligibleAtCast && vote.OriginClientHash != null)
+                    .Select(vote => vote.OriginClientHash).Distinct().Count(),
+                group.Count(vote => vote.Approved && vote.EligibleAtCast && vote.OriginClientHash == null)))
+            .ToDictionaryAsync(item => item.ProductId, cancellationToken);
 }

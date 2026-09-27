@@ -6,6 +6,18 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Made authorization-version invalidation an atomic PostgreSQL increment,
+  preventing concurrent permission changes from retaining an intermediate JWT.
+- Counted currently eligible votes in public verification summaries and added
+  negative votes to the moderator queue. Review signal totals now aggregate in
+  PostgreSQL, and reviewers cannot decide a Product they voted on.
+- Partitioned authenticated email verification limits by user, returned HTTP
+  503 on SMTP failures, and expired undelivered challenges.
+- Added startup validation for JWT settings and enabled SMTP/signal keys;
+  separated Community signal hashing from JWT signing.
+- Aligned public Product resource GET failures with explicit not-found results,
+  ran the container as the built-in non-root user, pinned .NET image digests,
+  and added a moderate-or-higher NuGet vulnerability gate and Dependabot updates.
 - Replaced automatic five-vote Community verification with a 30 eligible-vote
   moderator review gate. Active legacy badges are revoked with an audit record
   during migration; historical votes remain but do not count toward the new

@@ -27,7 +27,7 @@ public sealed class UserSessionInvalidationManagerTests
 
         Assert.True(result.Success);
         Assert.Equal(6, state.AuthorizationVersion);
-        Assert.Equal(1, stateDal.UpdateCount);
+        Assert.Equal(0, stateDal.UpdateCount);
         Assert.Equal(1, sessionDal.UpdateCount);
         Assert.NotNull(active.RevokedAt);
         Assert.NotNull(alreadyRevoked.RevokedAt);
@@ -49,7 +49,7 @@ public sealed class UserSessionInvalidationManagerTests
         var result = await sut.InvalidateUserSessionsAsync(42);
 
         Assert.True(result.Success);
-        var created = Assert.Single(stateDal.Added);
+        var created = Assert.Single(stateDal.Incremented, item => item.UserId == 42);
         Assert.Equal(42, created.UserId);
         Assert.Equal(2, created.AuthorizationVersion);
         Assert.Equal(0, stateDal.UpdateCount);
@@ -72,8 +72,8 @@ public sealed class UserSessionInvalidationManagerTests
 
         Assert.True(result.Success);
         Assert.Equal(5, first.AuthorizationVersion);
-        Assert.Equal(1, stateDal.UpdateCount);
-        Assert.Single(stateDal.Added, item => item.UserId == 43);
+        Assert.Equal(0, stateDal.UpdateCount);
+        Assert.Single(stateDal.Incremented, item => item.UserId == 43);
         Assert.Equal(2, sessions.UpdateCount);
         Assert.Equal(1, unitOfWork.SaveCount);
         Assert.Equal(2, cache.RemovedKeys.Count);
@@ -145,6 +145,28 @@ public sealed class UserSessionInvalidationManagerTests
         : EntityRepositoryStub<UserAuthenticationState>(items), IUserAuthenticationStateDal
     {
         public List<UserAuthenticationState> Added { get; } = [];
+        public List<UserAuthenticationState> Incremented { get; } = [];
+        public Task IncrementAuthorizationVersionsAsync(IReadOnlyCollection<int> userIds, DateTime updatedAt,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (var userId in userIds)
+            {
+                var state = Get(item => item.UserId == userId);
+                if (state is null)
+                {
+                    state = new UserAuthenticationState { UserId = userId, AuthorizationVersion = 2,
+                        UpdatedAt = updatedAt };
+                    Incremented.Add(state);
+                    Add(state);
+                }
+                else
+                {
+                    state.AuthorizationVersion++;
+                    state.UpdatedAt = updatedAt;
+                }
+            }
+            return Task.CompletedTask;
+        }
         public override void Add(UserAuthenticationState entity)
         {
             Added.Add(entity);

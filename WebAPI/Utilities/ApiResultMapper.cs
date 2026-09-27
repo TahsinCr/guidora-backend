@@ -11,6 +11,7 @@ public static class ApiResultMapper
         if (result.Success) return controller.Ok(result);
         return result switch
         {
+            IServiceUnavailableResult => controller.StatusCode(StatusCodes.Status503ServiceUnavailable, result),
             IForbiddenResult => controller.StatusCode(StatusCodes.Status403Forbidden, result),
             IConflictResult => controller.Conflict(result),
             INotFoundResult => controller.NotFound(result),

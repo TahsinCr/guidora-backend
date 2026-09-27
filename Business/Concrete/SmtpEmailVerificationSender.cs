@@ -14,7 +14,8 @@ public sealed class SmtpEmailVerificationSender(IConfiguration configuration) : 
     {
         var host = configuration["EmailVerification:Smtp:Host"];
         var from = configuration["EmailVerification:Smtp:From"];
-        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(from))
+        if (!configuration.GetValue<bool>("EmailVerification:Enabled") ||
+            string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(from))
             throw new InvalidOperationException("Email verification SMTP is not configured.");
 
         using var message = new MailMessage(from, address)

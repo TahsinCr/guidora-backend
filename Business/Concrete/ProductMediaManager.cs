@@ -38,7 +38,7 @@ public sealed class ProductMediaManager : IProductMediaService
         CancellationToken cancellationToken = default)
     {
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
-        if (!rule.Success) return new ErrorDataResult<List<ProductMedia>>(rule.Message);
+        if (!rule.Success) return new NotFoundDataResult<List<ProductMedia>>("Product was not found.");
         var media = await _mediaDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
         return new SuccessDataResult<List<ProductMedia>>(media.OrderBy(item => item.DisplayOrder).ThenBy(item => item.Id).ToList());
     }

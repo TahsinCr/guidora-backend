@@ -9,6 +9,7 @@ using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Mail;
 
 namespace Business.Concrete;
 
@@ -45,7 +46,16 @@ public sealed class EmailVerificationManager(
         {
             return new ConflictResult("Email verification request changed concurrently. Try again.");
         }
-        await sender.SendAsync(user.Email, token, cancellationToken);
+        try
+        {
+            await sender.SendAsync(user.Email, token, cancellationToken);
+        }
+        catch (Exception exception) when (exception is SmtpException or InvalidOperationException)
+        {
+            await challengeDal.ExpireIfMatchingAsync(userId, challenge.TokenHash, DateTime.UtcNow,
+                cancellationToken);
+            return new ServiceUnavailableResult("Verification email could not be delivered. Try again later.");
+        }
         return new SuccessResult("Email verification code sent.");
     }
 

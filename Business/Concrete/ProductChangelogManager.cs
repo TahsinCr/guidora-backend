@@ -38,7 +38,7 @@ public sealed class ProductChangelogManager : IProductChangelogService
         CancellationToken cancellationToken = default)
     {
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
-        if (!rule.Success) return new ErrorDataResult<List<ProductChangelog>>(rule.Message);
+        if (!rule.Success) return new NotFoundDataResult<List<ProductChangelog>>("Product was not found.");
         var entries = await _changelogDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
         return new SuccessDataResult<List<ProductChangelog>>(entries.OrderByDescending(item => item.ReleaseDate)
             .ThenByDescending(item => item.Id).ToList());

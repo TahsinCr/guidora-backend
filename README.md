@@ -102,15 +102,19 @@ Configure browser origins through `Cors:AllowedOrigins` (Compose:
 headers must not be trusted. Login, registration, and refresh endpoints have
 configurable IP-partitioned limits under `RateLimiting:Login`, `Register`, and
 `Refresh`. Refresh cookies are Secure outside Development. The API also applies
-IP-partitioned limits to email-verification code requests and
+user-partitioned limits to email-verification code requests and
 confirmation attempts under `RateLimiting:EmailVerificationRequest` and
-`EmailVerificationConfirm`. Configure `EMAIL_SMTP_HOST`, `EMAIL_SMTP_FROM`,
-`EMAIL_SMTP_USERNAME`, and `EMAIL_SMTP_PASSWORD` to enable sending confirmation
+`EmailVerificationConfirm`. Set `EMAIL_VERIFICATION_ENABLED=true` and configure
+`EMAIL_SMTP_HOST`, `EMAIL_SMTP_FROM`, `EMAIL_SMTP_USERNAME`,
+`EMAIL_SMTP_PASSWORD`, and a separate
+`COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY` (at least 32 bytes) to enable sending confirmation
 codes; registered users can still sign in before email confirmation, but cannot
 cast Community verification votes. `POST /api/auth/email-verification/request`
 and `POST /api/auth/email-verification/confirm` require a valid session. Codes
 are random, stored only as SHA-256 hashes, expire after 30 minutes, and can be
-used once. SMTP credentials remain outside Git.
+used once. Startup rejects incomplete enabled SMTP settings. Delivery failure
+returns HTTP 503 and expires the undelivered challenge; the user can request a
+new code within their own rate limit. SMTP credentials remain outside Git.
 
 HTTP request logs record method, path, response status, duration, and trace ID only. Query strings,
 headers, and request/response bodies are excluded so secret query parameters and
@@ -290,13 +294,15 @@ rejection and later revocation are terminal in V1. Bot verification remains
 future scope.
 
 The review queue separates votes eligible when cast from the number whose
-accounts are still eligible at review time. It also includes counts of distinct
+accounts are still eligible at review time. It includes negative-vote counts and
+counts of distinct
 HMAC-hashed source IPs and client header signals among positive eligible votes.
 These are investigation clues,
 not identity proof or automatic vote blockers: multiple people can share an IP
 or browser signature, and an attacker can vary either. Raw IPs and user-agent
-values are not stored with votes. The HMAC key is the configured JWT signing
-key; rotating it also changes the signal grouping for later votes.
+values are not stored with votes. The HMAC key is separate from JWT signing;
+rotating it changes signal grouping for later votes. A reviewer who voted on
+the Product cannot approve or reject its Community verification.
 
 The migration starts the seven-day age period for existing accounts when it is
 applied. Existing email addresses remain unconfirmed. Historical votes remain
@@ -307,7 +313,7 @@ only after 30 new eligible votes and moderator approval.
 
 Community votes require a published Product; creator self-votes return HTTP 403.
 `GET /api/products/{productId}/verification` returns the public Admin/Community
-state, affirmative vote count, and quorum for a published Product. When called
+state, currently eligible affirmative vote count, and quorum for a published Product. When called
 with a valid user identity, it also returns whether that user voted and their
 vote; anonymous responses omit these personal fields. The response also shows
 pending or rejected Community review state.

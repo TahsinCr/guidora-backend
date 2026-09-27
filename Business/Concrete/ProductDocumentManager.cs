@@ -38,7 +38,7 @@ public sealed class ProductDocumentManager : IProductDocumentService
         CancellationToken cancellationToken = default)
     {
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
-        if (!rule.Success) return new ErrorDataResult<List<ProductDocument>>(rule.Message);
+        if (!rule.Success) return new NotFoundDataResult<List<ProductDocument>>("Product was not found.");
         var documents = await _documentDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
         return new SuccessDataResult<List<ProductDocument>>(documents.OrderBy(item => item.DocumentType)
             .ThenBy(item => item.Title).ToList());

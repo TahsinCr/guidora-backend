@@ -63,9 +63,8 @@ public sealed class ProductVerificationManager : IProductVerificationService
         var community = await _verificationDal.GetAsync(item => item.ProductId == productId &&
             item.VerificationTypeId == communityType.Id, cancellationToken);
         var review = await _reviewDal.GetAsync(item => item.ProductId == productId, cancellationToken);
-        var positiveVotes = await _voteDal.CountAsync(item => item.ProductId == productId && item.Approved &&
-            item.EligibleAtCast,
-            cancellationToken);
+        var positiveVotes = await _voteDal.CountCurrentlyEligiblePositiveVotesAsync(productId,
+            DateTime.UtcNow.AddDays(-CommunityVerificationPolicy.MinimumAccountAgeDays), cancellationToken);
         ProductVerificationVote? currentVote = null;
         if (currentUserId.HasValue)
             currentVote = await _voteDal.GetAsync(item => item.ProductId == productId &&

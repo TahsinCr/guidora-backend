@@ -81,7 +81,11 @@ public sealed class TokenValidationManagerTests
         public void AddClaim(User user, OperationClaim operationClaim) { }
     }
     private sealed class AuthenticationStateDalStub(IEnumerable<UserAuthenticationState>? values = null)
-        : EntityRepositoryStub<UserAuthenticationState>(values), IUserAuthenticationStateDal;
+        : EntityRepositoryStub<UserAuthenticationState>(values), IUserAuthenticationStateDal
+    {
+        public Task IncrementAuthorizationVersionsAsync(IReadOnlyCollection<int> userIds, DateTime updatedAt,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? values = null)
         : EntityRepositoryStub<UserSession>(values), IUserSessionDal
     {

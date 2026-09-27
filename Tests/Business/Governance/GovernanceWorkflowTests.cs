@@ -347,6 +347,9 @@ public sealed class GovernanceWorkflowTests
             CancellationToken cancellationToken = default) => Task.FromResult(GetAll(item =>
                 productIds.Contains(item.ProductId) && item.Approved && item.EligibleAtCast)
             .GroupBy(item => item.ProductId).ToDictionary(group => group.Key, group => group.Count()));
+        public Task<Dictionary<int, CommunityVoteReviewStats>> GetReviewStatsByProductsAsync(
+            IReadOnlyCollection<int> productIds, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Dictionary<int, CommunityVoteReviewStats>());
     }
     private sealed class CommunityReviewDal(IEnumerable<CommunityVerificationReview>? values = null)
         : EntityRepositoryStub<CommunityVerificationReview>(values), ICommunityVerificationReviewDal

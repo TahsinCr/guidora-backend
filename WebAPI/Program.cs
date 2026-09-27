@@ -66,9 +66,9 @@ namespace WebAPI
                     permitLimit: 5, windowSeconds: 3600);
                 AddIpRateLimitPolicy(options, builder.Configuration, "auth-refresh", "RateLimiting:Refresh",
                     permitLimit: 30, windowSeconds: 60);
-                AddIpRateLimitPolicy(options, builder.Configuration, "email-verification-request",
+                AddUserRateLimitPolicy(options, builder.Configuration, "email-verification-request",
                     "RateLimiting:EmailVerificationRequest", permitLimit: 3, windowSeconds: 3600);
-                AddIpRateLimitPolicy(options, builder.Configuration, "email-verification-confirm",
+                AddUserRateLimitPolicy(options, builder.Configuration, "email-verification-confirm",
                     "RateLimiting:EmailVerificationConfirm", permitLimit: 10, windowSeconds: 600);
             });
 
@@ -107,6 +107,7 @@ namespace WebAPI
 
             var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>()
                 ?? throw new InvalidOperationException("TokenOptions configuration is missing.");
+            ValidateStartupConfiguration(builder.Configuration, tokenOptions);
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -190,11 +191,11 @@ namespace WebAPI
 
             app.UseCors(apiCorsPolicy);
 
-            app.UseRateLimiter();
-
             app.UseHttpsRedirection();
 
             app.UseAuthentication();
+
+            app.UseRateLimiter();
 
             app.UseAuthorization();
             
@@ -252,6 +253,52 @@ namespace WebAPI
                     QueueLimit = 0,
                     Window = TimeSpan.FromSeconds(configuredWindowSeconds)
                 }));
+        }
+
+        private static void AddUserRateLimitPolicy(RateLimiterOptions options, IConfiguration configuration,
+            string policyName, string configurationPath, int permitLimit, int windowSeconds)
+        {
+            var configuredPermitLimit = configuration.GetValue<int?>($"{configurationPath}:PermitLimit")
+                                        ?? permitLimit;
+            var configuredWindowSeconds = configuration.GetValue<int?>($"{configurationPath}:WindowSeconds")
+                                          ?? windowSeconds;
+            if (configuredPermitLimit <= 0 || configuredWindowSeconds <= 0)
+                throw new InvalidOperationException($"Rate limit settings for '{policyName}' must be positive.");
+
+            options.AddPolicy(policyName, context => RateLimitPartition.GetFixedWindowLimiter(
+                context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? RateLimitPartitionKey.FromAddress(context.Connection.RemoteIpAddress),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = configuredPermitLimit,
+                    QueueLimit = 0,
+                    Window = TimeSpan.FromSeconds(configuredWindowSeconds)
+                }));
+        }
+
+        private static void ValidateStartupConfiguration(IConfiguration configuration, TokenOptions tokenOptions)
+        {
+            if (string.IsNullOrWhiteSpace(tokenOptions.Issuer) ||
+                string.IsNullOrWhiteSpace(tokenOptions.Audience) ||
+                System.Text.Encoding.UTF8.GetByteCount(tokenOptions.SecurityKey ?? string.Empty) < 32 ||
+                tokenOptions.AccessTokenExpirationMinutes <= 0 ||
+                tokenOptions.RefreshTokenExpirationDays <= 0 ||
+                tokenOptions.RememberMeExpirationDays <= 0 ||
+                tokenOptions.SessionAbsoluteExpirationDays <= 0 ||
+                tokenOptions.ClockSkewSeconds < 0)
+                throw new InvalidOperationException("TokenOptions must include issuer, audience, a signing key of at least 32 bytes, and valid lifetimes.");
+
+            if (!configuration.GetValue<bool>("EmailVerification:Enabled")) return;
+            if (string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:Host"]) ||
+                string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:From"]) ||
+                string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:Username"]) ||
+                string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:Password"]) ||
+                configuration.GetValue<int>("EmailVerification:Smtp:Port") is < 1 or > 65535)
+                throw new InvalidOperationException("Email verification is enabled but SMTP configuration is incomplete.");
+            if (System.Text.Encoding.UTF8.GetByteCount(
+                    configuration["CommunityVerification:SignalHashKey"] ?? string.Empty) < 32)
+                throw new InvalidOperationException("CommunityVerification:SignalHashKey must be at least 32 bytes when email verification is enabled.");
         }
     }
 }

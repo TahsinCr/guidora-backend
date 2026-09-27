@@ -139,23 +139,21 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
         var reviews = await _reviewDal.GetPendingPageAsync((int)offset, request.PageSize, cancellationToken);
         var total = await _reviewDal.CountAsync(item => item.Status == "pending", cancellationToken);
         var productIds = reviews.Select(item => item.ProductId).ToArray();
-        List<ProductVerificationVote> votes = productIds.Length == 0 ? [] : await _voteDal.GetAllAsync(
-            item => productIds.Contains(item.ProductId), cancellationToken);
+        var stats = productIds.Length == 0 ? new Dictionary<int, CommunityVoteReviewStats>() :
+            await _voteDal.GetReviewStatsByProductsAsync(productIds, cancellationToken);
         var currentlyEligible = productIds.Length == 0 ? new Dictionary<int, int>() :
             await _voteDal.CountCurrentlyEligiblePositiveVotesByProductsAsync(productIds,
                 DateTime.UtcNow - MinimumAccountAge, cancellationToken);
         var items = reviews.Select(review =>
         {
-            var productVotes = votes.Where(vote => vote.ProductId == review.ProductId).ToArray();
-            var eligibleVotes = productVotes.Where(vote => vote.EligibleAtCast && vote.Approved).ToArray();
+            stats.TryGetValue(review.ProductId, out var voteStats);
             return new CommunityVerificationReviewDto(review.ProductId, review.ReachedAt,
-                eligibleVotes.Length, currentlyEligible.GetValueOrDefault(review.ProductId),
-                eligibleVotes.Where(vote => vote.OriginIpHash is not null)
-                    .Select(vote => vote.OriginIpHash).Distinct().Count(),
-                eligibleVotes.Count(vote => vote.OriginIpHash is null),
-                eligibleVotes.Where(vote => vote.OriginClientHash is not null)
-                    .Select(vote => vote.OriginClientHash).Distinct().Count(),
-                eligibleVotes.Count(vote => vote.OriginClientHash is null));
+                voteStats?.PositiveVotes ?? 0, voteStats?.NegativeVotes ?? 0,
+                voteStats?.EligiblePositiveVotesAtCast ?? 0,
+                voteStats?.EligibleNegativeVotesAtCast ?? 0,
+                currentlyEligible.GetValueOrDefault(review.ProductId),
+                voteStats?.DistinctIpSignals ?? 0, voteStats?.VotesWithoutIpSignal ?? 0,
+                voteStats?.DistinctClientSignals ?? 0, voteStats?.VotesWithoutClientSignal ?? 0);
         }).ToArray();
         return new SuccessDataResult<PagedResult<CommunityVerificationReviewDto>>(
             new PagedResult<CommunityVerificationReviewDto>(items, request.Page, request.PageSize, total));
@@ -191,6 +189,9 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
             return new ConflictResult("Only a published Product can be Community verified.");
         if (product.CreatedByUserId == actorUserId)
             return new ForbiddenResult("Product creators cannot review their own Community verification.");
+        if (await _voteDal.AnyAsync(vote => vote.ProductId == productId && vote.UserId == actorUserId,
+                cancellationToken))
+            return new ForbiddenResult("A voter cannot review the same Product's Community verification.");
         var positiveVotes = await _voteDal.CountCurrentlyEligiblePositiveVotesAsync(productId,
             DateTime.UtcNow - MinimumAccountAge, cancellationToken);
         if (approve && positiveVotes < PositiveVoteQuorum)

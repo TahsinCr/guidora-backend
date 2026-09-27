@@ -42,7 +42,7 @@ public sealed class ProductContributorManager : IProductContributorService
         CancellationToken cancellationToken = default)
     {
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
-        if (!rule.Success) return new ErrorDataResult<List<ProductContributor>>(rule.Message);
+        if (!rule.Success) return new NotFoundDataResult<List<ProductContributor>>("Product was not found.");
         var contributors = await _contributorDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
         return new SuccessDataResult<List<ProductContributor>>(contributors.OrderBy(item => item.CreatedAt).ToList());
     }

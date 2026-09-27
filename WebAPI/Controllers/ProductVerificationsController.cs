@@ -25,7 +25,7 @@ public sealed class ProductVerificationsController : ControllerBase
     {
         _verificationService = verificationService;
         _communityVerificationService = communityVerificationService;
-        _ipSignalKey = configuration["TokenOptions:SecurityKey"] ?? string.Empty;
+        _ipSignalKey = configuration["CommunityVerification:SignalHashKey"] ?? string.Empty;
     }
 
     [HttpGet]

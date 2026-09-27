@@ -13,6 +13,8 @@ services:
       Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}
       Authorization__SyncOperationClaimsOnStartup: ${AUTHORIZATION_SYNC_OPERATION_CLAIMS_ON_STARTUP:-false}
       TokenOptions__SecurityKey: ${TOKEN_OPTIONS__SECURITYKEY:?TOKEN_OPTIONS__SECURITYKEY must be set in .env}
+      CommunityVerification__SignalHashKey: ${COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY:-}
+      EmailVerification__Enabled: ${EMAIL_VERIFICATION_ENABLED:-false}
       EmailVerification__Smtp__Host: ${EMAIL_SMTP_HOST:-}
       EmailVerification__Smtp__Port: ${EMAIL_SMTP_PORT:-587}
       EmailVerification__Smtp__From: ${EMAIL_SMTP_FROM:-}

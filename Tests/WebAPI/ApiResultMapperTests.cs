@@ -15,6 +15,7 @@ public sealed class ApiResultMapperTests
     [InlineData(typeof(BusinessNotFoundResult), 404)]
     [InlineData(typeof(BusinessForbiddenResult), 403)]
     [InlineData(typeof(BusinessConflictResult), 409)]
+    [InlineData(typeof(ServiceUnavailableResult), 503)]
     [InlineData(typeof(ErrorResult), 400)]
     public void MapsBusinessResultSemanticsToHttpStatus(Type resultType, int expectedStatus)
     {
@@ -24,6 +25,8 @@ public sealed class ApiResultMapperTests
                 ? new BusinessForbiddenResult("forbidden")
                 : resultType == typeof(BusinessConflictResult)
                     ? new BusinessConflictResult("conflict")
+                : resultType == typeof(ServiceUnavailableResult)
+                    ? new ServiceUnavailableResult("unavailable")
                     : new ErrorResult("invalid");
 
         var action = new TestController().ToHttpResult(result);

@@ -24,6 +24,55 @@ namespace Tests.Integration;
 public sealed class InfrastructureIntegrationTests
 {
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task ConcurrentAuthorizationInvalidationsCannotReuseAnIntermediateTokenVersion()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        int userId;
+        await using (var setup = new GuidoraDbContext(options))
+        {
+            var user = new User
+            {
+                FirstName = "Version", LastName = "Race",
+                Email = $"version-race-{Guid.NewGuid():N}@example.test",
+                PasswordHash = [1], PasswordSalt = [1], Status = true
+            };
+            setup.Users.Add(user);
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+            setup.UserAuthenticationStates.Add(new UserAuthenticationState
+                { UserId = userId, AuthorizationVersion = 5, UpdatedAt = DateTime.UtcNow });
+            await setup.SaveChangesAsync();
+        }
+
+        try
+        {
+            async Task IncrementAsync()
+            {
+                await using var context = new GuidoraDbContext(options);
+                await new EfUserAuthenticationStateDal(context)
+                    .IncrementAuthorizationVersionsAsync([userId], DateTime.UtcNow);
+            }
+
+            await Task.WhenAll(IncrementAsync(), IncrementAsync());
+            await using var verification = new GuidoraDbContext(options);
+            var version = await verification.UserAuthenticationStates
+                .Where(item => item.UserId == userId)
+                .Select(item => item.AuthorizationVersion).SingleAsync();
+            Assert.Equal(7, version);
+            Assert.NotEqual(6, version); // A token issued between the two commits must now be invalid.
+        }
+        finally
+        {
+            await using var cleanup = new GuidoraDbContext(options);
+            var user = await cleanup.Users.SingleAsync(item => item.Id == userId);
+            cleanup.Users.Remove(user);
+            await cleanup.SaveChangesAsync();
+        }
+    }
+
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
     public async Task ProductIdentityRuleUsesCitextForCaseInsensitiveNameAndSlug()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()
@@ -79,7 +128,7 @@ public sealed class InfrastructureIntegrationTests
         context.UserRoles.AddRange(users.Skip(1).Select(user => new UserRole
             { UserId = user.Id, RoleId = role.Id }));
         var moderatorRole = await context.Roles.SingleAsync(item => item.Code == "moderator");
-        context.UserRoles.Add(new UserRole { UserId = users[1].Id, RoleId = moderatorRole.Id });
+        context.UserRoles.Add(new UserRole { UserId = users[32].Id, RoleId = moderatorRole.Id });
         var product = new Product
         {
             Name = $"Community {suffix}", Slug = $"community-{suffix}",
@@ -133,16 +182,23 @@ public sealed class InfrastructureIntegrationTests
         var pending = await manager.GetPendingAsync(new PageRequest { Page = 1, PageSize = 100 });
         var reviewItem = Assert.Single(pending.Data.Items, item => item.ProductId == product.ProductId);
         Assert.Equal(30, reviewItem.PositiveVotes);
+        Assert.Equal(1, reviewItem.NegativeVotes);
         Assert.Equal(30, reviewItem.CurrentlyEligiblePositiveVotes);
         Assert.Equal(1, reviewItem.DistinctIpSignals);
         Assert.Equal(1, reviewItem.DistinctClientSignals);
         users[2].Status = false;
         await context.SaveChangesAsync();
-        Assert.IsType<ConflictResult>(await manager.ApproveAsync(product.ProductId, users[1].Id,
+        var summary = await new ProductVerificationManager(new EfProductDal(context),
+            new EfProductStatusDal(context), new EfVerificationTypeDal(context),
+            new EfProductVerificationDal(context), new EfProductVerificationVoteDal(context),
+            new EfCommunityVerificationReviewDal(context), new EfAuditLogDal(context),
+            new GuidoraUnitOfWork(context)).GetSummaryAsync(product.ProductId, null);
+        Assert.Equal(29, summary.Data.PositiveVotes);
+        Assert.IsType<ConflictResult>(await manager.ApproveAsync(product.ProductId, users[32].Id,
             new ReviewNoteRequest { Note = "One voter is inactive." }));
         users[2].Status = true;
         await context.SaveChangesAsync();
-        Assert.True((await manager.ApproveAsync(product.ProductId, users[1].Id,
+        Assert.True((await manager.ApproveAsync(product.ProductId, users[32].Id,
             new ReviewNoteRequest { Note = "Reviewed voter signals." })).Success);
         var verification = await context.ProductVerifications.SingleAsync(item =>
             item.ProductId == product.ProductId && item.VerificationTypeId == communityType.Id);

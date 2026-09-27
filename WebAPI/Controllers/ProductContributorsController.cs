@@ -19,7 +19,7 @@ public sealed class ProductContributorsController : ControllerBase
     public async Task<IActionResult> Get(int productId, CancellationToken cancellationToken)
     {
         var result = await _service.GetByProductAsync(productId, cancellationToken);
-        return result.Success ? Ok(result) : NotFound(result);
+        return this.ToHttpResult(result);
     }
 
     [HttpPost]

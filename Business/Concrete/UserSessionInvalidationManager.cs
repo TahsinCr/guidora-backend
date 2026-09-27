@@ -5,7 +5,6 @@ using System.Transactions;
 using Business.Abstract;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
-using Entities;
 using Microsoft.Extensions.Caching.Distributed;
 using Core.DataAccess;
 using System.Threading;
@@ -42,31 +41,8 @@ namespace Business.Concrete
             var distinctUserIds = userIds.Distinct().ToArray();
 
             var now = DateTime.UtcNow;
-            var authenticationStates = await _authenticationStateDal.GetAllAsync(item => distinctUserIds.Contains(item.UserId), cancellationToken);
-            var statesByUserId = authenticationStates.ToDictionary(item => item.UserId);
-            var newStates = new List<UserAuthenticationState>();
-            foreach (var userId in distinctUserIds)
-            {
-                if (!statesByUserId.TryGetValue(userId, out var authenticationState))
-                {
-                    // Keep new rows Added; updating generated-key entities here would issue invalid UPDATEs.
-                    newStates.Add(new UserAuthenticationState
-                    {
-                        UserId = userId,
-                        AuthorizationVersion = 2,
-                        UpdatedAt = now
-                    });
-                    continue;
-                }
-
-                checked
-                {
-                    authenticationState.AuthorizationVersion++;
-                }
-                authenticationState.UpdatedAt = now;
-                _authenticationStateDal.Update(authenticationState);
-            }
-            foreach (var state in newStates) _authenticationStateDal.Add(state);
+            await _authenticationStateDal.IncrementAuthorizationVersionsAsync(distinctUserIds, now,
+                cancellationToken);
 
             var activeSessions = await _userSessionDal.GetAllAsync(session =>
                 distinctUserIds.Contains(session.UserId) && !session.RevokedAt.HasValue, cancellationToken);

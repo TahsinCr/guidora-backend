@@ -178,7 +178,11 @@ public sealed class AuthManagerTests
     }
 
     private sealed class AuthenticationStateDalStub(IEnumerable<UserAuthenticationState>? values = null)
-        : EntityRepositoryStub<UserAuthenticationState>(values), IUserAuthenticationStateDal;
+        : EntityRepositoryStub<UserAuthenticationState>(values), IUserAuthenticationStateDal
+    {
+        public Task IncrementAuthorizationVersionsAsync(IReadOnlyCollection<int> userIds, DateTime updatedAt,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
     private sealed class RoleDalStub : EntityRepositoryStub<Role>, IRoleDal
     {
         public RoleDalStub() : base([]) { }

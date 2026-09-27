@@ -43,6 +43,8 @@ public sealed class CommunityVerificationManagerTests
 
         Assert.IsAssignableFrom<IForbiddenResult>(await manager.ApproveAsync(5, 1,
             new ReviewNoteRequest { Note = "Own product" }));
+        Assert.IsAssignableFrom<IForbiddenResult>(await manager.ApproveAsync(5, users[1].Id,
+            new ReviewNoteRequest { Note = "I voted" }));
         Assert.Empty(verifications.GetAll());
         Assert.False((await manager.ApproveAsync(5, 99, new ReviewNoteRequest())).Success);
 
@@ -104,6 +106,22 @@ public sealed class CommunityVerificationManagerTests
             CancellationToken cancellationToken = default) => Task.FromResult(GetAll(item =>
                 productIds.Contains(item.ProductId) && item.Approved && item.EligibleAtCast)
             .GroupBy(item => item.ProductId).ToDictionary(group => group.Key, group => group.Count()));
+        public Task<Dictionary<int, CommunityVoteReviewStats>> GetReviewStatsByProductsAsync(
+            IReadOnlyCollection<int> productIds, CancellationToken cancellationToken = default) =>
+            Task.FromResult(GetAll(item => productIds.Contains(item.ProductId))
+                .GroupBy(item => item.ProductId).ToDictionary(group => group.Key, group =>
+                {
+                    var eligiblePositive = group.Where(item => item.Approved && item.EligibleAtCast).ToArray();
+                    return new CommunityVoteReviewStats(group.Key, group.Count(item => item.Approved),
+                        group.Count(item => !item.Approved), eligiblePositive.Length,
+                        group.Count(item => !item.Approved && item.EligibleAtCast),
+                        eligiblePositive.Where(item => item.OriginIpHash is not null)
+                            .Select(item => item.OriginIpHash).Distinct().Count(),
+                        eligiblePositive.Count(item => item.OriginIpHash is null),
+                        eligiblePositive.Where(item => item.OriginClientHash is not null)
+                            .Select(item => item.OriginClientHash).Distinct().Count(),
+                        eligiblePositive.Count(item => item.OriginClientHash is null));
+                }));
     }
     private sealed class VerificationDal : EntityRepositoryStub<ProductVerification>, IProductVerificationDal;
     private sealed class VerificationTypeDal(IEnumerable<VerificationType> types)
