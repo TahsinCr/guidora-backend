@@ -31,16 +31,12 @@ public sealed class UserSecurityManagerTests
     {
         public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) =>
             Task.FromResult(new List<OperationClaim>());
-        public void AddClaim(User user, OperationClaim operationClaim) { }
     }
     private sealed class UserRoleDalStub : EntityRepositoryStub<UserRole>, IUserRoleDal;
 
     private sealed class MissingUserService : IUserService
     {
         public Task<IDataResult<List<OperationClaim>>> GetClaimsAsync(User user,
-            CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
-        public Task<IResult> GrantOperationClaimAsync(User user, OperationClaim operationClaim,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<IDataResult<User>> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>

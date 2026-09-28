@@ -6,7 +6,6 @@ using Core.Utilities.Results;
 using Core.Utilities.Security.JWT;
 using Entities.DTOs;
 using System;
-using System.Text;
 using System.Threading.Tasks;
 using Core.Utilities.Security.Hashing;
 using DataAccess.Abstract;
@@ -18,12 +17,19 @@ using Core.Aspects.Autofac.Validation;
 using Core.DataAccess;
 using System.Threading;
 using System.Transactions;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Linq;
+using Core.Pagination;
 
 namespace Business.Concrete
 {
     public class AuthManager : IAuthService
     {
+        private const string InvalidCredentialsMessage = "Invalid email or password.";
+        private const long SessionFamilyLockBase = 7_500_000_000L;
+        private static readonly byte[] MissingUserHash = new byte[32];
+        private static readonly byte[] MissingUserSalt = new byte[16];
         private readonly IUserService _userService;
         private readonly IRoleDal _roleDal;
         private readonly IUserRoleDal _userRoleDal;
@@ -34,11 +40,12 @@ namespace Business.Concrete
         private readonly IDistributedCache _distributedCache;
         private readonly IUserSessionInvalidationService _sessionInvalidationService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<AuthManager> _logger;
 
         public AuthManager(IUserService userService, IRoleDal roleDal, IUserRoleDal userRoleDal,
             ITokenHelper tokenHelper, IUserAuthenticationStateDal authenticationStateDal, IUserSessionDal userSessionDal, IConfiguration configuration,
             IDistributedCache distributedCache, IUserSessionInvalidationService sessionInvalidationService,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork, ILogger<AuthManager> logger)
         {
             _userService = userService;
             _roleDal = roleDal;
@@ -51,6 +58,7 @@ namespace Business.Concrete
             _distributedCache = distributedCache;
             _sessionInvalidationService = sessionInvalidationService;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         [ValidationAspect(typeof(UserForRegisterValidator))]
@@ -104,17 +112,17 @@ namespace Business.Concrete
             CancellationToken cancellationToken = default)
         {
             var userToCheck = await _userService.GetByMailAsync(userForLoginDto.Email, cancellationToken);
-            if (userToCheck.Data == null) return userToCheck;
-
-            if (!userToCheck.Data.Status)
+            if (userToCheck.Data == null)
             {
-                return new ErrorDataResult<User>("User account is inactive.");
+                // Match the password work performed for an existing PBKDF2 account.
+                _ = HashingHelper.VerifyPasswordHash(userForLoginDto.Password, MissingUserHash, MissingUserSalt);
+                return new ErrorDataResult<User>(InvalidCredentialsMessage);
             }
 
-            if (!HashingHelper.VerifyPasswordHash(userForLoginDto.Password, userToCheck.Data.PasswordHash, userToCheck.Data.PasswordSalt))
-            {
-                return new ErrorDataResult<User>(Messages.PasswordError);
-            }
+            var passwordValid = HashingHelper.VerifyPasswordHash(userForLoginDto.Password,
+                userToCheck.Data.PasswordHash, userToCheck.Data.PasswordSalt);
+            if (!userToCheck.Data.Status || !passwordValid)
+                return new ErrorDataResult<User>(InvalidCredentialsMessage);
 
             if (HashingHelper.NeedsRehash(userToCheck.Data.PasswordHash, userToCheck.Data.PasswordSalt))
             {
@@ -145,9 +153,11 @@ namespace Business.Concrete
         {
             if (!user.Status)
             {
-                return new ErrorDataResult<AuthenticationResultDto>("User account is inactive.");
+                return new ErrorDataResult<AuthenticationResultDto>(InvalidCredentialsMessage);
             }
 
+            await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + user.Id,
+                cancellationToken);
             var authenticationState = await GetOrCreateAuthenticationStateAsync(user.Id, cancellationToken);
             var claims = (await _userService.GetClaimsAsync(user, cancellationToken)).Data;
             var refreshToken = RefreshTokenHasher.CreateToken();
@@ -156,12 +166,15 @@ namespace Business.Concrete
             var configuredExpiresAt = now.AddDays(rememberMe
                 ? _tokenOptions.RememberMeExpirationDays
                 : _tokenOptions.RefreshTokenExpirationDays);
+            var sessionId = Guid.NewGuid();
             var session = new UserSession
             {
-                Id = Guid.NewGuid(),
+                Id = sessionId,
+                SessionFamilyId = sessionId,
                 UserId = user.Id,
                 RefreshTokenHash = RefreshTokenHasher.Hash(refreshToken),
                 CreatedAt = now,
+                LastUsedAt = now,
                 AbsoluteExpiresAt = absoluteExpiresAt,
                 ExpiresAt = configuredExpiresAt < absoluteExpiresAt ? configuredExpiresAt : absoluteExpiresAt,
                 IsPersistent = rememberMe,
@@ -170,7 +183,8 @@ namespace Business.Concrete
 
             await _userSessionDal.AddAsync(session, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            var accessToken = _tokenHelper.CreateToken(user, claims, session.Id, authenticationState.AuthorizationVersion);
+            var accessToken = _tokenHelper.CreateToken(ToTokenSubject(user),
+                claims.Select(claim => claim.Name).ToArray(), session.Id, authenticationState.AuthorizationVersion);
             return new SuccessDataResult<AuthenticationResultDto>(new AuthenticationResultDto
             {
                 AccessToken = accessToken,
@@ -189,13 +203,17 @@ namespace Business.Concrete
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is invalid.");
             }
 
+            var validationTime = DateTime.UtcNow;
+            if (session.AbsoluteExpiresAt <= validationTime)
+                return new ErrorDataResult<AuthenticationResultDto>("Refresh session is no longer valid.");
+
             if (session.RevokedAt.HasValue)
             {
                 await HandleReplayAsync(session, cancellationToken);
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is no longer valid.");
             }
 
-            if (session.ExpiresAt <= DateTime.UtcNow || session.AbsoluteExpiresAt <= DateTime.UtcNow)
+            if (session.ExpiresAt <= validationTime)
                 return new ErrorDataResult<AuthenticationResultDto>("Refresh session is no longer valid.");
 
             var userResult = await _userService.GetByIdAsync(session.UserId, cancellationToken);
@@ -214,9 +232,11 @@ namespace Business.Concrete
             var replacement = new UserSession
             {
                 Id = Guid.NewGuid(),
+                SessionFamilyId = session.SessionFamilyId,
                 UserId = session.UserId,
                 RefreshTokenHash = RefreshTokenHasher.Hash(nextRefreshToken),
                 CreatedAt = now,
+                LastUsedAt = now,
                 AbsoluteExpiresAt = session.AbsoluteExpiresAt,
                 ExpiresAt = configuredExpiration < absoluteExpiration ? configuredExpiration : absoluteExpiration,
                 IsPersistent = session.IsPersistent,
@@ -232,13 +252,16 @@ namespace Business.Concrete
                            Timeout = TransactionManager.DefaultTimeout
                        }, TransactionScopeAsyncFlowOption.Enabled))
             {
+                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + session.UserId,
+                    cancellationToken);
                 if (await _userSessionDal.TryRotateAsync(session.Id, replacement.Id, now, cancellationToken))
                 {
                     var authenticationState = await GetOrCreateAuthenticationStateAsync(session.UserId, cancellationToken);
                     var claims = (await _userService.GetClaimsAsync(userResult.Data, cancellationToken)).Data;
                     await _userSessionDal.AddAsync(replacement, cancellationToken);
                     await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    var accessToken = _tokenHelper.CreateToken(userResult.Data, claims, replacement.Id,
+                    var accessToken = _tokenHelper.CreateToken(ToTokenSubject(userResult.Data),
+                        claims.Select(claim => claim.Name).ToArray(), replacement.Id,
                         authenticationState.AuthorizationVersion);
                     result = new SuccessDataResult<AuthenticationResultDto>(new AuthenticationResultDto
                     {
@@ -263,12 +286,15 @@ namespace Business.Concrete
                 return result!;
             }
 
-            await _distributedCache.RemoveAsync($"auth-session:{session.Id}", CancellationToken.None);
+            await EvictSessionCacheAsync([session.Id]);
             return result!;
         }
 
         private async Task HandleReplayAsync(UserSession session, CancellationToken cancellationToken)
         {
+            if (session.AbsoluteExpiresAt <= DateTime.UtcNow)
+                return;
+
             using var transaction = new TransactionScope(TransactionScopeOption.Required,
                 new TransactionOptions
                 {
@@ -293,14 +319,86 @@ namespace Business.Concrete
                 return new SuccessResult();
             }
 
-            if (!await _userSessionDal.TryRevokeAsync(session.Id, DateTime.UtcNow, cancellationToken))
-            {
-                return new SuccessResult();
-            }
+            return await RevokeOwnedSessionAsync(session.UserId, session.Id, cancellationToken);
+        }
 
-            await _distributedCache.RemoveAsync($"auth-session:{session.Id}", CancellationToken.None);
+        public async Task<IDataResult<PagedResult<UserSessionSummaryDto>>> GetSessionsAsync(int userId,
+            Guid currentSessionId, int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0 || currentSessionId == Guid.Empty || page < 1 || pageSize is < 1 or > 100 ||
+                (long)(page - 1) * pageSize > int.MaxValue)
+                return new ErrorDataResult<PagedResult<UserSessionSummaryDto>>("Invalid session page.");
+
+            var result = await _userSessionDal.GetActivePageAsync(userId, currentSessionId, page,
+                pageSize, DateTime.UtcNow, cancellationToken);
+            return new SuccessDataResult<PagedResult<UserSessionSummaryDto>>(result);
+        }
+
+        public async Task<IResult> RevokeOwnedSessionAsync(int userId, Guid sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0 || sessionId == Guid.Empty)
+                return new ErrorResult("Invalid session identifier.");
+
+            IReadOnlyList<Guid> revokedIds;
+            using (var transaction = new TransactionScope(TransactionScopeOption.Required,
+                       new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted,
+                           Timeout = TransactionManager.DefaultTimeout }, TransactionScopeAsyncFlowOption.Enabled))
+            {
+                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + userId,
+                    cancellationToken);
+                revokedIds = await _userSessionDal.RevokeOwnedFamilyAsync(userId, sessionId,
+                    DateTime.UtcNow, cancellationToken);
+                transaction.Complete();
+            }
+            await EvictSessionCacheAsync(revokedIds);
             return new SuccessResult();
         }
+
+        public async Task<IResult> RevokeOtherSessionsAsync(int userId, Guid currentSessionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0 || currentSessionId == Guid.Empty)
+                return new ErrorResult("Invalid session identifier.");
+
+            IReadOnlyList<Guid> revokedIds;
+            using (var transaction = new TransactionScope(TransactionScopeOption.Required,
+                       new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted,
+                           Timeout = TransactionManager.DefaultTimeout }, TransactionScopeAsyncFlowOption.Enabled))
+            {
+                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + userId,
+                    cancellationToken);
+                revokedIds = await _userSessionDal.RevokeOtherActiveAsync(userId, currentSessionId,
+                    DateTime.UtcNow, cancellationToken);
+                transaction.Complete();
+            }
+            await EvictSessionCacheAsync(revokedIds);
+            return new SuccessResult();
+        }
+
+        private async Task EvictSessionCacheAsync(IEnumerable<Guid> sessionIds)
+        {
+            var failedCount = 0;
+            Exception? firstFailure = null;
+            foreach (var id in sessionIds)
+            {
+                try
+                {
+                    await _distributedCache.RemoveAsync($"auth-session:{id}", CancellationToken.None);
+                }
+                catch (Exception exception)
+                {
+                    failedCount++;
+                    firstFailure ??= exception;
+                }
+            }
+            if (failedCount > 0)
+                _logger.LogError(firstFailure, "Failed to evict {FailedCount} session validation cache entries.",
+                    failedCount);
+        }
+
+        public Task<IResult> RevokeAllSessionsAsync(int userId, CancellationToken cancellationToken = default) =>
+            _sessionInvalidationService.InvalidateUserSessionsAsync(userId, cancellationToken);
 
         private async Task<UserAuthenticationState> GetOrCreateAuthenticationStateAsync(int userId,
             CancellationToken cancellationToken)
@@ -320,6 +418,9 @@ namespace Business.Concrete
             await _authenticationStateDal.AddAsync(state, cancellationToken);
             return state;
         }
+
+        private static TokenSubject ToTokenSubject(User user) => new(
+            user.Id.ToString(), user.Email, $"{user.FirstName} {user.LastName}");
 
     }
 }

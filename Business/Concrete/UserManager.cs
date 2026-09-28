@@ -1,12 +1,8 @@
 ﻿using Business.Abstract;
 using Core.Entities.Concrete;
 using DataAccess.Abstract;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using Core.DataAccess.EntityFramework;
 using Core.Utilities.Results;
 using Business.Constants;
 using Core.DataAccess;
@@ -17,14 +13,12 @@ namespace Business.Concrete
     public class UserManager : IUserService
     {
         private readonly IUserDal _userDal;
-        private readonly IUserSessionInvalidationService _sessionInvalidationService;
         private readonly IUnitOfWork _unitOfWork;
 
-        public UserManager(IUserDal userDal, IUserSessionInvalidationService sessionInvalidationService,
+        public UserManager(IUserDal userDal,
             IUnitOfWork unitOfWork)
         {
             _userDal = userDal;
-            _sessionInvalidationService = sessionInvalidationService;
             _unitOfWork = unitOfWork;
         }
 
@@ -33,24 +27,16 @@ namespace Business.Concrete
             return new SuccessDataResult<List<OperationClaim>>(await _userDal.GetClaimsAsync(user, cancellationToken));
         }
 
-        public async Task<IResult> GrantOperationClaimAsync(User user, OperationClaim operationClaim, CancellationToken cancellationToken = default)
-        {
-            _userDal.AddClaim(user, operationClaim);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return await _sessionInvalidationService.InvalidateUserSessionsAsync(user.Id, cancellationToken);
-        }
-
         public async Task<IDataResult<User>> GetByMailAsync(string email, CancellationToken cancellationToken = default)
         {
-            User? result = await _userDal.GetAsync(u => u.Email == email, cancellationToken);
-
+            var result = await _userDal.GetAsync(u => u.Email == email, cancellationToken);
             if (result != null) return new SuccessDataResult<User>(result);
-            else return new ErrorDataResult<User>(Messages.UserNotFound);
+            return new ErrorDataResult<User>(Messages.UserNotFound);
         }
 
         public async Task<IDataResult<User>> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            User? result = await _userDal.GetAsync(user => user.Id == id, cancellationToken);
+            var result = await _userDal.GetAsync(user => user.Id == id, cancellationToken);
 
             if (result != null) return new SuccessDataResult<User>(result);
             return new ErrorDataResult<User>(Messages.UserNotFound);

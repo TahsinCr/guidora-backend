@@ -12,7 +12,5 @@ namespace DataAccess.Abstract
     public interface IUserDal : IEntityRepository<User>
     {
         Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default);
-
-        void AddClaim(User user, OperationClaim operationClaim);
     }
 }

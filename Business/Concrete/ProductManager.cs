@@ -22,6 +22,7 @@ using Business.BusinessRules.Moderation;
 using Business.Utilities;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete
@@ -73,33 +74,33 @@ namespace Business.Concrete
         [ValidationAspect(typeof(PageRequestValidator))]
         [PerformanceAspect(1)]
         [CacheAspect(CacheProfiles.CatalogListing, duration: 10)]
-        public async Task<IDataResult<PagedResult<Product>>> GetPageAsync(PageRequest request, int? categoryId = null,
+        public async Task<IDataResult<PagedResult<ProductListItemDto>>> GetPageAsync(PageRequest request, int? categoryId = null,
             CancellationToken cancellationToken = default)
         {
             if (request is null || request.Page < 1 || request.PageSize is < 1 or > 100)
-                return new ErrorDataResult<PagedResult<Product>>("Invalid product page request.");
+                return new ErrorDataResult<PagedResult<ProductListItemDto>>("Invalid product page request.");
             if (categoryId is <= 0)
-                return new ErrorDataResult<PagedResult<Product>>("Category ID must be positive.");
+                return new ErrorDataResult<PagedResult<ProductListItemDto>>("Category ID must be positive.");
             if (categoryId.HasValue)
             {
                 var categoryResult = await _businessRules.EnsureCategoryIsActiveAsync(categoryId.Value,
                     cancellationToken);
                 if (!categoryResult.Success)
-                    return new NotFoundDataResult<PagedResult<Product>>(categoryResult.Message);
+                    return new NotFoundDataResult<PagedResult<ProductListItemDto>>(categoryResult.Message);
             }
 
             var status = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
             if (status is null)
-                return new ErrorDataResult<PagedResult<Product>>("Published product status is not configured.");
+                return new ErrorDataResult<PagedResult<ProductListItemDto>>("Published product status is not configured.");
             var offset = ((long)request.Page - 1) * request.PageSize;
             if (offset > int.MaxValue)
-                return new ErrorDataResult<PagedResult<Product>>("Requested page is out of range.");
+                return new ErrorDataResult<PagedResult<ProductListItemDto>>("Requested page is out of range.");
 
             var items = await _productDal.GetPublishedPageAsync(status.Id, categoryId, (int)offset,
                 request.PageSize, cancellationToken);
             var totalCount = await _productDal.CountPublishedAsync(status.Id, categoryId, cancellationToken);
-            return new SuccessDataResult<PagedResult<Product>>(
-                new PagedResult<Product>(items, request.Page, request.PageSize, totalCount), Messages.ProductsListed);
+            return new SuccessDataResult<PagedResult<ProductListItemDto>>(
+                new PagedResult<ProductListItemDto>(items, request.Page, request.PageSize, totalCount), Messages.ProductsListed);
         }
 
 

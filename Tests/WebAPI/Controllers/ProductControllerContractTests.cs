@@ -5,6 +5,7 @@ using Core.Utilities.Results;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using System.Text.Json;
+using Core.Pagination;
 using WebAPI.Controllers;
 
 namespace Tests.WebAPI.Controllers;
@@ -65,7 +66,7 @@ public sealed class ProductControllerContractTests
             {
                 ProductId = id, Name = "Catalog item", Version = 42, CreatedByUserId = 9
             }));
-        public Task<IDataResult<PagedResult<Product>>> GetPageAsync(PageRequest request, int? categoryId = null,
+        public Task<IDataResult<PagedResult<ProductListItemDto>>> GetPageAsync(PageRequest request, int? categoryId = null,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IResult> CreateAsync(CreateProductRequest request, int createdByUserId,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
