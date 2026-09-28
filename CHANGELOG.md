@@ -4,6 +4,11 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Deployment
+
+- Renamed the root build file to lowercase `dockerfile` and updated the Compose
+  build configuration to use that path.
+
 ### Security and request controls
 
 - Bound Product taxonomy selections to 1–20 distinct positive Category IDs and
