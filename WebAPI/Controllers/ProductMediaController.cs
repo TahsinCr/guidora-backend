@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
 using WebAPI.Utilities;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace WebAPI.Controllers;
 
@@ -23,6 +24,7 @@ public sealed class ProductMediaController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting("product-metadata-mutation")]
     public async Task<IActionResult> Create(int productId, ProductMediaRequest request, CancellationToken cancellationToken)
     {
         if (!TryUserId(out var actorId)) return Unauthorized();
@@ -31,6 +33,7 @@ public sealed class ProductMediaController : ControllerBase
     }
 
     [HttpPut("{mediaId:int}")]
+    [EnableRateLimiting("product-metadata-mutation")]
     public async Task<IActionResult> Update(int productId, int mediaId, ProductMediaRequest request,
         CancellationToken cancellationToken)
     {
@@ -40,6 +43,7 @@ public sealed class ProductMediaController : ControllerBase
     }
 
     [HttpDelete("{mediaId:int}")]
+    [EnableRateLimiting("product-metadata-mutation")]
     public async Task<IActionResult> Delete(int productId, int mediaId, CancellationToken cancellationToken)
     {
         if (!TryUserId(out var actorId)) return Unauthorized();

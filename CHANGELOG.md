@@ -11,6 +11,15 @@ All notable changes to the Guidora backend are documented here.
 
 ### Security and request controls
 
+- Removed usable example secrets from `.env.example`; Compose now requires
+  independently configured signing, signal, and infrastructure secrets. Startup
+  rejects known template signing/signal keys even when long enough.
+- Require an existing bootstrap account to be an active Admin. Conflicting
+  email ownership fails startup without promoting or resetting that account.
+  Bootstrap passwords now share the login 128-character maximum.
+- Added shared per-user write limits for Document/Changelog and
+  Media/Contributor mutations, plus an 8 MiB Kestrel request-body cap that
+  returns HTTP 413 for oversized requests.
 - Bound Product taxonomy selections to 1–20 distinct positive Category IDs and
   at most 100 distinct positive Tag IDs before database or audit work.
 - Require LogoUrl values to use HTTP or HTTPS and hide unpublished Products

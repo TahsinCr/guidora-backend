@@ -62,5 +62,20 @@ public sealed class ExceptionMiddlewareTests
         Assert.DoesNotContain("sensitive database detail", body);
     }
 
+    [Fact]
+    public async Task OversizedRequestMapsToHttp413()
+    {
+        var context = new DefaultHttpContext();
+        await using var response = new MemoryStream();
+        context.Response.Body = response;
+        var middleware = new ExceptionMiddleware(
+            _ => throw new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge),
+            NullLogger<ExceptionMiddleware>.Instance);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status413PayloadTooLarge, context.Response.StatusCode);
+    }
+
     private sealed class SpecializedValidationException(string message) : ValidationException(message);
 }

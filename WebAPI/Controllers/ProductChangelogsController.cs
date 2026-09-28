@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Core.Pagination;
 using WebAPI.Utilities;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace WebAPI.Controllers;
 
@@ -32,6 +33,7 @@ public sealed class ProductChangelogsController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting("product-content-mutation")]
     public async Task<IActionResult> Create(int productId, ProductChangelogRequest request,
         CancellationToken cancellationToken)
     {

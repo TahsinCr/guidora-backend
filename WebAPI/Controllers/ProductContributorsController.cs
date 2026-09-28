@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
 using WebAPI.Utilities;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace WebAPI.Controllers;
 
@@ -23,6 +24,7 @@ public sealed class ProductContributorsController : ControllerBase
     }
 
     [HttpPost]
+    [EnableRateLimiting("product-metadata-mutation")]
     public async Task<IActionResult> Add(int productId, ProductContributorRequest request,
         CancellationToken cancellationToken)
     {
@@ -32,6 +34,7 @@ public sealed class ProductContributorsController : ControllerBase
     }
 
     [HttpDelete("{userId:int}")]
+    [EnableRateLimiting("product-metadata-mutation")]
     public async Task<IActionResult> Remove(int productId, int userId, CancellationToken cancellationToken)
     {
         if (!TryUserId(out var actorId)) return Unauthorized();

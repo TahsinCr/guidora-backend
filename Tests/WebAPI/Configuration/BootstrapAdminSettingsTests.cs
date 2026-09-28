@@ -33,6 +33,7 @@ public sealed class BootstrapAdminSettingsTests
     [Theory]
     [InlineData("not-an-email", "abcdefghijklmnopqrstuvwxyzABCDEF")]
     [InlineData("bootstrap@example.test", "too-short")]
+    [InlineData("bootstrap@example.test", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
     public void EnabledBootstrapRejectsInvalidEmailOrShortPassword(string email, string password)
     {
         var configuration = Configuration(

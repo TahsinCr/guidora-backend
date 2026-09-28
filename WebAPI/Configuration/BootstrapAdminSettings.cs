@@ -1,5 +1,6 @@
 using System;
 using System.Net.Mail;
+using Business.Constants;
 using Microsoft.Extensions.Configuration;
 
 namespace WebAPI.Configuration;
@@ -36,9 +37,10 @@ public sealed class BootstrapAdminSettings
         if (!Enabled) return;
 
         if (string.IsNullOrWhiteSpace(Username) || Username.Trim().Length > 100 ||
-            string.IsNullOrWhiteSpace(Email) || Email.Trim().Length > 320 || Password.Length < 32)
+            string.IsNullOrWhiteSpace(Email) || Email.Trim().Length > 320 ||
+            Password.Length is < PasswordPolicy.BootstrapMinimumLength or > PasswordPolicy.MaximumLength)
             throw new InvalidOperationException(
-                "Enabled bootstrap admin requires a username, valid email, and password of at least 32 characters.");
+                "Enabled bootstrap admin requires a username, valid email, and password of 32 to 128 characters.");
 
         try
         {

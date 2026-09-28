@@ -27,19 +27,27 @@ public sealed class BootstrapAdminManager(
     {
         username = username.Trim();
         email = email.Trim();
-        if (username.Length is 0 or > 100 || email.Length is 0 or > 320 || password.Length < 32)
+        if (username.Length is 0 or > 100 || email.Length is 0 or > 320 ||
+            password.Length is < PasswordPolicy.BootstrapMinimumLength or > PasswordPolicy.MaximumLength)
             return new ErrorResult("Bootstrap administrator settings are invalid.");
 
         await unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.BootstrapAdminProvisioning,
             cancellationToken);
 
-        var existingUser = await userService.GetByMailAsync(email, cancellationToken);
-        if (existingUser.Success)
-            return new SuccessResult("Bootstrap administrator already exists; no changes were made.");
-
         var adminRole = await roleDal.GetAsync(role => role.Code == "admin" && role.IsActive, cancellationToken);
         if (adminRole is null)
             return new ErrorResult("The active Admin role is not configured.");
+
+        var existingUser = await userService.GetByMailAsync(email, cancellationToken);
+        if (existingUser.Success && existingUser.Data is { } account)
+        {
+            if (!account.Status || !await userRoleDal.AnyAsync(
+                    assignment => assignment.UserId == account.Id && assignment.RoleId == adminRole.Id,
+                    cancellationToken))
+                return new ErrorResult("Bootstrap email belongs to an account that is not an active Admin.");
+
+            return new SuccessResult("Bootstrap administrator already exists; no changes were made.");
+        }
 
         HashingHelper.CreatePasswordHash(password, out var passwordHash, out var passwordSalt);
         var now = DateTime.UtcNow;

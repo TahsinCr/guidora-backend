@@ -1,6 +1,7 @@
 using Entities.DTOs;
 using FluentValidation;
 using System;
+using Business.Constants;
 
 namespace Business.ValidationRules.FluentValidation;
 
@@ -9,7 +10,7 @@ public sealed class UserForLoginValidator : AbstractValidator<UserForLoginDto>
     public UserForLoginValidator()
     {
         RuleFor(request => request.Email).NotEmpty().EmailAddress().MaximumLength(320);
-        RuleFor(request => request.Password).NotEmpty().MaximumLength(128);
+        RuleFor(request => request.Password).NotEmpty().MaximumLength(PasswordPolicy.MaximumLength);
     }
 }
 
@@ -18,7 +19,7 @@ public sealed class UserForRegisterValidator : AbstractValidator<UserForRegister
     public UserForRegisterValidator()
     {
         RuleFor(request => request.Email).NotEmpty().EmailAddress().MaximumLength(320);
-        RuleFor(request => request.Password).NotEmpty().MinimumLength(12).MaximumLength(128);
+        RuleFor(request => request.Password).NotEmpty().MinimumLength(12).MaximumLength(PasswordPolicy.MaximumLength);
         RuleFor(request => request.FirstName).NotEmpty().MaximumLength(100);
         RuleFor(request => request.LastName).NotEmpty().MaximumLength(100);
     }

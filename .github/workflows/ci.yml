@@ -76,6 +76,12 @@ jobs:
           GUIDORA_TEST_RABBITMQ_PASSWORD: ci-rabbit-password
         run: dotnet test Tests/Tests.csproj --configuration Release --no-build
       - name: Validate Compose configuration
+        env:
+          POSTGRES_PASSWORD: ci-compose-postgres-password
+          REDIS_PASSWORD: ci-compose-redis-password
+          RABBITMQ_PASSWORD: ci-compose-rabbit-password
+          TOKEN_OPTIONS__SECURITYKEY: ci-compose-signing-key-at-least-thirty-two-bytes
+          COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY: ci-compose-signal-key-at-least-thirty-two-bytes
         run: docker compose --env-file .env.example config --quiet
       - name: Build backend image
         run: docker build --tag guidora-backend:ci .

@@ -10,6 +10,7 @@ using Core.Utilities.Security.Encyption;
 using Core.Utilities.Security.JWT;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -43,6 +44,7 @@ namespace WebAPI
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 8 * 1024 * 1024);
 
             const string apiCorsPolicy = "_apiCorsPolicy";
             var allowOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -87,6 +89,10 @@ namespace WebAPI
                     "RateLimiting:FavoriteMutation", permitLimit: 60, windowSeconds: 600);
                 AddUserRateLimitPolicy(options, builder.Configuration, "community-vote",
                     "RateLimiting:CommunityVote", permitLimit: 30, windowSeconds: 3600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "product-content-mutation",
+                    "RateLimiting:ProductContentMutation", permitLimit: 6, windowSeconds: 3600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "product-metadata-mutation",
+                    "RateLimiting:ProductMetadataMutation", permitLimit: 30, windowSeconds: 3600);
             });
 
             // Add services to the container.
@@ -335,7 +341,7 @@ namespace WebAPI
         {
             if (string.IsNullOrWhiteSpace(tokenOptions.Issuer) ||
                 string.IsNullOrWhiteSpace(tokenOptions.Audience) ||
-                System.Text.Encoding.UTF8.GetByteCount(tokenOptions.SecurityKey ?? string.Empty) < 32 ||
+                !SecretConfigurationPolicy.IsConfigured(tokenOptions.SecurityKey) ||
                 tokenOptions.AccessTokenExpirationMinutes <= 0 ||
                 tokenOptions.RefreshTokenExpirationDays <= 0 ||
                 tokenOptions.RememberMeExpirationDays <= 0 ||
@@ -343,9 +349,8 @@ namespace WebAPI
                 tokenOptions.ClockSkewSeconds < 0)
                 throw new InvalidOperationException("TokenOptions must include issuer, audience, a signing key of at least 32 bytes, and valid lifetimes.");
 
-            if (System.Text.Encoding.UTF8.GetByteCount(
-                    configuration["CommunityVerification:SignalHashKey"] ?? string.Empty) < 32)
-                throw new InvalidOperationException("CommunityVerification:SignalHashKey must be at least 32 bytes.");
+            if (!SecretConfigurationPolicy.IsConfigured(configuration["CommunityVerification:SignalHashKey"]))
+                throw new InvalidOperationException("CommunityVerification:SignalHashKey must be a non-template secret of at least 32 bytes.");
 
             if (!configuration.GetValue<bool>("EmailVerification:Enabled")) return;
             if (string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:Host"]) ||

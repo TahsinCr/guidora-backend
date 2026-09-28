@@ -37,7 +37,7 @@ Start the local infrastructure:
 
 ```bash
 cp -n .env.example .env
-# Replace every placeholder secret and configure the initial Admin in .env.
+# Generate independent random secrets for blank fields and configure the initial Admin.
 docker compose up --build -d
 docker compose ps
 ```
@@ -46,31 +46,36 @@ The default Compose stack builds and runs the backend with PostgreSQL and Redis.
 RabbitMQ is optional and is not a dependency of the synchronous V1 API; start it
 only when explicitly needed with `docker compose --profile messaging up -d`.
 `.env` is loaded by Docker Compose and ignored by Git. The checked-in
-`.env.example` is a template only; replace its placeholder secrets before
-starting the stack. The backend is exposed on `localhost:8080`; `/health/live`
+`.env.example` is a template only: required secrets are blank and Compose
+refuses to start until they are supplied. Generate independent random values
+for PostgreSQL, Redis, RabbitMQ, JWT signing, and Community signal hashing.
+The backend is exposed on `localhost:8080`; `/health/live`
 checks process availability and `/health/ready` checks PostgreSQL and Redis.
 
 On first startup, set `BOOTSTRAP_ADMIN_ENABLED=true` and configure
 `BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_EMAIL`, and a unique random
-`BOOTSTRAP_ADMIN_PASSWORD` of at least 32 characters in `.env`. The backend
+`BOOTSTRAP_ADMIN_PASSWORD` of 32–128 characters in `.env`. The backend
 creates this account only when that email does not already exist. Creation of
 the user, Admin role assignment, profile, and authentication state is
 transactional and serialized across backend instances. If the email already
-belongs to an account, startup leaves that account and its permissions
-unchanged. The bootstrap secret is never logged or stored in source control.
+belongs to an active Admin, startup leaves that account unchanged. If it
+belongs to any other account, startup fails without granting privileges.
+The bootstrap secret is never logged or stored in source control.
 Guidora signs in by email; the configured username is stored as the account's
 first name and profile display name, not as a separate login identifier.
 This runs when the application starts, after any enabled database migrations;
 building the image alone does not connect to the database or create accounts.
-The template keeps bootstrap disabled to prevent accidental use of sample
-credentials. Startup migrations are enabled in the local template for a fresh
-Compose database; disable `DATABASE_APPLY_MIGRATIONS_ON_STARTUP` in production
+After successful provisioning, set `BOOTSTRAP_ADMIN_ENABLED=false`, remove
+`BOOTSTRAP_ADMIN_PASSWORD` from the deployment environment, and redeploy.
+The template keeps bootstrap disabled. Startup migrations are enabled in the
+local template for a fresh Compose database; disable
+`DATABASE_APPLY_MIGRATIONS_ON_STARTUP` in production
 and use the reviewed migration deployment process described below.
 
 The initial Admin can grant the Admin role to another existing account through
 `PUT /api/roles/{roleId}/users/{userId}`. That audited role workflow invalidates
 the target account's existing sessions. The bootstrap account is the initial
-trust root; its password is generated into the local ignored `.env` file.
+trust root; the operator supplies its password in the local ignored `.env` file.
 
 Compose services:
 
@@ -150,7 +155,11 @@ new code within their own rate limit. SMTP credentials remain outside Git.
 Authenticated user-generated writes also have configurable per-user limits:
 Product creation (3/hour), Product updates and edit proposals (10/hour),
 comments (10/10 minutes), reports (5/hour), favorites (60/10 minutes), and
-Community votes (30/hour). Settings are under matching `RateLimiting:*` keys
+Community votes (30/hour), Document/Changelog mutations (6/hour combined),
+and Media/Contributor mutations (30/hour combined). Kestrel rejects request
+bodies over 8 MiB before JSON model binding; the limit accommodates the
+1,000,000-character content rule including JSON escaping. Settings are under
+matching `RateLimiting:*` keys
 and `RATE_LIMIT_*` variables in `.env`. These ASP.NET limits are process-local;
 when the API is scaled to multiple replicas, enforce aggregate limits at the
 gateway or adopt a distributed limiter.

@@ -44,6 +44,44 @@ public sealed class BootstrapAdminManagerTests
         Assert.Single(authenticationStates.GetAll(), state => state.UserId == user.Id && state.AuthorizationVersion == 1);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task ExistingAccountMustBeActiveAdmin(bool isActive, bool hasAdminRole)
+    {
+        var users = new UserDalStub();
+        users.Add(new User { Id = 1, Email = "bootstrap@example.test", Status = isActive });
+        var roles = new RoleDalStub([new Role { Id = 3, Code = "admin", IsActive = true }]);
+        var assignments = new UserRoleDalStub();
+        if (hasAdminRole) assignments.Add(new UserRole { UserId = 1, RoleId = 3 });
+        var unitOfWork = new UnitOfWorkStub();
+        var sut = new BootstrapAdminManager(new UserManager(users, unitOfWork), roles, assignments,
+            new UserProfileDalStub(), new AuthenticationStateDalStub(), unitOfWork);
+
+        var result = await sut.EnsureCreatedAsync("bootstrap-test", "bootstrap@example.test",
+            "abcdefghijklmnopqrstuvwxyzABCDEF");
+
+        Assert.False(result.Success);
+        Assert.Single(users.GetAll());
+        Assert.Equal(hasAdminRole ? 1 : 0, assignments.GetAll().Count);
+    }
+
+    [Fact]
+    public async Task RejectsPasswordLongerThanLoginAccepts()
+    {
+        var users = new UserDalStub();
+        var unitOfWork = new UnitOfWorkStub();
+        var sut = new BootstrapAdminManager(new UserManager(users, unitOfWork),
+            new RoleDalStub([new Role { Id = 3, Code = "admin", IsActive = true }]),
+            new UserRoleDalStub(), new UserProfileDalStub(), new AuthenticationStateDalStub(), unitOfWork);
+
+        var result = await sut.EnsureCreatedAsync("bootstrap-test", "bootstrap@example.test", new string('x', 129));
+
+        Assert.False(result.Success);
+        Assert.Empty(users.GetAll());
+    }
+
     private sealed class UserDalStub : EntityRepositoryStub<User>, IUserDal
     {
         private int _nextId;

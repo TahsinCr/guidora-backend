@@ -34,6 +34,15 @@ public sealed class CommunityControllerContractTests
     [InlineData(typeof(FavoritesController), "Add", "favorite-mutation")]
     [InlineData(typeof(FavoritesController), "Remove", "favorite-mutation")]
     [InlineData(typeof(ProductVerificationsController), "VoteCommunity", "community-vote")]
+    [InlineData(typeof(ProductDocumentsController), "Create", "product-content-mutation")]
+    [InlineData(typeof(ProductDocumentsController), "Update", "product-content-mutation")]
+    [InlineData(typeof(ProductDocumentsController), "Delete", "product-content-mutation")]
+    [InlineData(typeof(ProductChangelogsController), "Create", "product-content-mutation")]
+    [InlineData(typeof(ProductMediaController), "Create", "product-metadata-mutation")]
+    [InlineData(typeof(ProductMediaController), "Update", "product-metadata-mutation")]
+    [InlineData(typeof(ProductMediaController), "Delete", "product-metadata-mutation")]
+    [InlineData(typeof(ProductContributorsController), "Add", "product-metadata-mutation")]
+    [InlineData(typeof(ProductContributorsController), "Remove", "product-metadata-mutation")]
     public void UserGeneratedWriteEndpointsHaveRateLimits(Type controller, string methodName, string policy)
     {
         var method = controller.GetMethod(methodName);

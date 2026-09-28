@@ -32,8 +32,8 @@ namespace Core.Extensions
             }
             catch (Exception e)
             {
-                if (e is DataConflictException)
-                    _logger.LogInformation(e, "Request rejected by a database uniqueness constraint. TraceId: {TraceId}",
+                if (e is DataConflictException or BadHttpRequestException)
+                    _logger.LogInformation(e, "Request rejected. TraceId: {TraceId}",
                         httpContext.TraceIdentifier);
                 else
                     _logger.LogError(e, "Unhandled request exception. TraceId: {TraceId}",
@@ -89,6 +89,16 @@ namespace Core.Extensions
                 {
                     StatusCode = httpContext.Response.StatusCode,
                     Message = "The request conflicts with an existing record."
+                }.ToString());
+            }
+
+            if (e is BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge })
+            {
+                httpContext.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                return httpContext.Response.WriteAsync(new ErrorDetails
+                {
+                    StatusCode = httpContext.Response.StatusCode,
+                    Message = "Request body is too large."
                 }.ToString());
             }
 
