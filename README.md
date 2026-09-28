@@ -104,17 +104,26 @@ configurable IP-partitioned limits under `RateLimiting:Login`, `Register`, and
 `Refresh`. Refresh cookies are Secure outside Development. The API also applies
 user-partitioned limits to email-verification code requests and
 confirmation attempts under `RateLimiting:EmailVerificationRequest` and
-`EmailVerificationConfirm`. Set `EMAIL_VERIFICATION_ENABLED=true` and configure
+`EmailVerificationConfirm`, plus an aggregate IP limit under
+`RateLimiting:EmailVerificationIp` (default 120 requests per hour for
+authenticated callers). Set `EMAIL_VERIFICATION_ENABLED=true` and configure
 `EMAIL_SMTP_HOST`, `EMAIL_SMTP_FROM`, `EMAIL_SMTP_USERNAME`,
-`EMAIL_SMTP_PASSWORD`, and a separate
-`COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY` (at least 32 bytes) to enable sending confirmation
-codes; registered users can still sign in before email confirmation, but cannot
+`EMAIL_SMTP_PASSWORD` to enable sending confirmation codes. Configure a separate
+`COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY` (at least 32 bytes) for Community vote
+signals regardless of SMTP status. Registered users can still sign in before
+email confirmation, but cannot
 cast Community verification votes. `POST /api/auth/email-verification/request`
 and `POST /api/auth/email-verification/confirm` require a valid session. Codes
 are random, stored only as SHA-256 hashes, expire after 30 minutes, and can be
-used once. Startup rejects incomplete enabled SMTP settings. Delivery failure
+used once; only the most recently requested code is valid. Startup rejects
+incomplete or malformed enabled SMTP settings, and always requires a separate
+Community signal key even while SMTP is disabled. Delivery failure
 returns HTTP 503 and expires the undelivered challenge; the user can request a
 new code within their own rate limit. SMTP credentials remain outside Git.
+
+The .NET SDK is fixed at 10.0.401 in `global.json`, matching the Docker build
+image and CI setup. CI also starts the built backend image as a non-root user
+and checks `/health/live`.
 
 HTTP request logs record method, path, response status, duration, and trace ID only. Query strings,
 headers, and request/response bodies are excluded so secret query parameters and
@@ -236,6 +245,18 @@ Public catalog reads expose only `published` Products. Product listing
 endpoints are database-paginated (`page`, `pageSize`, capped at 100) and
 category filtering is performed in the database rather than materializing
 category Product IDs in the API process.
+List responses contain Product identity, short description, URLs, and dates;
+the full description is returned only by `GET /api/products/{id}`. New Product
+and edit-proposal descriptions are capped at 20,000 characters. The
+`BoundProductDescriptions` migration fails if existing rows exceed that limit;
+review those rows before applying it. Apply the column-type change during a
+maintenance window if Product tables are already large, because PostgreSQL must
+validate existing values under a schema lock.
+
+```sql
+SELECT "ProductId" FROM "Products" WHERE char_length("Description") > 20000;
+SELECT "Id" FROM "ProductEditProposals" WHERE char_length("Description") > 20000;
+```
 Only active Categories are public: listing Products by an inactive or unknown
 Category returns 404. Deactivating a Category invalidates both navigation and
 Product-listing caches after the database transaction commits.
@@ -339,6 +360,10 @@ Product-scoped resources under `/api/products/{productId}/documents`,
 content in PostgreSQL. Media currently stores validated HTTP(S) references and
 metadata only: binary upload and its physical storage provider remain an open
 infrastructure decision. Changelog entries are version-unique and append-only.
+Document and Changelog list endpoints accept `page` and `pageSize` (maximum 100)
+and return metadata without `Content`. Fetch full content from
+`GET /api/products/{productId}/documents/{documentId}` or
+`GET /api/products/{productId}/changelogs/{changelogId}`.
 Contributor records credit a User once per Product; users may add/remove their
 own credit, while the Product creator can manage other credits. Direct Document
 and Media mutations are rejected for actively verified Products because those
@@ -371,6 +396,14 @@ data is automatically removed or renamed.
 
 ## Authentication sessions
 
+Login returns the same invalid-credentials response for unknown email, wrong
+password, and inactive accounts; unknown-email attempts perform password-hash
+work as well. Registration deliberately returns a conflict for an existing
+email, so email existence is not hidden across the entire API. Authorization
+uses managed role grants. Existing direct-user claims remain readable for
+backward compatibility, but Guidora exposes no command to create or revoke
+them; new permission changes use the audited role workflow.
+
 Guidora uses a short-lived JWT access token together with a rotating refresh
 session. Refresh tokens are random secrets, stored only as hashes in
 PostgreSQL, and are delivered to the browser in an HttpOnly cookie. The
@@ -378,19 +411,43 @@ PostgreSQL session record is the security source of truth; Redis caches a
 successful access-token session validation for at most one minute, capped by
 both the refresh session and absolute session expirations, and is explicitly
 invalidated on logout, ban, or authorization invalidation.
+If Redis eviction fails after the database commits an invalidation, the API
+logs the failure and continues removing other keys. Positive validation cache
+entries expire within one minute at most.
 
 The default token settings are deliberately persistent without being
 indefinite: access token 15 minutes, refresh session 30 days, remembered
 session 90 days, and an absolute session lifetime of 180 days. Refresh rotation
 preserves the login session's fixed absolute expiry. Replayed rotated tokens are
 recorded once, so the same old token cannot repeatedly invalidate sessions created
-after the first replay response.
+after the first replay response. Once a session's absolute lifetime has ended,
+presenting its old refresh token returns an invalid-session result without a
+replay-triggered account-wide logout.
+
+Authenticated users can list active sessions with `GET /api/auth/sessions?page=1&pageSize=20`
+(maximum page size 100), close one owned session with
+`DELETE /api/auth/sessions/{sessionId}`, close every other session with
+`POST /api/auth/logout-others`, or close all sessions with
+`POST /api/auth/logout-all`. Session responses contain device and lifetime
+metadata, never token hashes. `LastUsedAt` records creation or the last refresh
+rotation, not every API request. Closing the current session clears its refresh
+cookie; closing all sessions also invalidates issued access tokens through the
+authorization version. Refresh rotations keep a stable session-family ID, so
+closing an ID from an older listing still closes its current descendant.
+The session-family migration backfills existing rotation chains to their root ID.
+Refresh, session revocation, and account-wide invalidation take the same
+per-user PostgreSQL transaction lock so a concurrent rotation cannot escape a
+logout operation.
+
+A daily background task deletes at most 50,000 sessions in batches of 500 only after their
+absolute lifetime ended more than 30 days earlier. The cleanup uses an index
+on `AbsoluteExpiresAt`; no still-valid refresh-token family is deleted.
 
 Existing sessions migrated by `AddAbsoluteSessionExpiryProposalVersionAndReplayGuard`
 use the historical V1 180-day absolute lifetime measured from the first
 session in their rotation chain; runtime configuration applies to new sessions.
 
-A ban, direct user-claim change, or explicit authorization invalidation revokes all
+A ban or explicit authorization invalidation revokes all
 of the user's sessions and increments its authorization version. The Admin-only
 role API assigns/removes roles and grants/revokes OperationClaims; affected
 users' authorization versions and sessions are invalidated in the same
@@ -421,6 +478,21 @@ Business/    Current business rules and services
 WebAPI/      Current HTTP entry point
 infra/       Local Docker infrastructure
 ```
+
+Core owns reusable pagination contracts, cache/aspect implementations, hashing,
+and JWT issuance from a `TokenSubject`; it does not choose Guidora's cache
+profiles or Redis provider. Business owns catalog profiles and the mapping from
+its User entity to token identity. WebAPI selects Redis during composition.
+Core still contains the existing shared User/role persistence models for
+compatibility; moving them into a separately versioned identity package requires
+a deliberate cross-project contract and migration plan.
+
+For a read-only load baseline against a seeded deployment, run
+`PERF_BASE_URL=https://your-api PERF_PRODUCT_ID=1 k6 run perf/catalog-reads.js`.
+Set `PERF_ACCESS_TOKEN` to include authenticated reads. Compare p50/p95/p99,
+request rate, database/Redis latency, CPU, and allocation measurements across
+the same dataset and hardware before selecting further indexes or pagination
+changes.
 
 The first architectural split will separate the Identity and Catalog bounded contexts. Every new service must have its own application, data access, migrations, and test boundaries.
 

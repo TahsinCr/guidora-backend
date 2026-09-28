@@ -5,6 +5,7 @@ using Entities;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,7 +20,7 @@ namespace DataAccess.Concrete.Entityframework
         public async Task IncrementAuthorizationVersionsAsync(IReadOnlyCollection<int> userIds,
             DateTime updatedAt, CancellationToken cancellationToken = default)
         {
-            foreach (var userId in userIds)
+            foreach (var userId in userIds.OrderBy(id => id))
             {
                 await _context.Database.ExecuteSqlInterpolatedAsync($"""
                     INSERT INTO "UserAuthenticationStates" ("UserId", "AuthorizationVersion", "UpdatedAt")

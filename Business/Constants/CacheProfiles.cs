@@ -1,4 +1,4 @@
-namespace Core.CrossCuttingConcerns.Caching
+namespace Business.Constants
 {
     public static class CacheProfiles
     {
