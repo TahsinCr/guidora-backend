@@ -58,7 +58,7 @@ public sealed class InfrastructureIntegrationTests
                 var manager = new UserSessionInvalidationManager(
                     new EfUserAuthenticationStateDal(context), new EfUserSessionDal(context),
                     new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
-                    new FailingSaveUnitOfWork());
+                    new FailingSaveUnitOfWork(), Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
                 await Assert.ThrowsAsync<InvalidOperationException>(() =>
                     manager.InvalidateUserSessionsAsync(userId));
             }

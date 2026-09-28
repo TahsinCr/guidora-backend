@@ -380,6 +380,13 @@ data is automatically removed or renamed.
 
 ## Authentication sessions
 
+Login returns the same invalid-credentials response for unknown email, wrong
+password, and inactive accounts; unknown-email attempts perform password-hash
+work as well. Registration deliberately returns a conflict for an existing
+email, so email existence is not hidden across the entire API. Direct-user
+claim grants have no public command; role and permission changes use the
+audited management workflows.
+
 Guidora uses a short-lived JWT access token together with a rotating refresh
 session. Refresh tokens are random secrets, stored only as hashes in
 PostgreSQL, and are delivered to the browser in an HttpOnly cookie. The
@@ -387,6 +394,9 @@ PostgreSQL session record is the security source of truth; Redis caches a
 successful access-token session validation for at most one minute, capped by
 both the refresh session and absolute session expirations, and is explicitly
 invalidated on logout, ban, or authorization invalidation.
+If Redis eviction fails after the database commits an invalidation, the API
+logs the failure and continues removing other keys. Positive validation cache
+entries expire within one minute at most.
 
 The default token settings are deliberately persistent without being
 indefinite: access token 15 minutes, refresh session 30 days, remembered

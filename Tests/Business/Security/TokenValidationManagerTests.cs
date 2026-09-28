@@ -78,7 +78,6 @@ public sealed class TokenValidationManagerTests
     private sealed class UserDalStub(IEnumerable<User>? values = null) : EntityRepositoryStub<User>(values), IUserDal
     {
         public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) => Task.FromResult(new List<OperationClaim>());
-        public void AddClaim(User user, OperationClaim operationClaim) { }
     }
     private sealed class AuthenticationStateDalStub(IEnumerable<UserAuthenticationState>? values = null)
         : EntityRepositoryStub<UserAuthenticationState>(values), IUserAuthenticationStateDal

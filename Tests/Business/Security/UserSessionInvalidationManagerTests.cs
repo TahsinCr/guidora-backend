@@ -21,7 +21,7 @@ public sealed class UserSessionInvalidationManagerTests
         var sessionDal = new UserSessionDalStub([active, alreadyRevoked, otherUser]);
         var cache = new RecordingDistributedCache();
         var unitOfWork = new CommitAwareUnitOfWork(() => cache.CommitObserved = true);
-        var sut = new UserSessionInvalidationManager(stateDal, sessionDal, cache, unitOfWork);
+        var sut = new UserSessionInvalidationManager(stateDal, sessionDal, cache, unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         var result = await sut.InvalidateUserSessionsAsync(42);
 
@@ -44,7 +44,7 @@ public sealed class UserSessionInvalidationManagerTests
         var sessionDal = new UserSessionDalStub();
         var unitOfWork = new UnitOfWorkStub();
         var sut = new UserSessionInvalidationManager(stateDal, sessionDal,
-            new RecordingDistributedCache(), unitOfWork);
+            new RecordingDistributedCache(), unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         var result = await sut.InvalidateUserSessionsAsync(42);
 
@@ -66,7 +66,7 @@ public sealed class UserSessionInvalidationManagerTests
             new UserSession { Id = Guid.NewGuid(), UserId = 42 },
             new UserSession { Id = Guid.NewGuid(), UserId = 43 }]);
         var unitOfWork = new UnitOfWorkStub();
-        var sut = new UserSessionInvalidationManager(stateDal, sessions, cache, unitOfWork);
+        var sut = new UserSessionInvalidationManager(stateDal, sessions, cache, unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         var result = await sut.InvalidateUsersSessionsAsync([43, 42, 43]);
 
@@ -86,7 +86,7 @@ public sealed class UserSessionInvalidationManagerTests
         var session = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
         var cache = new RecordingDistributedCache();
         var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
-            new UserSessionDalStub([session]), cache, new FailingUnitOfWork());
+            new UserSessionDalStub([session]), cache, new FailingUnitOfWork(), Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.InvalidateUserSessionsAsync(42));
 
@@ -134,7 +134,7 @@ public sealed class UserSessionInvalidationManagerTests
     {
         var unitOfWork = new UnitOfWorkStub();
         var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
-            new UserSessionDalStub(), new RecordingDistributedCache(), unitOfWork);
+            new UserSessionDalStub(), new RecordingDistributedCache(), unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         var result = await sut.InvalidateUserSessionsAsync(userId);
 
@@ -179,7 +179,7 @@ public sealed class UserSessionInvalidationManagerTests
 
     private static UserSessionInvalidationManager CreateManager(UserSession session,
         RecordingDistributedCache cache, IUnitOfWork unitOfWork) =>
-        new(new AuthenticationStateDalStub(), new UserSessionDalStub([session]), cache, unitOfWork);
+        new(new AuthenticationStateDalStub(), new UserSessionDalStub([session]), cache, unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? items = null)
         : EntityRepositoryStub<UserSession>(items), IUserSessionDal

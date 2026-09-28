@@ -95,16 +95,12 @@ namespace WebAPI
                 .AddCheck<PostgreSqlHealthCheck>("postgresql", tags: ["ready"])
                 .AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);
 
-            //builder.Services.AddSingleton<IProductDal,EfProductDal>();
-            //builder.Services.AddSingleton<IProductService,ProductManager>();
             builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory())
                 .ConfigureContainer<ContainerBuilder>(autofacBuilder => 
                 {
                     autofacBuilder.RegisterModule(new AutofacBusinessModule());
                 });
 
-
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 
             var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>()
                 ?? throw new InvalidOperationException("TokenOptions configuration is missing.");

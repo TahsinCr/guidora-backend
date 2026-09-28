@@ -6,6 +6,7 @@ using Business.Abstract;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Core.DataAccess;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,14 +19,17 @@ namespace Business.Concrete
         private readonly IUserSessionDal _userSessionDal;
         private readonly IDistributedCache _distributedCache;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<UserSessionInvalidationManager> _logger;
 
         public UserSessionInvalidationManager(IUserAuthenticationStateDal authenticationStateDal,
-            IUserSessionDal userSessionDal, IDistributedCache distributedCache, IUnitOfWork unitOfWork)
+            IUserSessionDal userSessionDal, IDistributedCache distributedCache, IUnitOfWork unitOfWork,
+            ILogger<UserSessionInvalidationManager> logger)
         {
             _authenticationStateDal = authenticationStateDal;
             _userSessionDal = userSessionDal;
             _distributedCache = distributedCache;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public Task<IResult> InvalidateUserSessionsAsync(int userId, CancellationToken cancellationToken = default)
@@ -80,10 +84,24 @@ namespace Business.Concrete
 
         private void RemoveSessionValidationCache(string[] cacheKeys)
         {
+            Exception? firstFailure = null;
+            var failedCount = 0;
             foreach (var cacheKey in cacheKeys)
             {
-                _distributedCache.Remove(cacheKey);
+                try
+                {
+                    _distributedCache.Remove(cacheKey);
+                }
+                catch (Exception exception)
+                {
+                    firstFailure ??= exception;
+                    failedCount++;
+                }
             }
+            if (failedCount > 0)
+                _logger.LogError(firstFailure,
+                    "Failed to evict {FailedCount} of {SessionCount} authorization session cache entries after commit.",
+                    failedCount, cacheKeys.Length);
         }
     }
 }

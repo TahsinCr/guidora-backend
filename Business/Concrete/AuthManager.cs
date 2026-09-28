@@ -6,7 +6,6 @@ using Core.Utilities.Results;
 using Core.Utilities.Security.JWT;
 using Entities.DTOs;
 using System;
-using System.Text;
 using System.Threading.Tasks;
 using Core.Utilities.Security.Hashing;
 using DataAccess.Abstract;
@@ -18,12 +17,14 @@ using Core.Aspects.Autofac.Validation;
 using Core.DataAccess;
 using System.Threading;
 using System.Transactions;
-using Microsoft.EntityFrameworkCore;
 
 namespace Business.Concrete
 {
     public class AuthManager : IAuthService
     {
+        private const string InvalidCredentialsMessage = "Invalid email or password.";
+        private static readonly byte[] MissingUserHash = new byte[32];
+        private static readonly byte[] MissingUserSalt = new byte[16];
         private readonly IUserService _userService;
         private readonly IRoleDal _roleDal;
         private readonly IUserRoleDal _userRoleDal;
@@ -104,17 +105,17 @@ namespace Business.Concrete
             CancellationToken cancellationToken = default)
         {
             var userToCheck = await _userService.GetByMailAsync(userForLoginDto.Email, cancellationToken);
-            if (userToCheck.Data == null) return userToCheck;
-
-            if (!userToCheck.Data.Status)
+            if (userToCheck.Data == null)
             {
-                return new ErrorDataResult<User>("User account is inactive.");
+                // Match the password work performed for an existing PBKDF2 account.
+                _ = HashingHelper.VerifyPasswordHash(userForLoginDto.Password, MissingUserHash, MissingUserSalt);
+                return new ErrorDataResult<User>(InvalidCredentialsMessage);
             }
 
-            if (!HashingHelper.VerifyPasswordHash(userForLoginDto.Password, userToCheck.Data.PasswordHash, userToCheck.Data.PasswordSalt))
-            {
-                return new ErrorDataResult<User>(Messages.PasswordError);
-            }
+            var passwordValid = HashingHelper.VerifyPasswordHash(userForLoginDto.Password,
+                userToCheck.Data.PasswordHash, userToCheck.Data.PasswordSalt);
+            if (!userToCheck.Data.Status || !passwordValid)
+                return new ErrorDataResult<User>(InvalidCredentialsMessage);
 
             if (HashingHelper.NeedsRehash(userToCheck.Data.PasswordHash, userToCheck.Data.PasswordSalt))
             {
@@ -145,7 +146,7 @@ namespace Business.Concrete
         {
             if (!user.Status)
             {
-                return new ErrorDataResult<AuthenticationResultDto>("User account is inactive.");
+                return new ErrorDataResult<AuthenticationResultDto>(InvalidCredentialsMessage);
             }
 
             var authenticationState = await GetOrCreateAuthenticationStateAsync(user.Id, cancellationToken);

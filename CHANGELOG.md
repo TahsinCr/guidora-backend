@@ -6,6 +6,12 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Removed the unused direct-user claim grant path and its DAL helper, together
+  with obsolete message constants and imports.
+- Made login failures use one credential response and comparable password work
+  for unknown accounts; registration still reports duplicate email conflicts.
+- Isolated post-commit session-cache eviction failures, continued evicting
+  remaining keys, and logged one structured error with the failure count.
 - Made authorization-version increments and session revocations commit in one
   transaction even for direct invalidation calls, and ordered bulk user IDs to
   avoid reversed row-lock acquisition.

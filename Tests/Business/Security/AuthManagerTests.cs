@@ -133,8 +133,7 @@ public sealed class AuthManagerTests
     {
         public Task<IDataResult<List<OperationClaim>>> GetClaimsAsync(User value, CancellationToken cancellationToken = default) =>
             Task.FromResult<IDataResult<List<OperationClaim>>>(new SuccessDataResult<List<OperationClaim>>([]));
-        public Task<IResult> GrantOperationClaimAsync(User value, OperationClaim operationClaim, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IResult>(new SuccessResult());
+
         public Task<IDataResult<User>> GetByIdAsync(int id, CancellationToken cancellationToken = default) =>
             Task.FromResult<IDataResult<User>>(id == user.Id ? new SuccessDataResult<User>(user) : new ErrorDataResult<User>("missing"));
         public Task<IDataResult<User>> GetByMailAsync(string email, CancellationToken cancellationToken = default) =>

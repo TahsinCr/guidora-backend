@@ -68,7 +68,7 @@ namespace WebAPI.Controllers
                 return Ok(result);
             }
 
-            return this.ToHttpResult(result);
+            return Unauthorized(result);
         }
 
         [HttpPost("register")]

@@ -78,7 +78,6 @@ public sealed class CommunityUserDalStub(IEnumerable<User>? items = null)
 {
     public Task<List<global::Core.Entities.Concrete.OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) =>
         Task.FromResult(new List<global::Core.Entities.Concrete.OperationClaim>());
-    public void AddClaim(User user, global::Core.Entities.Concrete.OperationClaim operationClaim) { }
 }
 public sealed class CommunityVerificationDalStub(IEnumerable<ProductVerification>? items = null)
     : EntityRepositoryStub<ProductVerification>(items), IProductVerificationDal;
