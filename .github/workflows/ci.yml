@@ -42,7 +42,7 @@ jobs:
         with:
           dotnet-version: 10.0.401
       - name: Install EF tooling
-        run: dotnet tool install --global dotnet-ef --version 10.0.4
+        run: dotnet tool install --global dotnet-ef --version 10.0.12
       - name: Restore backend layers
         run: dotnet restore NetCoreBackend.sln
       - name: Fail on moderate or higher NuGet vulnerabilities
