@@ -11,8 +11,8 @@ All notable changes to the Guidora backend are documented here.
   committed transactionally under a PostgreSQL advisory lock; an existing
   account is never silently promoted or reset.
 - Added bootstrap-admin and SMTP settings to Compose and the local `.env`
-  workflow. The local `.env` contains a newly generated 32-character bootstrap
-  password; `.env.example` remains a secret-free template with bootstrap
+  workflow. Bootstrap credentials are kept out of application settings and
+  source control; `.env.example` remains a secret-free template with bootstrap
   disabled by default.
 - Validate enabled bootstrap credentials at startup and provision after schema
   migration/authorization initialization. Documented Gmail App Password setup

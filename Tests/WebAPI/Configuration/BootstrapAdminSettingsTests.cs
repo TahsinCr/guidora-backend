@@ -20,24 +20,24 @@ public sealed class BootstrapAdminSettingsTests
     {
         var configuration = Configuration(
             ("BootstrapAdmin:Enabled", "true"),
-            ("BootstrapAdmin:Username", "tahsincr"),
-            ("BootstrapAdmin:Email", "tahsincrs@gmail.com"),
+            ("BootstrapAdmin:Username", "bootstrap-test"),
+            ("BootstrapAdmin:Email", "bootstrap@example.test"),
             ("BootstrapAdmin:Password", "abcdefghijklmnopqrstuvwxyzABCDEF"));
 
         var settings = BootstrapAdminSettings.FromConfiguration(configuration);
 
         Assert.True(settings.Enabled);
-        Assert.Equal("tahsincr", settings.Username);
+        Assert.Equal("bootstrap-test", settings.Username);
     }
 
     [Theory]
     [InlineData("not-an-email", "abcdefghijklmnopqrstuvwxyzABCDEF")]
-    [InlineData("tahsincrs@gmail.com", "too-short")]
+    [InlineData("bootstrap@example.test", "too-short")]
     public void EnabledBootstrapRejectsInvalidEmailOrShortPassword(string email, string password)
     {
         var configuration = Configuration(
             ("BootstrapAdmin:Enabled", "true"),
-            ("BootstrapAdmin:Username", "tahsincr"),
+            ("BootstrapAdmin:Username", "bootstrap-test"),
             ("BootstrapAdmin:Email", email),
             ("BootstrapAdmin:Password", password));
 

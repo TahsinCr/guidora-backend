@@ -28,19 +28,19 @@ public sealed class BootstrapAdminManagerTests
             authenticationStates, unitOfWork);
 
         const string password = "abcdefghijklmnopqrstuvwxyzABCDEF";
-        var created = await sut.EnsureCreatedAsync("tahsincr", "tahsincrs@gmail.com", password);
-        var repeated = await sut.EnsureCreatedAsync("tahsincr", "tahsincrs@gmail.com", password);
+        var created = await sut.EnsureCreatedAsync("bootstrap-test", "bootstrap@example.test", password);
+        var repeated = await sut.EnsureCreatedAsync("bootstrap-test", "bootstrap@example.test", password);
 
         Assert.True(created.Success);
         Assert.True(repeated.Success);
         var user = Assert.Single(users.GetAll());
-        Assert.Equal("tahsincr", user.FirstName);
+        Assert.Equal("bootstrap-test", user.FirstName);
         Assert.Equal("Admin", user.LastName);
-        Assert.Equal("tahsincrs@gmail.com", user.Email);
+        Assert.Equal("bootstrap@example.test", user.Email);
         Assert.True(user.Status);
         Assert.True(HashingHelper.VerifyPasswordHash(password, user.PasswordHash, user.PasswordSalt));
         Assert.Single(assignments.GetAll(), assignment => assignment.UserId == user.Id && assignment.RoleId == 3);
-        Assert.Single(profiles.GetAll(), profile => profile.UserId == user.Id && profile.DisplayName == "tahsincr");
+        Assert.Single(profiles.GetAll(), profile => profile.UserId == user.Id && profile.DisplayName == "bootstrap-test");
         Assert.Single(authenticationStates.GetAll(), state => state.UserId == user.Id && state.AuthorizationVersion == 1);
     }
 
