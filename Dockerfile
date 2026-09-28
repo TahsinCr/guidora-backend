@@ -14,7 +14,7 @@ COPY . .
 WORKDIR "/src/WebAPI"
 RUN dotnet publish "WebAPI.csproj" -c "$BUILD_CONFIGURATION" -o /app/publish /p:UseAppHost=false --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-alpine3.23@sha256:27b6b84beeede74fd16886177d360799c8e4299ceadfbd64eef57bafead7878a AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.12-alpine3.23@sha256:23c1e50c547546cb1192b84369ecfc6fa227cb447b17fee57456bd178962c213 AS final
 WORKDIR /app
 RUN apk add --no-cache curl
 ENV ASPNETCORE_URLS=http://+:8080
