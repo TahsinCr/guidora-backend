@@ -571,8 +571,10 @@ public sealed class InfrastructureIntegrationTests
             userId = user.Id;
             setup.UserSessions.Add(new UserSession
             {
-                Id = sessionId, UserId = userId, RefreshTokenHash = Guid.NewGuid().ToString("N"),
-                CreatedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(1), DeviceName = "test"
+                Id = sessionId, SessionFamilyId = sessionId, UserId = userId,
+                RefreshTokenHash = Guid.NewGuid().ToString("N"),
+                CreatedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(1),
+                AbsoluteExpiresAt = DateTime.UtcNow.AddDays(30), DeviceName = "test"
             });
             await setup.SaveChangesAsync();
         }
