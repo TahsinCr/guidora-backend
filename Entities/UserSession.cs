@@ -6,6 +6,7 @@ namespace Entities
     public class UserSession : IEntity
     {
         public Guid Id { get; set; }
+        public Guid SessionFamilyId { get; set; }
         public int UserId { get; set; }
         public string RefreshTokenHash { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }

@@ -26,13 +26,14 @@ internal sealed class GuidoraHttpLoggingMiddleware(
         }
         finally
         {
-            logger.LogInformation(
-                "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {ElapsedMilliseconds:0.000} ms (TraceId: {TraceId})",
-                context.Request.Method,
-                context.Request.Path.Value,
-                context.Response.StatusCode,
-                Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds,
-                context.TraceIdentifier);
+            if (!context.Request.Path.StartsWithSegments("/health") || context.Response.StatusCode >= 500)
+                logger.LogInformation(
+                    "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {ElapsedMilliseconds:0.000} ms (TraceId: {TraceId})",
+                    context.Request.Method,
+                    context.Request.Path.Value,
+                    context.Response.StatusCode,
+                    Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds,
+                    context.TraceIdentifier);
         }
     }
 }

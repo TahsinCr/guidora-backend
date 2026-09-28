@@ -1,5 +1,6 @@
 using System;
 using Entities.DTOs;
+using Entities;
 using FluentValidation;
 
 namespace Business.ValidationRules.FluentValidation
@@ -11,6 +12,8 @@ namespace Business.ValidationRules.FluentValidation
             RuleFor(request => request.Name).NotEmpty().MinimumLength(3).MaximumLength(200);
             RuleFor(request => request.Slug).NotEmpty().MaximumLength(220);
             RuleFor(request => request.ShortDescription).NotEmpty().MaximumLength(500);
+            RuleFor(request => request.Description).NotEmpty()
+                .MaximumLength(ProductDescriptionPolicy.MaximumLength);
             RuleFor(request => request.WebsiteUrl).NotEmpty().MaximumLength(2048)
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
             RuleFor(request => request.LogoUrl).NotEmpty().MaximumLength(2048)
@@ -27,6 +30,8 @@ namespace Business.ValidationRules.FluentValidation
             RuleFor(request => request.Name).NotEmpty().MinimumLength(3).MaximumLength(200);
             RuleFor(request => request.Slug).NotEmpty().MaximumLength(220);
             RuleFor(request => request.ShortDescription).NotEmpty().MaximumLength(500);
+            RuleFor(request => request.Description).NotEmpty()
+                .MaximumLength(ProductDescriptionPolicy.MaximumLength);
             RuleFor(request => request.WebsiteUrl).NotEmpty().MaximumLength(2048)
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
             RuleFor(request => request.LogoUrl).NotEmpty().MaximumLength(2048)

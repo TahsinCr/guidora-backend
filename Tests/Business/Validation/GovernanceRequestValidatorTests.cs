@@ -1,4 +1,5 @@
 using Business.ValidationRules.FluentValidation;
+using Core.Pagination;
 using Entities.DTOs;
 
 namespace Tests.Business.Validation;

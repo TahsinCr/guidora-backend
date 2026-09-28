@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Pagination;
 using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;

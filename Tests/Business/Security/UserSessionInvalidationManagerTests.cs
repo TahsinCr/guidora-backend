@@ -21,7 +21,7 @@ public sealed class UserSessionInvalidationManagerTests
         var sessionDal = new UserSessionDalStub([active, alreadyRevoked, otherUser]);
         var cache = new RecordingDistributedCache();
         var unitOfWork = new CommitAwareUnitOfWork(() => cache.CommitObserved = true);
-        var sut = new UserSessionInvalidationManager(stateDal, sessionDal, cache, unitOfWork);
+        var sut = new UserSessionInvalidationManager(stateDal, sessionDal, cache, unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         var result = await sut.InvalidateUserSessionsAsync(42);
 
@@ -38,13 +38,29 @@ public sealed class UserSessionInvalidationManagerTests
     }
 
     [Fact]
+    public async Task CacheEvictionContinuesAfterOneRedisFailure()
+    {
+        var first = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
+        var second = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
+        var cache = new RecordingDistributedCache { FailFirstRemoval = true };
+        var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
+            new UserSessionDalStub([first, second]), cache, new UnitOfWorkStub(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
+
+        Assert.True((await sut.InvalidateUserSessionsAsync(42)).Success);
+        Assert.Equal(2, cache.RemovedKeys.Count);
+        Assert.NotNull(first.RevokedAt);
+        Assert.NotNull(second.RevokedAt);
+    }
+
+    [Fact]
     public async Task CreatesMissingAuthenticationStateWithoutMarkingItAsAnUpdate()
     {
         var stateDal = new AuthenticationStateDalStub();
         var sessionDal = new UserSessionDalStub();
         var unitOfWork = new UnitOfWorkStub();
         var sut = new UserSessionInvalidationManager(stateDal, sessionDal,
-            new RecordingDistributedCache(), unitOfWork);
+            new RecordingDistributedCache(), unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         var result = await sut.InvalidateUserSessionsAsync(42);
 
@@ -66,14 +82,15 @@ public sealed class UserSessionInvalidationManagerTests
             new UserSession { Id = Guid.NewGuid(), UserId = 42 },
             new UserSession { Id = Guid.NewGuid(), UserId = 43 }]);
         var unitOfWork = new UnitOfWorkStub();
-        var sut = new UserSessionInvalidationManager(stateDal, sessions, cache, unitOfWork);
+        var sut = new UserSessionInvalidationManager(stateDal, sessions, cache, unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
-        var result = await sut.InvalidateUsersSessionsAsync([42, 43, 42]);
+        var result = await sut.InvalidateUsersSessionsAsync([43, 42, 43]);
 
         Assert.True(result.Success);
         Assert.Equal(5, first.AuthorizationVersion);
         Assert.Equal(0, stateDal.UpdateCount);
         Assert.Single(stateDal.Incremented, item => item.UserId == 43);
+        Assert.Equal([42, 43], stateDal.IncrementedUserIds);
         Assert.Equal(2, sessions.UpdateCount);
         Assert.Equal(1, unitOfWork.SaveCount);
         Assert.Equal(2, cache.RemovedKeys.Count);
@@ -85,7 +102,7 @@ public sealed class UserSessionInvalidationManagerTests
         var session = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
         var cache = new RecordingDistributedCache();
         var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
-            new UserSessionDalStub([session]), cache, new FailingUnitOfWork());
+            new UserSessionDalStub([session]), cache, new FailingUnitOfWork(), Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.InvalidateUserSessionsAsync(42));
 
@@ -133,7 +150,7 @@ public sealed class UserSessionInvalidationManagerTests
     {
         var unitOfWork = new UnitOfWorkStub();
         var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
-            new UserSessionDalStub(), new RecordingDistributedCache(), unitOfWork);
+            new UserSessionDalStub(), new RecordingDistributedCache(), unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
         var result = await sut.InvalidateUserSessionsAsync(userId);
 
@@ -146,11 +163,13 @@ public sealed class UserSessionInvalidationManagerTests
     {
         public List<UserAuthenticationState> Added { get; } = [];
         public List<UserAuthenticationState> Incremented { get; } = [];
+        public List<int> IncrementedUserIds { get; } = [];
         public Task IncrementAuthorizationVersionsAsync(IReadOnlyCollection<int> userIds, DateTime updatedAt,
             CancellationToken cancellationToken = default)
         {
             foreach (var userId in userIds)
             {
+                IncrementedUserIds.Add(userId);
                 var state = Get(item => item.UserId == userId);
                 if (state is null)
                 {
@@ -176,11 +195,18 @@ public sealed class UserSessionInvalidationManagerTests
 
     private static UserSessionInvalidationManager CreateManager(UserSession session,
         RecordingDistributedCache cache, IUnitOfWork unitOfWork) =>
-        new(new AuthenticationStateDalStub(), new UserSessionDalStub([session]), cache, unitOfWork);
+        new(new AuthenticationStateDalStub(), new UserSessionDalStub([session]), cache, unitOfWork, Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
 
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? items = null)
         : EntityRepositoryStub<UserSession>(items), IUserSessionDal
     {
+        public Task<global::Core.Pagination.PagedResult<global::Entities.DTOs.UserSessionSummaryDto>> GetActivePageAsync(
+            int userId, Guid currentSessionId, int page, int pageSize, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> RevokeOwnedFamilyAsync(int userId, Guid sessionId, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> RevokeOtherActiveAsync(int userId, Guid currentSessionId, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> TryRotateAsync(Guid sessionId, Guid replacementSessionId, DateTime revokedAt,
             CancellationToken cancellationToken = default)
         {
@@ -230,6 +256,7 @@ public sealed class UserSessionInvalidationManagerTests
     {
         public List<string> RemovedKeys { get; } = [];
         public bool CommitObserved { get; set; }
+        public bool FailFirstRemoval { get; init; }
         public bool CommitObservedAtEveryRemoval { get; private set; } = true;
 
         public byte[]? Get(string key) => null;
@@ -240,6 +267,8 @@ public sealed class UserSessionInvalidationManagerTests
         {
             RemovedKeys.Add(key);
             CommitObservedAtEveryRemoval &= CommitObserved;
+            if (FailFirstRemoval && RemovedKeys.Count == 1)
+                throw new InvalidOperationException("Redis unavailable");
         }
         public Task RemoveAsync(string key, CancellationToken token = default)
         {

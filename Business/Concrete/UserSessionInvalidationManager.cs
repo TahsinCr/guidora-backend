@@ -6,6 +6,7 @@ using Business.Abstract;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Core.DataAccess;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,18 +15,22 @@ namespace Business.Concrete
 {
     public class UserSessionInvalidationManager : IUserSessionInvalidationService
     {
+        private const long SessionFamilyLockBase = 7_500_000_000L;
         private readonly IUserAuthenticationStateDal _authenticationStateDal;
         private readonly IUserSessionDal _userSessionDal;
         private readonly IDistributedCache _distributedCache;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<UserSessionInvalidationManager> _logger;
 
         public UserSessionInvalidationManager(IUserAuthenticationStateDal authenticationStateDal,
-            IUserSessionDal userSessionDal, IDistributedCache distributedCache, IUnitOfWork unitOfWork)
+            IUserSessionDal userSessionDal, IDistributedCache distributedCache, IUnitOfWork unitOfWork,
+            ILogger<UserSessionInvalidationManager> logger)
         {
             _authenticationStateDal = authenticationStateDal;
             _userSessionDal = userSessionDal;
             _distributedCache = distributedCache;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public Task<IResult> InvalidateUserSessionsAsync(int userId, CancellationToken cancellationToken = default)
@@ -38,7 +43,21 @@ namespace Business.Concrete
             if (userIds is null || userIds.Count == 0 || userIds.Any(id => id <= 0))
                 return new ErrorResult("At least one valid user identifier is required.");
 
-            var distinctUserIds = userIds.Distinct().ToArray();
+            using var transaction = Transaction.Current is null
+                ? new TransactionScope(TransactionScopeOption.Required,
+                    new TransactionOptions
+                    {
+                        IsolationLevel = IsolationLevel.ReadCommitted,
+                        Timeout = TransactionManager.DefaultTimeout
+                    }, TransactionScopeAsyncFlowOption.Enabled)
+                : new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled);
+
+            var distinctUserIds = userIds.Distinct().OrderBy(id => id).ToArray();
+
+            // Serialize refresh rotation and user-driven revocation with invalidation.
+            // The ordered acquisition also avoids reversed lock ordering in bulk calls.
+            foreach (var userId in distinctUserIds)
+                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + userId, cancellationToken);
 
             var now = DateTime.UtcNow;
             await _authenticationStateDal.IncrementAuthorizationVersionsAsync(distinctUserIds, now,
@@ -54,36 +73,41 @@ namespace Business.Concrete
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // A caller may own an ambient TransactionScope (for example Ban/Restore).
-            // SaveChanges only flushes into that scope, so defer cache eviction until
-            // the outer transaction really commits. Without an ambient transaction,
-            // SaveChanges above is the commit boundary.
+            // The local scope joins a caller's ambient transaction when present.
+            // Evict only after the actual outermost commit.
             var cacheKeys = activeSessions.Select(session => $"auth-session:{session.Id}").ToArray();
-            var ambientTransaction = Transaction.Current;
-            if (ambientTransaction is null)
+            Transaction.Current!.TransactionCompleted += (_, eventArgs) =>
             {
-                RemoveSessionValidationCache(cacheKeys);
-            }
-            else
-            {
-                ambientTransaction.TransactionCompleted += (_, eventArgs) =>
+                if (eventArgs.Transaction?.TransactionInformation.Status == TransactionStatus.Committed)
                 {
-                    if (eventArgs.Transaction?.TransactionInformation.Status == TransactionStatus.Committed)
-                    {
-                        RemoveSessionValidationCache(cacheKeys);
-                    }
-                };
-            }
+                    RemoveSessionValidationCache(cacheKeys);
+                }
+            };
 
+            transaction.Complete();
             return new SuccessResult();
         }
 
         private void RemoveSessionValidationCache(string[] cacheKeys)
         {
+            Exception? firstFailure = null;
+            var failedCount = 0;
             foreach (var cacheKey in cacheKeys)
             {
-                _distributedCache.Remove(cacheKey);
+                try
+                {
+                    _distributedCache.Remove(cacheKey);
+                }
+                catch (Exception exception)
+                {
+                    firstFailure ??= exception;
+                    failedCount++;
+                }
             }
+            if (failedCount > 0)
+                _logger.LogError(firstFailure,
+                    "Failed to evict {FailedCount} of {SessionCount} authorization session cache entries after commit.",
+                    failedCount, cacheKeys.Length);
         }
     }
 }
