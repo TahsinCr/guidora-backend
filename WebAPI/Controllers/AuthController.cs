@@ -125,6 +125,53 @@ namespace WebAPI.Controllers
             return NoContent();
         }
 
+        [Authorize]
+        [HttpGet("sessions")]
+        public async Task<IActionResult> GetSessions([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryIdentity(out var userId, out var sessionId)) return Unauthorized();
+            return this.ToHttpResult(await _authService.GetSessionsAsync(userId, sessionId, page, pageSize,
+                cancellationToken));
+        }
+
+        [Authorize]
+        [HttpDelete("sessions/{sessionId:guid}")]
+        public async Task<IActionResult> RevokeSession(Guid sessionId, CancellationToken cancellationToken)
+        {
+            if (!TryIdentity(out var userId, out var currentSessionId)) return Unauthorized();
+            var result = await _authService.RevokeOwnedSessionAsync(userId, sessionId, cancellationToken);
+            if (result.Success && sessionId == currentSessionId)
+                Response.Cookies.Delete("guidora_refresh");
+            return this.ToHttpResult(result);
+        }
+
+        [Authorize]
+        [HttpPost("logout-others")]
+        public async Task<IActionResult> LogoutOthers(CancellationToken cancellationToken)
+        {
+            if (!TryIdentity(out var userId, out var sessionId)) return Unauthorized();
+            return this.ToHttpResult(await _authService.RevokeOtherSessionsAsync(userId, sessionId,
+                cancellationToken));
+        }
+
+        [Authorize]
+        [HttpPost("logout-all")]
+        public async Task<IActionResult> LogoutAll(CancellationToken cancellationToken)
+        {
+            if (!TryIdentity(out var userId, out _)) return Unauthorized();
+            var result = await _authService.RevokeAllSessionsAsync(userId, cancellationToken);
+            if (result.Success) Response.Cookies.Delete("guidora_refresh");
+            return this.ToHttpResult(result);
+        }
+
+        private bool TryIdentity(out int userId, out Guid sessionId)
+        {
+            var validUser = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
+            var validSession = Guid.TryParse(User.FindFirstValue("sid"), out sessionId);
+            return validUser && validSession;
+        }
+
         private void WriteRefreshTokenCookie(string refreshToken, DateTime expiration, bool isPersistent)
         {
             var cookieOptions = new CookieOptions

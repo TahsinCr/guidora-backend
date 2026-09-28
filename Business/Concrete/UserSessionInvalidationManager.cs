@@ -15,6 +15,7 @@ namespace Business.Concrete
 {
     public class UserSessionInvalidationManager : IUserSessionInvalidationService
     {
+        private const long SessionFamilyLockBase = 7_500_000_000L;
         private readonly IUserAuthenticationStateDal _authenticationStateDal;
         private readonly IUserSessionDal _userSessionDal;
         private readonly IDistributedCache _distributedCache;
@@ -52,6 +53,11 @@ namespace Business.Concrete
                 : new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled);
 
             var distinctUserIds = userIds.Distinct().OrderBy(id => id).ToArray();
+
+            // Serialize refresh rotation and user-driven revocation with invalidation.
+            // The ordered acquisition also avoids reversed lock ordering in bulk calls.
+            foreach (var userId in distinctUserIds)
+                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + userId, cancellationToken);
 
             var now = DateTime.UtcNow;
             await _authenticationStateDal.IncrementAuthorizationVersionsAsync(distinctUserIds, now,

@@ -6,6 +6,17 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Stopped absolutely expired refresh tokens from triggering replay-based
+  account-wide session invalidation; added regression coverage.
+- Added authenticated, paged session listing and owned-session, other-session,
+  and all-session logout commands without exposing refresh-token hashes.
+  A stable family ID keeps device revocation effective across refresh rotations.
+  Per-user transaction locks serialize refresh and revocation races.
+- Recorded refresh activity, indexed absolute session expiration, and added
+  bounded daily cleanup after a 30-day retention period.
+- Added explicit login failure, session-management, and Redis eviction failure
+  regression coverage; documented legacy direct-user claims as read-only
+  compatibility data while new grants use managed roles.
 - Removed the unused direct-user claim grant path and its DAL helper, together
   with obsolete message constants and imports.
 - Made login failures use one credential response and comparable password work

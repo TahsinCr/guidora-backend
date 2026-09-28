@@ -383,9 +383,10 @@ data is automatically removed or renamed.
 Login returns the same invalid-credentials response for unknown email, wrong
 password, and inactive accounts; unknown-email attempts perform password-hash
 work as well. Registration deliberately returns a conflict for an existing
-email, so email existence is not hidden across the entire API. Direct-user
-claim grants have no public command; role and permission changes use the
-audited management workflows.
+email, so email existence is not hidden across the entire API. Authorization
+uses managed role grants. Existing direct-user claims remain readable for
+backward compatibility, but Guidora exposes no command to create or revoke
+them; new permission changes use the audited role workflow.
 
 Guidora uses a short-lived JWT access token together with a rotating refresh
 session. Refresh tokens are random secrets, stored only as hashes in
@@ -403,13 +404,34 @@ indefinite: access token 15 minutes, refresh session 30 days, remembered
 session 90 days, and an absolute session lifetime of 180 days. Refresh rotation
 preserves the login session's fixed absolute expiry. Replayed rotated tokens are
 recorded once, so the same old token cannot repeatedly invalidate sessions created
-after the first replay response.
+after the first replay response. Once a session's absolute lifetime has ended,
+presenting its old refresh token returns an invalid-session result without a
+replay-triggered account-wide logout.
+
+Authenticated users can list active sessions with `GET /api/auth/sessions?page=1&pageSize=20`
+(maximum page size 100), close one owned session with
+`DELETE /api/auth/sessions/{sessionId}`, close every other session with
+`POST /api/auth/logout-others`, or close all sessions with
+`POST /api/auth/logout-all`. Session responses contain device and lifetime
+metadata, never token hashes. `LastUsedAt` records creation or the last refresh
+rotation, not every API request. Closing the current session clears its refresh
+cookie; closing all sessions also invalidates issued access tokens through the
+authorization version. Refresh rotations keep a stable session-family ID, so
+closing an ID from an older listing still closes its current descendant.
+The session-family migration backfills existing rotation chains to their root ID.
+Refresh, session revocation, and account-wide invalidation take the same
+per-user PostgreSQL transaction lock so a concurrent rotation cannot escape a
+logout operation.
+
+A daily background task deletes at most 50,000 sessions in batches of 500 only after their
+absolute lifetime ended more than 30 days earlier. The cleanup uses an index
+on `AbsoluteExpiresAt`; no still-valid refresh-token family is deleted.
 
 Existing sessions migrated by `AddAbsoluteSessionExpiryProposalVersionAndReplayGuard`
 use the historical V1 180-day absolute lifetime measured from the first
 session in their rotation chain; runtime configuration applies to new sessions.
 
-A ban, direct user-claim change, or explicit authorization invalidation revokes all
+A ban or explicit authorization invalidation revokes all
 of the user's sessions and increments its authorization version. The Admin-only
 role API assigns/removes roles and grants/revokes OperationClaims; affected
 users' authorization versions and sessions are invalidated in the same

@@ -1713,6 +1713,9 @@ namespace DataAccess.Migrations
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("SessionFamilyId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
@@ -1724,10 +1727,14 @@ namespace DataAccess.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AbsoluteExpiresAt");
+
                     b.HasIndex("RefreshTokenHash")
                         .IsUnique();
 
                     b.HasIndex("UserId", "RevokedAt", "ExpiresAt");
+
+                    b.HasIndex("UserId", "SessionFamilyId", "RevokedAt");
 
                     b.ToTable("UserSessions");
                 });

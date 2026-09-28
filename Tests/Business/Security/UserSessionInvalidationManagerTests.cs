@@ -38,6 +38,22 @@ public sealed class UserSessionInvalidationManagerTests
     }
 
     [Fact]
+    public async Task CacheEvictionContinuesAfterOneRedisFailure()
+    {
+        var first = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
+        var second = new UserSession { Id = Guid.NewGuid(), UserId = 42 };
+        var cache = new RecordingDistributedCache { FailFirstRemoval = true };
+        var sut = new UserSessionInvalidationManager(new AuthenticationStateDalStub(),
+            new UserSessionDalStub([first, second]), cache, new UnitOfWorkStub(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
+
+        Assert.True((await sut.InvalidateUserSessionsAsync(42)).Success);
+        Assert.Equal(2, cache.RemovedKeys.Count);
+        Assert.NotNull(first.RevokedAt);
+        Assert.NotNull(second.RevokedAt);
+    }
+
+    [Fact]
     public async Task CreatesMissingAuthenticationStateWithoutMarkingItAsAnUpdate()
     {
         var stateDal = new AuthenticationStateDalStub();
@@ -184,6 +200,13 @@ public sealed class UserSessionInvalidationManagerTests
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? items = null)
         : EntityRepositoryStub<UserSession>(items), IUserSessionDal
     {
+        public Task<global::Entities.DTOs.PagedResult<global::Entities.DTOs.UserSessionSummaryDto>> GetActivePageAsync(
+            int userId, Guid currentSessionId, int page, int pageSize, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> RevokeOwnedFamilyAsync(int userId, Guid sessionId, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> RevokeOtherActiveAsync(int userId, Guid currentSessionId, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> TryRotateAsync(Guid sessionId, Guid replacementSessionId, DateTime revokedAt,
             CancellationToken cancellationToken = default)
         {
@@ -233,6 +256,7 @@ public sealed class UserSessionInvalidationManagerTests
     {
         public List<string> RemovedKeys { get; } = [];
         public bool CommitObserved { get; set; }
+        public bool FailFirstRemoval { get; init; }
         public bool CommitObservedAtEveryRemoval { get; private set; } = true;
 
         public byte[]? Get(string key) => null;
@@ -243,6 +267,8 @@ public sealed class UserSessionInvalidationManagerTests
         {
             RemovedKeys.Add(key);
             CommitObservedAtEveryRemoval &= CommitObserved;
+            if (FailFirstRemoval && RemovedKeys.Count == 1)
+                throw new InvalidOperationException("Redis unavailable");
         }
         public Task RemoveAsync(string key, CancellationToken token = default)
         {

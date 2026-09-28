@@ -31,6 +31,7 @@ using System.Threading.RateLimiting;
 using WebAPI.HealthChecks;
 using WebAPI.Logging;
 using WebAPI.Configuration;
+using WebAPI.Services;
 
 namespace WebAPI
 {
@@ -75,6 +76,7 @@ namespace WebAPI
 
             // Add services to the container.
             builder.Services.AddControllers();
+            builder.Services.AddHostedService<ExpiredSessionCleanupService>();
             builder.Services.AddDbContext<GuidoraDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("Guidora")));
             builder.Services.AddStackExchangeRedisCache(options =>
