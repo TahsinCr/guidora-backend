@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,8 @@ namespace Core.CrossCuttingConcerns.Messaging
         {
             _connection = connection;
             _options = options.Value;
+            if (string.IsNullOrWhiteSpace(_options.ExchangeName))
+                throw new ArgumentException("RabbitMQ exchange name must be configured.", nameof(options));
         }
 
         public async Task PublishAsync<TEvent>(TEvent @event, string routingKey, CancellationToken cancellationToken = default)

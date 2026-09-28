@@ -4,6 +4,7 @@ using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Pagination;
 using WebAPI.Utilities;
 
 namespace WebAPI.Controllers;
@@ -16,9 +17,17 @@ public sealed class ProductDocumentsController : ControllerBase
     public ProductDocumentsController(IProductDocumentService service) => _service = service;
 
     [HttpGet]
-    public async Task<IActionResult> Get(int productId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(int productId, [FromQuery] PageRequest page,
+        CancellationToken cancellationToken)
     {
-        var result = await _service.GetByProductAsync(productId, cancellationToken);
+        var result = await _service.GetByProductAsync(productId, page, cancellationToken);
+        return this.ToHttpResult(result);
+    }
+
+    [HttpGet("{documentId:int}")]
+    public async Task<IActionResult> GetById(int productId, int documentId, CancellationToken cancellationToken)
+    {
+        var result = await _service.GetByIdAsync(productId, documentId, cancellationToken);
         return this.ToHttpResult(result);
     }
 

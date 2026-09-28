@@ -70,7 +70,6 @@ public sealed class EmailVerificationManagerTests
     {
         public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) =>
             Task.FromResult(new List<OperationClaim>());
-        public void AddClaim(User user, OperationClaim operationClaim) { }
     }
 
     private sealed class ChallengeDal : EntityRepositoryStub<EmailVerificationChallenge>, IEmailVerificationChallengeDal

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
+using Core.Pagination;
 using WebAPI.Utilities;
 
 namespace WebAPI.Controllers
@@ -62,23 +62,14 @@ namespace WebAPI.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _productService.GetPageAsync(request, id, cancellationToken);
-            return MapPage(result);
+            return this.ToHttpResult(result);
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] PageRequest request, CancellationToken cancellationToken)
         {
             var result = await _productService.GetPageAsync(request, cancellationToken: cancellationToken);
-            return MapPage(result);
-        }
-
-        private IActionResult MapPage(IDataResult<PagedResult<Product>> result)
-        {
-            if (!result.Success) return this.ToHttpResult(result);
-            var page = result.Data;
-            return this.ToHttpResult(new SuccessDataResult<PagedResult<ProductResponseDto>>(
-                new PagedResult<ProductResponseDto>(page.Items.Select(ToResponse).ToArray(),
-                    page.Page, page.PageSize, page.TotalCount), result.Message));
+            return this.ToHttpResult(result);
         }
 
         private static ProductResponseDto ToResponse(Product product) => new(

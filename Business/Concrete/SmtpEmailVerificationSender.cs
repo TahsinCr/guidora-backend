@@ -21,7 +21,7 @@ public sealed class SmtpEmailVerificationSender(IConfiguration configuration) : 
         using var message = new MailMessage(from, address)
         {
             Subject = "Confirm your Guidora email address",
-            Body = $"Enter this one-time code in Guidora to confirm your email address: {token}\n\nThe code expires in 30 minutes."
+            Body = $"Enter this one-time code in Guidora to confirm your email address: {token}\n\nThe code expires in 30 minutes. If you requested more than one code, only the latest one works."
         };
         using var client = new SmtpClient(host,
             configuration.GetValue<int?>("EmailVerification:Smtp:Port") ?? 587)

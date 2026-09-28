@@ -148,6 +148,23 @@ public sealed class OperationClaimDeleteBehaviorTests
     }
 
     [Fact]
+    public void UserSessionsIndexRetentionAndFamilyRevocationLookups()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+        var session = context.Model.FindEntityType(typeof(UserSession))!;
+
+        Assert.Contains(session.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual(["AbsoluteExpiresAt"]));
+        Assert.Contains(session.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual(
+                ["UserId", "SessionFamilyId", "RevokedAt"]));
+        Assert.False(session.FindProperty(nameof(UserSession.SessionFamilyId))!.IsNullable);
+    }
+
+    [Fact]
     public void GovernanceReviewRecordsUseXminAndAuditRevertsAreUnique()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()

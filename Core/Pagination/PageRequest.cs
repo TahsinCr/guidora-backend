@@ -1,6 +1,6 @@
 using Core.Entities;
 
-namespace Entities.DTOs;
+namespace Core.Pagination;
 
 public sealed class PageRequest : IDto
 {
