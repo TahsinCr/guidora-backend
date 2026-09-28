@@ -28,6 +28,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(session => session.DeviceName).HasMaxLength(250).IsRequired();
             builder.HasIndex(session => session.RefreshTokenHash).IsUnique();
             builder.HasIndex(session => new { session.UserId, session.RevokedAt, session.ExpiresAt });
+            builder.HasIndex(session => new { session.UserId, session.SessionFamilyId, session.RevokedAt });
+            builder.HasIndex(session => session.AbsoluteExpiresAt);
             builder.HasOne<User>().WithMany().HasForeignKey(session => session.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         }

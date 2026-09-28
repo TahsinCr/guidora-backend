@@ -31,6 +31,9 @@ using System.Threading.RateLimiting;
 using WebAPI.HealthChecks;
 using WebAPI.Logging;
 using WebAPI.Configuration;
+using Core.CrossCuttingConcerns.Caching;
+using Core.CrossCuttingConcerns.Caching.Redis;
+using WebAPI.Services;
 
 namespace WebAPI
 {
@@ -75,6 +78,8 @@ namespace WebAPI
 
             // Add services to the container.
             builder.Services.AddControllers();
+            builder.Services.AddSingleton<ICacheManager, RedisCacheManager>();
+            builder.Services.AddHostedService<ExpiredSessionCleanupService>();
             builder.Services.AddDbContext<GuidoraDbContext>(options =>
                 options.UseNpgsql(builder.Configuration.GetConnectionString("Guidora")));
             builder.Services.AddStackExchangeRedisCache(options =>
@@ -95,16 +100,12 @@ namespace WebAPI
                 .AddCheck<PostgreSqlHealthCheck>("postgresql", tags: ["ready"])
                 .AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);
 
-            //builder.Services.AddSingleton<IProductDal,EfProductDal>();
-            //builder.Services.AddSingleton<IProductService,ProductManager>();
             builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory())
                 .ConfigureContainer<ContainerBuilder>(autofacBuilder => 
                 {
                     autofacBuilder.RegisterModule(new AutofacBusinessModule());
                 });
 
-
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 
             var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>()
                 ?? throw new InvalidOperationException("TokenOptions configuration is missing.");

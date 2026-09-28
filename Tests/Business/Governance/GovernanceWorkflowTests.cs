@@ -1,6 +1,8 @@
 using Business.BusinessRules.Catalog;
 using Business.Concrete;
+using Business.Constants;
 using Core.CrossCuttingConcerns.Caching;
+using Core.Pagination;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -15,23 +17,28 @@ public sealed class GovernanceWorkflowTests
     public async Task VerificationSummaryShowsPublicStateAndOnlyCurrentUsersVote()
     {
         var product = new Product { ProductId = 5, ProductStatusId = 1 };
+        var verifications = new[]
+        {
+            new ProductVerification { ProductId = 5, VerificationTypeId = 1 },
+            new ProductVerification { ProductId = 5, VerificationTypeId = 2, RevokedAt = DateTime.UtcNow }
+        };
+        var votes = new[]
+        {
+            new ProductVerificationVote { ProductId = 5, UserId = 7, Approved = true, EligibleAtCast = true },
+            new ProductVerificationVote { ProductId = 5, UserId = 8, Approved = false }
+        };
+        var reviews = new[] { new CommunityVerificationReview
+            { ProductId = 5, Status = "pending", ReachedAt = DateTime.UtcNow } };
         var manager = new ProductVerificationManager(
             new ProductDal([product]),
-            new ProductStatusDal([new ProductStatus { Id = 1, Code = "published" }]),
             new VerificationTypeDal([
                 new VerificationType { Id = 1, Code = "admin" },
                 new VerificationType { Id = 2, Code = "community" }
             ]),
-            new VerificationDal([
-                new ProductVerification { ProductId = 5, VerificationTypeId = 1 },
-                new ProductVerification { ProductId = 5, VerificationTypeId = 2, RevokedAt = DateTime.UtcNow }
-            ]),
-            new VerificationVoteDal([
-                new ProductVerificationVote { ProductId = 5, UserId = 7, Approved = true, EligibleAtCast = true },
-                new ProductVerificationVote { ProductId = 5, UserId = 8, Approved = false }
-            ]), new CommunityReviewDal([new CommunityVerificationReview
-                { ProductId = 5, Status = "pending", ReachedAt = DateTime.UtcNow }]),
-            new AuditDal(), new UnitOfWorkStub());
+            new VerificationDal(verifications),
+            new VerificationVoteDal(votes),
+            new AuditDal(), new UnitOfWorkStub(),
+            new VerificationReadDal(product, verifications, reviews, votes));
 
         var publicResult = await manager.GetSummaryAsync(5, null);
         var voterResult = await manager.GetSummaryAsync(5, 8);
@@ -167,9 +174,8 @@ public sealed class GovernanceWorkflowTests
         var verificationDal = new VerificationDal([verification]);
         var audit = new AuditDal();
         var unitOfWork = new UnitOfWorkStub();
-        var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
-            new ProductStatusDal(), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
-            new VerificationVoteDal(), new CommunityReviewDal(), audit, unitOfWork);
+        var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
+            new VerificationVoteDal(), audit, unitOfWork, new VerificationReadDal());
 
         var restored = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest { Note = "Checked" });
         var revoked = await manager.RevokeAdminVerificationAsync(5, 99, new ReviewNoteRequest { Note = "Outdated" });
@@ -190,9 +196,8 @@ public sealed class GovernanceWorkflowTests
             { Id = 8, ProductId = 5, VerificationTypeId = 1, VerifiedAt = DateTime.UtcNow }]);
         var audit = new AuditDal();
         var unitOfWork = new UnitOfWorkStub();
-        var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]),
-            new ProductStatusDal(), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
-            new VerificationVoteDal(), new CommunityReviewDal(), audit, unitOfWork);
+        var manager = new ProductVerificationManager(new ProductDal([new Product { ProductId = 5 }]), new VerificationTypeDal([new VerificationType { Id = 1, Code = "admin" }]), verificationDal,
+            new VerificationVoteDal(), audit, unitOfWork, new VerificationReadDal());
 
         var result = await manager.VerifyAsAdminAsync(5, 99, new ReviewNoteRequest());
 
@@ -288,9 +293,10 @@ public sealed class GovernanceWorkflowTests
 
     private sealed class ProductDal(IEnumerable<Product>? values = null) : EntityRepositoryStub<Product>(values), IProductDal
     {
-        public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+        public Task<List<ProductListItemDto>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
             CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
-            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take)
+                .Select(ProductListItemDto.FromProduct).ToList());
         public Task<int> CountPublishedAsync(int statusId, int? categoryId,
             CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
             GetAll(item => item.ProductStatusId == statusId).Count);
@@ -336,6 +342,28 @@ public sealed class GovernanceWorkflowTests
     }
 
     private sealed class VerificationDal(IEnumerable<ProductVerification>? values = null) : EntityRepositoryStub<ProductVerification>(values), IProductVerificationDal;
+    private sealed class VerificationReadDal(Product? product = null,
+        IEnumerable<ProductVerification>? verifications = null,
+        IEnumerable<CommunityVerificationReview>? reviews = null,
+        IEnumerable<ProductVerificationVote>? votes = null) : IProductVerificationReadDal
+    {
+        public Task<ProductVerificationStateSnapshot?> GetPublishedStateAsync(int productId, int? currentUserId,
+            CancellationToken cancellationToken = default)
+        {
+            if (product is null || product.ProductId != productId || product.ProductStatusId != 1)
+                return Task.FromResult<ProductVerificationStateSnapshot?>(null);
+            var states = (verifications ?? []).Where(item => item.ProductId == productId).ToArray();
+            var reviewStates = (reviews ?? []).Where(item => item.ProductId == productId).ToArray();
+            var vote = (votes ?? []).FirstOrDefault(item => item.ProductId == productId &&
+                item.UserId == currentUserId);
+            return Task.FromResult<ProductVerificationStateSnapshot?>(new ProductVerificationStateSnapshot(
+                states.Any(item => item.VerificationTypeId == 1 && item.RevokedAt == null),
+                states.Any(item => item.VerificationTypeId == 2 && item.RevokedAt == null),
+                states.Any(item => item.VerificationTypeId == 2 && item.RevokedAt != null),
+                reviewStates.Any(item => item.Status == "pending"),
+                reviewStates.Any(item => item.Status == "rejected"), vote?.Approved));
+        }
+    }
     private sealed class VerificationVoteDal(IEnumerable<ProductVerificationVote>? values = null)
         : EntityRepositoryStub<ProductVerificationVote>(values), IProductVerificationVoteDal
     {

@@ -78,7 +78,6 @@ public sealed class TokenValidationManagerTests
     private sealed class UserDalStub(IEnumerable<User>? values = null) : EntityRepositoryStub<User>(values), IUserDal
     {
         public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) => Task.FromResult(new List<OperationClaim>());
-        public void AddClaim(User user, OperationClaim operationClaim) { }
     }
     private sealed class AuthenticationStateDalStub(IEnumerable<UserAuthenticationState>? values = null)
         : EntityRepositoryStub<UserAuthenticationState>(values), IUserAuthenticationStateDal
@@ -89,6 +88,13 @@ public sealed class TokenValidationManagerTests
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? values = null)
         : EntityRepositoryStub<UserSession>(values), IUserSessionDal
     {
+        public Task<global::Core.Pagination.PagedResult<global::Entities.DTOs.UserSessionSummaryDto>> GetActivePageAsync(
+            int userId, Guid currentSessionId, int page, int pageSize, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> RevokeOwnedFamilyAsync(int userId, Guid sessionId, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> RevokeOtherActiveAsync(int userId, Guid currentSessionId, DateTime now,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> TryRotateAsync(Guid sessionId, Guid replacementSessionId, DateTime revokedAt,
             CancellationToken cancellationToken = default)
         {
