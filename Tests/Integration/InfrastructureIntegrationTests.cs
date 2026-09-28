@@ -224,7 +224,7 @@ public sealed class InfrastructureIntegrationTests
         var hiddenStatus = await context.ProductStatuses.SingleAsync(item => item.Code == "hidden");
         product.ProductStatusId = hiddenStatus.Id;
         await context.SaveChangesAsync();
-        Assert.IsType<ConflictResult>(await manager.VoteAsync(product.ProductId, users[1].Id,
+        Assert.IsAssignableFrom<INotFoundResult>(await manager.VoteAsync(product.ProductId, users[1].Id,
             new CommunityVerificationVoteRequest { Approved = true }));
         product.ProductStatusId = 1;
         await context.SaveChangesAsync();
