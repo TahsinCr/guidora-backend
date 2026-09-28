@@ -81,6 +81,23 @@ public sealed class OperationClaimDeleteBehaviorTests
     }
 
     [Fact]
+    public void CommunityReviewStateIsConstrainedByTheRelationalModel()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql("Host=localhost;Database=metadata-only;Username=unused;Password=unused")
+            .Options;
+        using var context = new GuidoraDbContext(options);
+
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var constraint = Assert.Single(model.FindEntityType(typeof(CommunityVerificationReview))!
+            .GetCheckConstraints(), check => check.Name == "CK_CommunityVerificationReviews_Status");
+
+        Assert.Contains("'pending'", constraint.Sql);
+        Assert.Contains("'approved'", constraint.Sql);
+        Assert.Contains("'rejected'", constraint.Sql);
+    }
+
+    [Fact]
     public void CategoryManagementPermissionIsSeededOnlyForAdminByDefault()
     {
         var options = new DbContextOptionsBuilder<GuidoraDbContext>()

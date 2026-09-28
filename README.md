@@ -147,6 +147,14 @@ Community signal key even while SMTP is disabled. Delivery failure
 returns HTTP 503 and expires the undelivered challenge; the user can request a
 new code within their own rate limit. SMTP credentials remain outside Git.
 
+Authenticated user-generated writes also have configurable per-user limits:
+Product creation (3/hour), Product updates and edit proposals (10/hour),
+comments (10/10 minutes), reports (5/hour), favorites (60/10 minutes), and
+Community votes (30/hour). Settings are under matching `RateLimiting:*` keys
+and `RATE_LIMIT_*` variables in `.env`. These ASP.NET limits are process-local;
+when the API is scaled to multiple replicas, enforce aggregate limits at the
+gateway or adopt a distributed limiter.
+
 The .NET SDK is fixed at 10.0.401 in `global.json`, matching the Docker build
 image and CI setup. CI also starts the built backend image as a non-root user
 and checks `/health/live`.
@@ -251,7 +259,9 @@ future outbox-backed integration can publish an event safely.
 ## Catalog governance in V1
 
 Product create/update requests carry Category and Tag IDs. Business rules check
-that Categories and Tags are active and that each TagCategory's single/multiple
+that each request selects 1–20 distinct positive Category IDs and at most 100
+distinct positive Tag IDs, and that Categories and Tags are active and each
+TagCategory's single/multiple
 selection and exclusive-tag constraints are respected. Unverified Products can
 be updated directly; edits to actively verified Products are stored as separate
 pending proposals containing the scalar, Category, and Tag snapshot. Proposal
@@ -271,6 +281,10 @@ Public catalog reads expose only `published` Products. Product listing
 endpoints are database-paginated (`page`, `pageSize`, capped at 100) and
 category filtering is performed in the database rather than materializing
 category Product IDs in the API process.
+User-facing favorite, comment, report, and Community vote writes return the same
+404 result for unpublished Products as for missing Products, so hidden Product
+IDs are not confirmed through those operations. Moderator workflows retain
+their separate authorization and visibility rules.
 List responses contain Product identity, short description, URLs, and dates;
 the full description is returned only by `GET /api/products/{id}`. New Product
 and edit-proposal descriptions are capped at 20,000 characters. The

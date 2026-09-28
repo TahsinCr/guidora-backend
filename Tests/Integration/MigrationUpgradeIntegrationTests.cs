@@ -105,6 +105,12 @@ public sealed class MigrationUpgradeIntegrationTests
                     """);
                 await migrator.MigrateAsync();
 
+                var invalidReviewStatus = await Record.ExceptionAsync(() => context.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO "CommunityVerificationReviews" ("ProductId", "ReachedAt", "Status", "Note")
+                    SELECT "ProductId", {now}, 'invalid', '' FROM "Products" WHERE "Name" = {productName}
+                    """));
+                Assert.Equal("23514", FindPostgresException(invalidReviewStatus)?.SqlState);
+
                 var productDescription = await context.Database.SqlQuery<string>(
                     $"SELECT \"Description\" AS \"Value\" FROM \"Products\" WHERE \"Name\" = {productName}")
                     .SingleAsync();

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Business.Abstract;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Pagination;
@@ -26,6 +27,7 @@ public sealed class ProductCommentsController : ControllerBase
     }
 
     [HttpPost("products/{productId:int}/comments")]
+    [EnableRateLimiting("comment-create")]
     public async Task<IActionResult> Create(int productId, CommentRequest request,
         CancellationToken cancellationToken)
     {

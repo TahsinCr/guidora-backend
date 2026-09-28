@@ -43,6 +43,18 @@ services:
       RateLimiting__EmailVerificationConfirm__WindowSeconds: ${RATE_LIMIT_EMAIL_CONFIRM_WINDOW_SECONDS:-600}
       RateLimiting__EmailVerificationIp__PermitLimit: ${RATE_LIMIT_EMAIL_IP_PERMIT_LIMIT:-120}
       RateLimiting__EmailVerificationIp__WindowSeconds: ${RATE_LIMIT_EMAIL_IP_WINDOW_SECONDS:-3600}
+      RateLimiting__ProductCreate__PermitLimit: ${RATE_LIMIT_PRODUCT_CREATE_PERMIT_LIMIT:-3}
+      RateLimiting__ProductCreate__WindowSeconds: ${RATE_LIMIT_PRODUCT_CREATE_WINDOW_SECONDS:-3600}
+      RateLimiting__ProductUpdate__PermitLimit: ${RATE_LIMIT_PRODUCT_UPDATE_PERMIT_LIMIT:-10}
+      RateLimiting__ProductUpdate__WindowSeconds: ${RATE_LIMIT_PRODUCT_UPDATE_WINDOW_SECONDS:-3600}
+      RateLimiting__CommentCreate__PermitLimit: ${RATE_LIMIT_COMMENT_CREATE_PERMIT_LIMIT:-10}
+      RateLimiting__CommentCreate__WindowSeconds: ${RATE_LIMIT_COMMENT_CREATE_WINDOW_SECONDS:-600}
+      RateLimiting__ProductReportSubmit__PermitLimit: ${RATE_LIMIT_PRODUCT_REPORT_PERMIT_LIMIT:-5}
+      RateLimiting__ProductReportSubmit__WindowSeconds: ${RATE_LIMIT_PRODUCT_REPORT_WINDOW_SECONDS:-3600}
+      RateLimiting__FavoriteMutation__PermitLimit: ${RATE_LIMIT_FAVORITE_MUTATION_PERMIT_LIMIT:-60}
+      RateLimiting__FavoriteMutation__WindowSeconds: ${RATE_LIMIT_FAVORITE_MUTATION_WINDOW_SECONDS:-600}
+      RateLimiting__CommunityVote__PermitLimit: ${RATE_LIMIT_COMMUNITY_VOTE_PERMIT_LIMIT:-30}
+      RateLimiting__CommunityVote__WindowSeconds: ${RATE_LIMIT_COMMUNITY_VOTE_WINDOW_SECONDS:-3600}
       Cors__AllowedOrigins__0: ${WEB_CLIENT_ORIGIN:-http://localhost:4200}
       ForwardedHeaders__KnownProxies__0: ${FORWARDED_HEADERS_KNOWN_PROXIES_0:-}
       Logging__LogLevel__Default: ${LOG_LEVEL_DEFAULT:-Information}

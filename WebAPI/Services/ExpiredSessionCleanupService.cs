@@ -39,9 +39,9 @@ public sealed class ExpiredSessionCleanupService(
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    private async Task PurgeAsync(CancellationToken cancellationToken)
+    internal async Task PurgeAsync(CancellationToken cancellationToken, DateTime? utcNow = null)
     {
-        var cutoff = DateTime.UtcNow - Retention;
+        var cutoff = (utcNow ?? DateTime.UtcNow) - Retention;
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GuidoraDbContext>();
         await db.Database.OpenConnectionAsync(cancellationToken);

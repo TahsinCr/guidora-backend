@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Business.ValidationRules;
 
 namespace Business.ValidationRules.FluentValidation
 {
@@ -21,8 +22,8 @@ namespace Business.ValidationRules.FluentValidation
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute))
                 .WithMessage("WebsiteUrl must be an absolute URL.");
             RuleFor(p => p.LogoUrl).NotEmpty().MaximumLength(2048)
-                .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute))
-                .WithMessage("LogoUrl must be an absolute URL.");
+                .Must(HttpUrlPolicy.IsValid)
+                .WithMessage("LogoUrl must be an absolute HTTP or HTTPS URL.");
         }
     }
 }

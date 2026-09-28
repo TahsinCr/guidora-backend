@@ -68,7 +68,7 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
         var published = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
         if (published is null) return new ErrorResult("Published Product status is not configured.");
         if (product.ProductStatusId != published.Id)
-            return new ConflictResult("Only published Products can receive Community verification votes.");
+            return new NotFoundResult("Product was not found.");
         if (product.CreatedByUserId == userId)
             return new ForbiddenResult("Product creators cannot vote on their own Community verification.");
         var user = await _userDal.GetAsync(item => item.Id == userId && item.Status, cancellationToken);

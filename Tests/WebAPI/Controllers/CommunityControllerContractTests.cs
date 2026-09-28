@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Reflection;
 using WebAPI.Controllers;
 
 namespace Tests.WebAPI.Controllers;
@@ -22,5 +24,21 @@ public sealed class CommunityControllerContractTests
     public void ProductCommentsDoNotExposeReplyPersistence()
     {
         Assert.Null(typeof(global::Entities.Comment).GetProperty("ParentCommentId"));
+    }
+
+    [Theory]
+    [InlineData(typeof(ProductsController), "Add", "product-create")]
+    [InlineData(typeof(ProductsController), "Update", "product-update")]
+    [InlineData(typeof(ProductCommentsController), "Create", "comment-create")]
+    [InlineData(typeof(ProductReportsController), "Submit", "product-report-submit")]
+    [InlineData(typeof(FavoritesController), "Add", "favorite-mutation")]
+    [InlineData(typeof(FavoritesController), "Remove", "favorite-mutation")]
+    [InlineData(typeof(ProductVerificationsController), "VoteCommunity", "community-vote")]
+    public void UserGeneratedWriteEndpointsHaveRateLimits(Type controller, string methodName, string policy)
+    {
+        var method = controller.GetMethod(methodName);
+        Assert.NotNull(method);
+        var attribute = Assert.Single(method!.GetCustomAttributes<EnableRateLimitingAttribute>());
+        Assert.Equal(policy, attribute.PolicyName);
     }
 }

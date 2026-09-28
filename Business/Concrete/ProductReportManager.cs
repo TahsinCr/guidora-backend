@@ -21,17 +21,19 @@ public sealed class ProductReportManager : IProductReportService
 {
     private readonly IProductReportDal _reportDal;
     private readonly IProductDal _productDal;
+    private readonly IProductStatusDal _productStatusDal;
     private readonly IReportReasonDal _reasonDal;
     private readonly IReportStatusDal _statusDal;
     private readonly IAuditLogDal _auditLogDal;
     private readonly IUnitOfWork _unitOfWork;
 
-    public ProductReportManager(IProductReportDal reportDal, IProductDal productDal,
+    public ProductReportManager(IProductReportDal reportDal, IProductDal productDal, IProductStatusDal productStatusDal,
         IReportReasonDal reasonDal, IReportStatusDal statusDal, IAuditLogDal auditLogDal,
         IUnitOfWork unitOfWork)
     {
         _reportDal = reportDal;
         _productDal = productDal;
+        _productStatusDal = productStatusDal;
         _reasonDal = reasonDal;
         _statusDal = statusDal;
         _auditLogDal = auditLogDal;
@@ -43,8 +45,12 @@ public sealed class ProductReportManager : IProductReportService
     public async Task<IResult> SubmitAsync(int productId, int reporterUserId, ProductReportRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (await _productDal.GetAsync(product => product.ProductId == productId, cancellationToken) is null)
+        var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
+        if (product is null)
             return new NotFoundResult("Product was not found.");
+        var published = await _productStatusDal.GetAsync(status => status.Code == "published", cancellationToken);
+        if (published is null) return new ErrorResult("Published Product status is not configured.");
+        if (product.ProductStatusId != published.Id) return new NotFoundResult("Product was not found.");
         var reason = await _reasonDal.GetAsync(item => item.Id == request.ReasonId && item.IsActive, cancellationToken);
         if (reason is null) return new ErrorResult("Report reason is unavailable.");
         var openStatus = await _statusDal.GetAsync(status => status.Code == "open", cancellationToken);

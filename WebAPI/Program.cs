@@ -75,6 +75,18 @@ namespace WebAPI
                     "RateLimiting:EmailVerificationRequest", permitLimit: 3, windowSeconds: 3600);
                 AddUserRateLimitPolicy(options, builder.Configuration, "email-verification-confirm",
                     "RateLimiting:EmailVerificationConfirm", permitLimit: 10, windowSeconds: 600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "product-create",
+                    "RateLimiting:ProductCreate", permitLimit: 3, windowSeconds: 3600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "product-update",
+                    "RateLimiting:ProductUpdate", permitLimit: 10, windowSeconds: 3600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "comment-create",
+                    "RateLimiting:CommentCreate", permitLimit: 10, windowSeconds: 600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "product-report-submit",
+                    "RateLimiting:ProductReportSubmit", permitLimit: 5, windowSeconds: 3600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "favorite-mutation",
+                    "RateLimiting:FavoriteMutation", permitLimit: 60, windowSeconds: 600);
+                AddUserRateLimitPolicy(options, builder.Configuration, "community-vote",
+                    "RateLimiting:CommunityVote", permitLimit: 30, windowSeconds: 3600);
             });
 
             // Add services to the container.

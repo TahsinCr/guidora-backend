@@ -17,7 +17,7 @@ namespace DataAccess.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
@@ -807,7 +807,10 @@ namespace DataAccess.Migrations
 
                     b.HasIndex("Status", "ReachedAt");
 
-                    b.ToTable("CommunityVerificationReviews");
+                    b.ToTable("CommunityVerificationReviews", t =>
+                        {
+                            t.HasCheckConstraint("CK_CommunityVerificationReviews_Status", "\"Status\" IN ('pending', 'approved', 'rejected')");
+                        });
                 });
 
             modelBuilder.Entity("Entities.EmailVerificationChallenge", b =>

@@ -15,6 +15,27 @@ namespace Tests.Business.Community;
 public sealed class CommunityFeatureWorkflowTests
 {
     [Fact]
+    public async Task UserWritesDoNotRevealUnpublishedProducts()
+    {
+        var user = new User { Id = 7, Status = true };
+        var product = new Product { ProductId = 5, ProductStatusId = 2 };
+        var favoriteManager = new FavoriteManager(new CommunityFavoriteDalStub(),
+            new CommunityProductDalStub([product]),
+            new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
+            new CommunityUserDalStub([user]), new CommunityAuditDalStub(), new UnitOfWorkStub());
+        var commentManager = new CommentManager(new CommunityCommentDalStub(),
+            new CommunityCommentStatusDalStub([new CommentStatus { Id = 1, Code = "active", IsVisible = true }]),
+            new CommunityUserDalStub([user]), new CommunityProductDalStub([product]),
+            new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
+            new CommunityAuditDalStub(), new UnitOfWorkStub(), new DeterministicContentModerationRule());
+
+        Assert.IsAssignableFrom<global::Core.Utilities.Results.INotFoundResult>(
+            await favoriteManager.AddAsync(product.ProductId, user.Id));
+        Assert.IsAssignableFrom<global::Core.Utilities.Results.INotFoundResult>(
+            await commentManager.CreateAsync(product.ProductId, user.Id, new CommentRequest { Content = "A valid comment." }));
+    }
+
+    [Fact]
     public async Task FavoriteAddIsIdempotentAndWritesAuditOnlyForStateChange()
     {
         var favorites = new CommunityFavoriteDalStub();

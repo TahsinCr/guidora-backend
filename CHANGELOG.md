@@ -4,6 +4,27 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Security and request controls
+
+- Bound Product taxonomy selections to 1–20 distinct positive Category IDs and
+  at most 100 distinct positive Tag IDs before database or audit work.
+- Require LogoUrl values to use HTTP or HTTPS and hide unpublished Products
+  consistently from user-facing favorite, comment, report, and Community-vote
+  writes with the same 404 response as missing Products.
+- Added configurable per-user write rate limits for Product create/update,
+  comments, reports, favorites, and Community votes; documented their
+  process-local scope and scale-out implications.
+- Added a PostgreSQL CHECK constraint for valid Community review states and
+  rechecked account activity under the session-family lock before creating a
+  login session.
+
+### Reliability and verification
+
+- Redis pattern invalidation now scans the configured Redis database instead
+  of assuming database 0.
+- Added regression coverage for taxonomy validation, hidden Product writes,
+  rate-limit endpoint bindings, and expiry-retention session cleanup.
+
 ### Identity and configuration
 
 - Added opt-in, idempotent first-Admin provisioning from environment settings.

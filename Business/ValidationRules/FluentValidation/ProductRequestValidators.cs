@@ -2,6 +2,8 @@ using System;
 using Entities.DTOs;
 using Entities;
 using FluentValidation;
+using Business.Constants;
+using Business.ValidationRules;
 
 namespace Business.ValidationRules.FluentValidation
 {
@@ -17,9 +19,11 @@ namespace Business.ValidationRules.FluentValidation
             RuleFor(request => request.WebsiteUrl).NotEmpty().MaximumLength(2048)
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
             RuleFor(request => request.LogoUrl).NotEmpty().MaximumLength(2048)
-                .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
-            RuleFor(request => request.CategoryIds).NotEmpty();
-            RuleFor(request => request.TagIds).NotNull();
+                .Must(HttpUrlPolicy.IsValid);
+            RuleFor(request => request.CategoryIds).Must(ProductTaxonomySelectionPolicy.HasValidCategoryIds)
+                .WithMessage($"Select between 1 and {ProductTaxonomySelectionPolicy.MaximumCategories} distinct positive category IDs.");
+            RuleFor(request => request.TagIds).Must(ProductTaxonomySelectionPolicy.HasValidTagIds)
+                .WithMessage($"Select at most {ProductTaxonomySelectionPolicy.MaximumTags} distinct positive tag IDs.");
         }
     }
 
@@ -35,9 +39,11 @@ namespace Business.ValidationRules.FluentValidation
             RuleFor(request => request.WebsiteUrl).NotEmpty().MaximumLength(2048)
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
             RuleFor(request => request.LogoUrl).NotEmpty().MaximumLength(2048)
-                .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute));
-            RuleFor(request => request.CategoryIds).NotEmpty();
-            RuleFor(request => request.TagIds).NotNull();
+                .Must(HttpUrlPolicy.IsValid);
+            RuleFor(request => request.CategoryIds).Must(ProductTaxonomySelectionPolicy.HasValidCategoryIds)
+                .WithMessage($"Select between 1 and {ProductTaxonomySelectionPolicy.MaximumCategories} distinct positive category IDs.");
+            RuleFor(request => request.TagIds).Must(ProductTaxonomySelectionPolicy.HasValidTagIds)
+                .WithMessage($"Select at most {ProductTaxonomySelectionPolicy.MaximumTags} distinct positive tag IDs.");
         }
     }
 }

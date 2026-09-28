@@ -3,6 +3,7 @@ using Core.Utilities.Results;
 using Entities;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +24,7 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting("product-create")]
         public async Task<IActionResult> Add(CreateProductRequest request, CancellationToken cancellationToken)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -78,6 +80,7 @@ namespace WebAPI.Controllers
             product.CreatedAt, product.UpdatedAt);
 
         [HttpPut("{id:int}")]
+        [EnableRateLimiting("product-update")]
         public async Task<IActionResult> Update(int id, UpdateProductRequest request, CancellationToken cancellationToken)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

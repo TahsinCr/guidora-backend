@@ -80,12 +80,28 @@ public sealed class CommunityVerificationManagerTests
             new CommunityVerificationVoteRequest { Approved = true }));
     }
 
+    [Fact]
+    public async Task CommunityVoteDoesNotRevealAnUnpublishedProduct()
+    {
+        var user = new User
+        {
+            Id = 2, Status = true, CreatedAt = DateTime.UtcNow.AddDays(-8),
+            EmailVerifiedAt = DateTime.UtcNow.AddDays(-7)
+        };
+        var manager = CreateManager([user], new VoteDal(), new VerificationDal(), new ReviewDal(),
+            productStatusId: 2);
+
+        var result = await manager.VoteAsync(5, user.Id, new CommunityVerificationVoteRequest { Approved = true });
+
+        Assert.IsAssignableFrom<global::Core.Utilities.Results.INotFoundResult>(result);
+    }
+
     private static CommunityVerificationManager CreateManager(IEnumerable<User> users, VoteDal votes,
-        VerificationDal verifications, ReviewDal reviews)
+        VerificationDal verifications, ReviewDal reviews, int productStatusId = 1)
     {
         var assignments = users.Select(user => new UserRole { UserId = user.Id, RoleId = 1 });
         return new CommunityVerificationManager(
-            new CommunityProductDalStub([new Product { ProductId = 5, ProductStatusId = 1, CreatedByUserId = 1 }]),
+            new CommunityProductDalStub([new Product { ProductId = 5, ProductStatusId = productStatusId, CreatedByUserId = 1 }]),
             new CommunityProductStatusDalStub([new ProductStatus { Id = 1, Code = "published" }]),
             new CommunityUserDalStub(users),
             new RoleDal([new Role { Id = 1, Code = "user", IsActive = true }]),

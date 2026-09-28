@@ -948,6 +948,7 @@ public sealed class InfrastructureIntegrationTests
     {
         var options = ConfigurationOptions.Parse(Environment.GetEnvironmentVariable("GUIDORA_TEST_REDIS_CONFIGURATION")!);
         options.AbortOnConnectFail = false;
+        options.DefaultDatabase = 3;
         options.AllowAdmin = true;
         await using var connection = await ConnectionMultiplexer.ConnectAsync(options);
         var endpoint = connection.GetEndPoints().Single();

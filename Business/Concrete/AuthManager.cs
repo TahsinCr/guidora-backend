@@ -157,6 +157,11 @@ namespace Business.Concrete
 
             await _unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.ForSessionFamily(user.Id),
                 cancellationToken);
+            var currentUserResult = await _userService.GetByIdAsync(user.Id, cancellationToken);
+            if (!currentUserResult.Success || currentUserResult.Data is null || !currentUserResult.Data.Status)
+                return new ErrorDataResult<AuthenticationResultDto>(InvalidCredentialsMessage);
+            user = currentUserResult.Data;
+
             var authenticationState = await GetOrCreateAuthenticationStateAsync(user.Id, cancellationToken);
             var claims = (await _userService.GetClaimsAsync(user, cancellationToken)).Data;
             var refreshToken = RefreshTokenHasher.CreateToken();

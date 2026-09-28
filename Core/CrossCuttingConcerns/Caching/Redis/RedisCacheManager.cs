@@ -150,7 +150,7 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
                 }
 
                 var batch = new List<RedisKey>(KeyDeleteBatchSize);
-                foreach (var key in server.Keys(database: 0, pattern: redisPattern, pageSize: KeyDeleteBatchSize))
+                foreach (var key in server.Keys(database: database.Database, pattern: redisPattern, pageSize: KeyDeleteBatchSize))
                 {
                     batch.Add(key);
                     if (batch.Count < KeyDeleteBatchSize)
@@ -179,7 +179,7 @@ namespace Core.CrossCuttingConcerns.Caching.Redis
                 if (!server.IsConnected) continue;
 
                 var batch = new List<RedisKey>(KeyDeleteBatchSize);
-                await foreach (var key in server.KeysAsync(database: 0, pattern: redisPattern,
+                await foreach (var key in server.KeysAsync(database: database.Database, pattern: redisPattern,
                                    pageSize: KeyDeleteBatchSize).ConfigureAwait(false))
                 {
                     batch.Add(key);

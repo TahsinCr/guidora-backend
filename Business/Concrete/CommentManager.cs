@@ -71,7 +71,7 @@ public sealed class CommentManager : ICommentService
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (product is null) return new NotFoundResult("Product was not found.");
         var productStatus = await _productStatusDal.GetAsync(item => item.Id == product.ProductStatusId, cancellationToken);
-        if (productStatus?.Code != "published") return new ConflictResult("Comments are available only for published Products.");
+        if (productStatus?.Code != "published") return new NotFoundResult("Product was not found.");
         var activeStatus = await _commentStatusDal.GetAsync(item => item.Code == "active", cancellationToken);
         if (activeStatus is null) return new ErrorResult("Active comment status is not configured.");
 

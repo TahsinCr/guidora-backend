@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Business.Abstract;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Pagination;
@@ -25,6 +26,7 @@ public sealed class ProductReportsController : ControllerBase
     }
 
     [HttpPost("products/{productId:int}")]
+    [EnableRateLimiting("product-report-submit")]
     public async Task<IActionResult> Submit(int productId, ProductReportRequest request,
         CancellationToken cancellationToken)
     {

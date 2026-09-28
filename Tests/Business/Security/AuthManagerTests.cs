@@ -17,6 +17,20 @@ namespace Tests.Business.Security;
 public sealed class AuthManagerTests
 {
     [Fact]
+    public async Task SessionCreationRechecksUserStatusAfterAcquiringSessionLock()
+    {
+        var sessions = new UserSessionDalStub();
+        var manager = CreateManager(new UserServiceStub(new User { Id = 17, Status = false }),
+            sessions, new AuthenticationStateDalStub(), new RecordingDistributedCache());
+        var staleLoginUser = new User { Id = 17, Status = true };
+
+        var result = await manager.CreateSessionAsync(staleLoginUser, rememberMe: false, deviceName: "test client");
+
+        Assert.False(result.Success);
+        Assert.Empty(sessions.Records);
+    }
+
+    [Fact]
     public async Task LoginFailuresUseOnePublicCredentialResult()
     {
         HashingHelper.CreatePasswordHash("correct password", out var hash, out var salt);

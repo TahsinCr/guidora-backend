@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Business.Abstract;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Pagination;
@@ -26,6 +27,7 @@ public sealed class FavoritesController : ControllerBase
     }
 
     [HttpPost("products/{productId:int}")]
+    [EnableRateLimiting("favorite-mutation")]
     public async Task<IActionResult> Add(int productId, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
@@ -34,6 +36,7 @@ public sealed class FavoritesController : ControllerBase
     }
 
     [HttpDelete("products/{productId:int}")]
+    [EnableRateLimiting("favorite-mutation")]
     public async Task<IActionResult> Remove(int productId, CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();

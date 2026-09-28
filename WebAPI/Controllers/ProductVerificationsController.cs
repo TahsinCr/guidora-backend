@@ -3,6 +3,7 @@ using System;
 using Business.Abstract;
 using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
@@ -58,6 +59,7 @@ public sealed class ProductVerificationsController : ControllerBase
     }
 
     [HttpPost("community-votes")]
+    [EnableRateLimiting("community-vote")]
     public async Task<IActionResult> VoteCommunity(int productId, CommunityVerificationVoteRequest request,
         CancellationToken cancellationToken)
     {

@@ -126,6 +126,9 @@ namespace DataAccess.Concrete.Entityframework.Configurations
         public void Configure(EntityTypeBuilder<CommunityVerificationReview> builder)
         {
             builder.HasKey(item => item.Id);
+            builder.ToTable(table => table.HasCheckConstraint(
+                "CK_CommunityVerificationReviews_Status",
+                "\"Status\" IN ('pending', 'approved', 'rejected')"));
             builder.Property<uint>("xmin").IsRowVersion();
             builder.Property(item => item.Status).HasMaxLength(20).IsRequired();
             builder.Property(item => item.Note).HasMaxLength(4000).IsRequired();

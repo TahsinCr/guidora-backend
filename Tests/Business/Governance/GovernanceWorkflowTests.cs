@@ -215,7 +215,8 @@ public sealed class GovernanceWorkflowTests
         var audit = new AuditDal();
         var unitOfWork = new UnitOfWorkStub();
         var manager = new ProductReportManager(reportDal,
-            new ProductDal([new Product { ProductId = 5 }]),
+            new ProductDal([new Product { ProductId = 5, ProductStatusId = 1 }]),
+            new ProductStatusDal([new ProductStatus { Id = 1, Code = "published" }]),
             new ReportReasonDal([new ReportReason { Id = 2, Code = "inaccurate", IsActive = true }]),
             new ReportStatusDal([
                 new ReportStatus { Id = 1, Code = "open" },
@@ -236,6 +237,25 @@ public sealed class GovernanceWorkflowTests
         Assert.Equal(99, report.ResolvedByUserId);
         Assert.Equal(2, audit.Entries.Count);
         Assert.Equal(3, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task HiddenProductCannotBeReportedAndDoesNotRevealItsExistence()
+    {
+        var reports = new ReportDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new ProductReportManager(reports,
+            new ProductDal([new Product { ProductId = 5, ProductStatusId = 2 }]),
+            new ProductStatusDal([new ProductStatus { Id = 1, Code = "published" }]),
+            new ReportReasonDal([new ReportReason { Id = 1, Code = "spam", IsActive = true }]),
+            new ReportStatusDal([new ReportStatus { Id = 1, Code = "open" }]), new AuditDal(), unitOfWork);
+
+        var result = await manager.SubmitAsync(5, 44,
+            new ProductReportRequest { ReasonId = 1, Description = "Hidden product report" });
+
+        Assert.IsAssignableFrom<INotFoundResult>(result);
+        Assert.Empty(reports.GetAll());
+        Assert.Equal(0, unitOfWork.SaveCount);
     }
 
     [Fact]
@@ -270,7 +290,7 @@ public sealed class GovernanceWorkflowTests
             new ProductReport { Id = 8, ReportStatusId = 1, CreatedAt = DateTime.UtcNow.AddMinutes(-2) },
             new ProductReport { Id = 7, ReportStatusId = 2 }
         ]);
-        var manager = new ProductReportManager(reports, new ProductDal(), new ReportReasonDal(),
+        var manager = new ProductReportManager(reports, new ProductDal(), new ProductStatusDal(), new ReportReasonDal(),
             new ReportStatusDal([new ReportStatus { Id = 1, Code = "open" }]), new AuditDal(),
             new UnitOfWorkStub());
 
