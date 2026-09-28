@@ -4,6 +4,20 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Identity and configuration
+
+- Added opt-in, idempotent first-Admin provisioning from environment settings.
+  User creation, Admin role assignment, profile, and authorization state are
+  committed transactionally under a PostgreSQL advisory lock; an existing
+  account is never silently promoted or reset.
+- Added bootstrap-admin and SMTP settings to Compose and the local `.env`
+  workflow. The local `.env` contains a newly generated 32-character bootstrap
+  password; `.env.example` remains a secret-free template with bootstrap
+  disabled by default.
+- Validate enabled bootstrap credentials at startup and provision after schema
+  migration/authorization initialization. Documented Gmail App Password setup
+  and the audited Admin role-grant workflow.
+
 ### Dependencies and CI
 
 - Updated the ASP.NET runtime image to 10.0.12 and IdentityModel token packages

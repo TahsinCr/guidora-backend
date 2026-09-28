@@ -13,15 +13,41 @@ services:
       Database__ApplyMigrationsOnStartup: ${DATABASE_APPLY_MIGRATIONS_ON_STARTUP:-false}
       Authorization__SyncOperationClaimsOnStartup: ${AUTHORIZATION_SYNC_OPERATION_CLAIMS_ON_STARTUP:-false}
       TokenOptions__SecurityKey: ${TOKEN_OPTIONS__SECURITYKEY:?TOKEN_OPTIONS__SECURITYKEY must be set in .env}
+      TokenOptions__Issuer: ${TOKEN_OPTIONS__ISSUER:-Guidora}
+      TokenOptions__Audience: ${TOKEN_OPTIONS__AUDIENCE:-Guidora}
+      TokenOptions__AccessTokenExpirationMinutes: ${TOKEN_OPTIONS__ACCESS_TOKEN_EXPIRATION_MINUTES:-15}
+      TokenOptions__RefreshTokenExpirationDays: ${TOKEN_OPTIONS__REFRESH_TOKEN_EXPIRATION_DAYS:-30}
+      TokenOptions__RememberMeExpirationDays: ${TOKEN_OPTIONS__REMEMBER_ME_EXPIRATION_DAYS:-90}
+      TokenOptions__SessionAbsoluteExpirationDays: ${TOKEN_OPTIONS__SESSION_ABSOLUTE_EXPIRATION_DAYS:-180}
+      TokenOptions__ClockSkewSeconds: ${TOKEN_OPTIONS__CLOCK_SKEW_SECONDS:-30}
       CommunityVerification__SignalHashKey: ${COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY:-}
+      BootstrapAdmin__Enabled: ${BOOTSTRAP_ADMIN_ENABLED:-false}
+      BootstrapAdmin__Username: ${BOOTSTRAP_ADMIN_USERNAME:-}
+      BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       EmailVerification__Enabled: ${EMAIL_VERIFICATION_ENABLED:-false}
       EmailVerification__Smtp__Host: ${EMAIL_SMTP_HOST:-}
       EmailVerification__Smtp__Port: ${EMAIL_SMTP_PORT:-587}
       EmailVerification__Smtp__From: ${EMAIL_SMTP_FROM:-}
       EmailVerification__Smtp__Username: ${EMAIL_SMTP_USERNAME:-}
       EmailVerification__Smtp__Password: ${EMAIL_SMTP_PASSWORD:-}
+      RateLimiting__Login__PermitLimit: ${RATE_LIMIT_LOGIN_PERMIT_LIMIT:-10}
+      RateLimiting__Login__WindowSeconds: ${RATE_LIMIT_LOGIN_WINDOW_SECONDS:-60}
+      RateLimiting__Register__PermitLimit: ${RATE_LIMIT_REGISTER_PERMIT_LIMIT:-5}
+      RateLimiting__Register__WindowSeconds: ${RATE_LIMIT_REGISTER_WINDOW_SECONDS:-3600}
+      RateLimiting__Refresh__PermitLimit: ${RATE_LIMIT_REFRESH_PERMIT_LIMIT:-30}
+      RateLimiting__Refresh__WindowSeconds: ${RATE_LIMIT_REFRESH_WINDOW_SECONDS:-60}
+      RateLimiting__EmailVerificationRequest__PermitLimit: ${RATE_LIMIT_EMAIL_REQUEST_PERMIT_LIMIT:-3}
+      RateLimiting__EmailVerificationRequest__WindowSeconds: ${RATE_LIMIT_EMAIL_REQUEST_WINDOW_SECONDS:-3600}
+      RateLimiting__EmailVerificationConfirm__PermitLimit: ${RATE_LIMIT_EMAIL_CONFIRM_PERMIT_LIMIT:-10}
+      RateLimiting__EmailVerificationConfirm__WindowSeconds: ${RATE_LIMIT_EMAIL_CONFIRM_WINDOW_SECONDS:-600}
+      RateLimiting__EmailVerificationIp__PermitLimit: ${RATE_LIMIT_EMAIL_IP_PERMIT_LIMIT:-120}
+      RateLimiting__EmailVerificationIp__WindowSeconds: ${RATE_LIMIT_EMAIL_IP_WINDOW_SECONDS:-3600}
       Cors__AllowedOrigins__0: ${WEB_CLIENT_ORIGIN:-http://localhost:4200}
       ForwardedHeaders__KnownProxies__0: ${FORWARDED_HEADERS_KNOWN_PROXIES_0:-}
+      Logging__LogLevel__Default: ${LOG_LEVEL_DEFAULT:-Information}
+      Logging__LogLevel__Microsoft.AspNetCore: ${LOG_LEVEL_ASPNETCORE:-Warning}
+      AllowedHosts: ${ALLOWED_HOSTS:-*}
     ports:
       - "${WEBAPI_PORT:-8080}:8080"
     depends_on:

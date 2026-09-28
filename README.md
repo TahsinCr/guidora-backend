@@ -36,18 +36,41 @@ load NuGet assets and framework references correctly.
 Start the local infrastructure:
 
 ```bash
-cp .env.example .env
-# Replace the default passwords in .env
-docker compose up -d
+cp -n .env.example .env
+# Replace every placeholder secret and configure the initial Admin in .env.
+docker compose up --build -d
 docker compose ps
 ```
 
 The default Compose stack builds and runs the backend with PostgreSQL and Redis.
 RabbitMQ is optional and is not a dependency of the synchronous V1 API; start it
 only when explicitly needed with `docker compose --profile messaging up -d`.
-Copy `.env.example` to `.env` and replace every placeholder secret before
+`.env` is loaded by Docker Compose and ignored by Git. The checked-in
+`.env.example` is a template only; replace its placeholder secrets before
 starting the stack. The backend is exposed on `localhost:8080`; `/health/live`
 checks process availability and `/health/ready` checks PostgreSQL and Redis.
+
+On first startup, set `BOOTSTRAP_ADMIN_ENABLED=true` and configure
+`BOOTSTRAP_ADMIN_USERNAME`, `BOOTSTRAP_ADMIN_EMAIL`, and a unique random
+`BOOTSTRAP_ADMIN_PASSWORD` of at least 32 characters in `.env`. The backend
+creates this account only when that email does not already exist. Creation of
+the user, Admin role assignment, profile, and authentication state is
+transactional and serialized across backend instances. If the email already
+belongs to an account, startup leaves that account and its permissions
+unchanged. The bootstrap secret is never logged or stored in source control.
+Guidora signs in by email; the configured username is stored as the account's
+first name and profile display name, not as a separate login identifier.
+This runs when the application starts, after any enabled database migrations;
+building the image alone does not connect to the database or create accounts.
+The template keeps bootstrap disabled to prevent accidental use of sample
+credentials. Startup migrations are enabled in the local template for a fresh
+Compose database; disable `DATABASE_APPLY_MIGRATIONS_ON_STARTUP` in production
+and use the reviewed migration deployment process described below.
+
+The initial Admin can grant the Admin role to another existing account through
+`PUT /api/roles/{roleId}/users/{userId}`. That audited role workflow invalidates
+the target account's existing sessions. The bootstrap account is the initial
+trust root; its password is generated into the local ignored `.env` file.
 
 Compose services:
 
@@ -78,8 +101,9 @@ reuse a volume created with an older major PostgreSQL image without a planned
 ## Database schema lifecycle
 
 The application uses EF Core migrations for schema changes. `EnsureCreated` is
-not used because it bypasses migration history. Startup migration is available
-as an explicit switch:
+not used because it bypasses migration history. Startup migration is controlled
+by `DATABASE_APPLY_MIGRATIONS_ON_STARTUP` (or
+`Database:ApplyMigrationsOnStartup`):
 
 ```json
 {
@@ -107,8 +131,10 @@ confirmation attempts under `RateLimiting:EmailVerificationRequest` and
 `EmailVerificationConfirm`, plus an aggregate IP limit under
 `RateLimiting:EmailVerificationIp` (default 120 requests per hour for
 authenticated callers). Set `EMAIL_VERIFICATION_ENABLED=true` and configure
-`EMAIL_SMTP_HOST`, `EMAIL_SMTP_FROM`, `EMAIL_SMTP_USERNAME`,
-`EMAIL_SMTP_PASSWORD` to enable sending confirmation codes. Configure a separate
+`EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_FROM`,
+`EMAIL_SMTP_USERNAME`, and `EMAIL_SMTP_PASSWORD` in `.env` to enable sending
+confirmation codes. For Gmail, use `smtp.gmail.com:587` and an App Password,
+not the account password. Configure a separate
 `COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY` (at least 32 bytes) for Community vote
 signals regardless of SMTP status. Registered users can still sign in before
 email confirmation, but cannot

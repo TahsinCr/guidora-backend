@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using DataAccess.Concrete.Entityframework.Contexts;
@@ -109,6 +110,7 @@ namespace WebAPI
 
             var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>()
                 ?? throw new InvalidOperationException("TokenOptions configuration is missing.");
+            var bootstrapAdminSettings = BootstrapAdminSettings.FromConfiguration(builder.Configuration);
             ValidateStartupConfiguration(builder.Configuration, tokenOptions);
 
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -176,6 +178,19 @@ namespace WebAPI
                 SecurityOperationTool.SyncOperationClaims(
                     scope.ServiceProvider.GetRequiredService<IOperationClaimDal>(),
                     scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
+            }
+
+            if (bootstrapAdminSettings.Enabled)
+            {
+                using var scope = app.Services.CreateScope();
+                var result = await scope.ServiceProvider.GetRequiredService<IBootstrapAdminService>()
+                    .EnsureCreatedAsync(bootstrapAdminSettings.Username, bootstrapAdminSettings.Email,
+                        bootstrapAdminSettings.Password);
+                if (!result.Success)
+                    throw new InvalidOperationException(
+                        $"Bootstrap administrator initialization failed: {result.Message}");
+
+                app.Logger.LogInformation("{BootstrapAdminInitializationResult}", result.Message);
             }
 
             // Configure the HTTP request pipeline.
