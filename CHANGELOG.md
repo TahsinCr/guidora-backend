@@ -32,6 +32,17 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Revoke the active descendant session when logout arrives with an already
+  rotated refresh token, and add regression coverage for that race.
+- Namespace PostgreSQL advisory lock keys for session families and community
+  Products so integer IDs cannot collide across lock domains.
+- Cache public Tag and TagCategory catalogs in the navigation profile and
+  invalidate it after successful catalog mutations.
+- Serialize expired-session cleanup across backend instances with a PostgreSQL
+  advisory lock and report batch counts and cycle-limit hits.
+- Exercise populated legacy-schema upgrades for session-family backfill and
+  bounded descriptions, including fail-without-truncation behavior for oversized
+  Product and proposal rows.
 - Updated Autofac to 9.3.4 and kept its dependency out of the Entities layer.
 - Fixed the PostgreSQL refresh-rotation concurrency fixture to include the
   active session family and absolute-expiration values required by the rotation

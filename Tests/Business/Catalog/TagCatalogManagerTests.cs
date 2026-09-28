@@ -1,15 +1,38 @@
 using Business.Concrete;
+using Business.Constants;
+using Core.Aspects.Caching;
 using Core.DataAccess;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
 using Entities.DTOs;
 using Tests.Core.TestDoubles;
+using System.Reflection;
 
 namespace Tests.Business.Catalog;
 
 public sealed class TagCatalogManagerTests
 {
+    [Fact]
+    public void PublicTagCatalogReadsCacheAndAllCatalogMutationsInvalidateTheSharedProfile()
+    {
+        AssertCacheProfile(typeof(TagManager), nameof(TagManager.GetActiveAsync), typeof(CacheAspect));
+        AssertCacheProfile(typeof(TagCategoryManager), nameof(TagCategoryManager.GetActiveAsync), typeof(CacheAspect));
+
+        foreach (var method in new[]
+                 {
+                     (typeof(TagManager), nameof(TagManager.CreateAsync)),
+                     (typeof(TagManager), nameof(TagManager.UpdateAsync)),
+                     (typeof(TagManager), nameof(TagManager.DeactivateAsync)),
+                     (typeof(TagCategoryManager), nameof(TagCategoryManager.CreateAsync)),
+                     (typeof(TagCategoryManager), nameof(TagCategoryManager.UpdateAsync)),
+                     (typeof(TagCategoryManager), nameof(TagCategoryManager.DeactivateAsync))
+                 })
+        {
+            AssertCacheProfile(method.Item1, method.Item2, typeof(CacheRemoveAspect));
+        }
+    }
+
     [Fact]
     public async Task PublicTagCatalogReturnsOnlyTagsFromActiveCategories()
     {
@@ -197,5 +220,25 @@ public sealed class TagCatalogManagerTests
 
         public Task<bool> HasProductsWithMultipleTagsInCategoryAsync(int tagCategoryId,
             CancellationToken cancellationToken = default) => Task.FromResult(HasMultipleTagsInCategory);
+    }
+
+    private static void AssertCacheProfile(Type managerType, string methodName, Type aspectType)
+    {
+        var method = managerType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+            .Single(candidate => candidate.Name == methodName);
+        var attribute = method.GetCustomAttributesData()
+            .SingleOrDefault(candidate => candidate.AttributeType == aspectType);
+
+        Assert.NotNull(attribute);
+        var profileArguments = new List<object?>();
+        foreach (var argument in attribute.ConstructorArguments)
+        {
+            if (argument.Value is IReadOnlyCollection<CustomAttributeTypedArgument> values)
+                profileArguments.AddRange(values.Select(value => value.Value));
+            else
+                profileArguments.Add(argument.Value);
+        }
+
+        Assert.Contains(CacheProfiles.CatalogNavigation, profileArguments);
     }
 }

@@ -62,7 +62,7 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
         CancellationToken cancellationToken = default, string? originIpHash = null,
         string? originClientHash = null)
     {
-        await _unitOfWork.AcquireTransactionLockAsync(7_400_000_000L + productId, cancellationToken);
+        await _unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.ForCommunityProduct(productId), cancellationToken);
         var product = await _productDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (product is null) return new NotFoundResult("Product was not found.");
         var published = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
@@ -179,7 +179,7 @@ public sealed class CommunityVerificationManager : ICommunityVerificationService
     {
         if (string.IsNullOrWhiteSpace(request?.Note))
             return new ErrorResult("A Community review note is required.");
-        await _unitOfWork.AcquireTransactionLockAsync(7_400_000_000L + productId, cancellationToken);
+        await _unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.ForCommunityProduct(productId), cancellationToken);
         var review = await _reviewDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         if (review is null) return new NotFoundResult("Community verification review was not found.");
         if (review.Status != "pending") return new ConflictResult("Community verification review is already decided.");

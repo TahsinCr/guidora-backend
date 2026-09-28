@@ -136,7 +136,7 @@ declared on each use-case with `CacheAspect(profile, durationMinutes)`. An
 omitted/non-positive duration means no time-based expiration; Redis retains
 that entry until explicit invalidation. All production catalog profiles
 set positive lifetimes so Redis can evict their values under memory pressure.
-Product and category writes invalidate
+Product, Category, Tag, and TagCategory writes invalidate
 their related profiles only after a successful business result and, when used,
 after the database transaction commits. Cache values are JSON envelopes with
 their concrete result type; PostgreSQL remains the source of truth.
@@ -440,8 +440,10 @@ per-user PostgreSQL transaction lock so a concurrent rotation cannot escape a
 logout operation.
 
 A daily background task deletes at most 50,000 sessions in batches of 500 only after their
-absolute lifetime ended more than 30 days earlier. The cleanup uses an index
-on `AbsoluteExpiresAt`; no still-valid refresh-token family is deleted.
+absolute lifetime ended more than 30 days earlier. A PostgreSQL advisory lock
+coordinates the task across backend instances; the cleanup uses an index on
+`AbsoluteExpiresAt`, logs deleted batch counts, and never deletes a still-valid
+refresh-token family.
 
 Existing sessions migrated by `AddAbsoluteSessionExpiryProposalVersionAndReplayGuard`
 use the historical V1 180-day absolute lifetime measured from the first

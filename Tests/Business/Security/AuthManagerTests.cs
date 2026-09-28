@@ -156,6 +156,39 @@ public sealed class AuthManagerTests
     }
 
     [Fact]
+    public async Task LogoutWithRotatedRefreshTokenRevokesCurrentFamilyDescendant()
+    {
+        const string staleRefreshToken = "stale-logout-refresh-secret";
+        var familyId = Guid.NewGuid();
+        var oldSession = new UserSession
+        {
+            Id = familyId,
+            SessionFamilyId = familyId,
+            UserId = 17,
+            RefreshTokenHash = RefreshTokenHasher.Hash(staleRefreshToken),
+            RevokedAt = DateTime.UtcNow.AddMinutes(-1),
+            ReplacedBySessionId = Guid.NewGuid()
+        };
+        var currentSession = new UserSession
+        {
+            Id = oldSession.ReplacedBySessionId!.Value,
+            SessionFamilyId = familyId,
+            UserId = 17,
+            ExpiresAt = DateTime.UtcNow.AddDays(1),
+            AbsoluteExpiresAt = DateTime.UtcNow.AddDays(2)
+        };
+        var cache = new RecordingDistributedCache();
+        var manager = CreateManager(new UserServiceStub(new User { Id = 17, Status = true }),
+            new UserSessionDalStub([oldSession, currentSession]), new AuthenticationStateDalStub(), cache);
+
+        var result = await manager.RevokeSessionAsync(staleRefreshToken);
+
+        Assert.True(result.Success);
+        Assert.NotNull(currentSession.RevokedAt);
+        Assert.Contains($"auth-session:{currentSession.Id}", cache.RemovedKeys);
+    }
+
+    [Fact]
     public async Task ReplayedRefreshInvalidatesAllUserSessionsOutsideTheFailedRotation()
     {
         const string rawRefreshToken = "replayed-refresh-secret";

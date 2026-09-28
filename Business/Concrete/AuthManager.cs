@@ -27,7 +27,6 @@ namespace Business.Concrete
     public class AuthManager : IAuthService
     {
         private const string InvalidCredentialsMessage = "Invalid email or password.";
-        private const long SessionFamilyLockBase = 7_500_000_000L;
         private static readonly byte[] MissingUserHash = new byte[32];
         private static readonly byte[] MissingUserSalt = new byte[16];
         private readonly IUserService _userService;
@@ -156,7 +155,7 @@ namespace Business.Concrete
                 return new ErrorDataResult<AuthenticationResultDto>(InvalidCredentialsMessage);
             }
 
-            await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + user.Id,
+            await _unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.ForSessionFamily(user.Id),
                 cancellationToken);
             var authenticationState = await GetOrCreateAuthenticationStateAsync(user.Id, cancellationToken);
             var claims = (await _userService.GetClaimsAsync(user, cancellationToken)).Data;
@@ -252,7 +251,7 @@ namespace Business.Concrete
                            Timeout = TransactionManager.DefaultTimeout
                        }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + session.UserId,
+                await _unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.ForSessionFamily(session.UserId),
                     cancellationToken);
                 if (await _userSessionDal.TryRotateAsync(session.Id, replacement.Id, now, cancellationToken))
                 {
@@ -314,7 +313,7 @@ namespace Business.Concrete
         public async Task<IResult> RevokeSessionAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
             var session = await _userSessionDal.GetAsync(item => item.RefreshTokenHash == RefreshTokenHasher.Hash(refreshToken), cancellationToken);
-            if (session == null || session.RevokedAt.HasValue)
+            if (session == null)
             {
                 return new SuccessResult();
             }
@@ -345,7 +344,7 @@ namespace Business.Concrete
                        new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted,
                            Timeout = TransactionManager.DefaultTimeout }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + userId,
+                await _unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.ForSessionFamily(userId),
                     cancellationToken);
                 revokedIds = await _userSessionDal.RevokeOwnedFamilyAsync(userId, sessionId,
                     DateTime.UtcNow, cancellationToken);
@@ -366,7 +365,7 @@ namespace Business.Concrete
                        new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted,
                            Timeout = TransactionManager.DefaultTimeout }, TransactionScopeAsyncFlowOption.Enabled))
             {
-                await _unitOfWork.AcquireTransactionLockAsync(SessionFamilyLockBase + userId,
+                await _unitOfWork.AcquireTransactionLockAsync(TransactionLockKeys.ForSessionFamily(userId),
                     cancellationToken);
                 revokedIds = await _userSessionDal.RevokeOtherActiveAsync(userId, currentSessionId,
                     DateTime.UtcNow, cancellationToken);

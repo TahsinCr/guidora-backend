@@ -2,6 +2,8 @@ using Business.Abstract;
 using Business.BusinessAspect.Autofac;
 using Business.Utilities;
 using Business.ValidationRules.FluentValidation;
+using Business.Constants;
+using Core.Aspects.Caching;
 using Core.Aspects.Autofac.Validation;
 using Core.Aspects.Transaction;
 using Core.DataAccess;
@@ -34,6 +36,7 @@ public sealed class TagManager : ITagService
         _unitOfWork = unitOfWork;
     }
 
+    [CacheAspect(CacheProfiles.CatalogNavigation, duration: 60)]
     public async Task<IDataResult<List<Tag>>> GetActiveAsync(int? tagCategoryId = null,
         CancellationToken cancellationToken = default)
     {
@@ -46,6 +49,7 @@ public sealed class TagManager : ITagService
 
     [SecuredOperationAspect("Tag.Manage")]
     [ValidationAspect(typeof(TagRequestValidator))]
+    [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
     [TransactionScopeAspect]
     public async Task<IResult> CreateAsync(TagRequest request, int actorUserId,
         CancellationToken cancellationToken = default)
@@ -71,6 +75,7 @@ public sealed class TagManager : ITagService
 
     [SecuredOperationAspect("Tag.Manage")]
     [ValidationAspect(typeof(TagRequestValidator))]
+    [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
     [TransactionScopeAspect]
     public async Task<IResult> UpdateAsync(int id, TagRequest request, int actorUserId,
         CancellationToken cancellationToken = default)
@@ -103,6 +108,7 @@ public sealed class TagManager : ITagService
     }
 
     [SecuredOperationAspect("Tag.Manage")]
+    [CacheRemoveAspect(CacheProfiles.CatalogNavigation)]
     [TransactionScopeAspect]
     public async Task<IResult> DeactivateAsync(int id, int actorUserId, CancellationToken cancellationToken = default)
     {
