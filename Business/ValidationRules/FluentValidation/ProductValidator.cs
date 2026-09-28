@@ -15,6 +15,8 @@ namespace Business.ValidationRules.FluentValidation
             RuleFor(p => p.Name).NotEmpty().MinimumLength(3).MaximumLength(200);
             RuleFor(p => p.Slug).NotEmpty().MaximumLength(220);
             RuleFor(p => p.ShortDescription).NotEmpty().MaximumLength(500);
+            RuleFor(p => p.Description).NotEmpty()
+                .MaximumLength(ProductDescriptionPolicy.MaximumLength);
             RuleFor(p => p.WebsiteUrl).NotEmpty().MaximumLength(2048)
                 .Must(url => Uri.IsWellFormedUriString(url, UriKind.Absolute))
                 .WithMessage("WebsiteUrl must be an absolute URL.");

@@ -3,6 +3,7 @@ using Business.BusinessRules.Moderation;
 using Business.Concrete;
 using Business.Utilities;
 using Core.DataAccess;
+using Core.Pagination;
 using Core.Utilities.Results;
 using DataAccess.Abstract;
 using Entities;
@@ -258,13 +259,13 @@ public sealed class ProductBusinessRulesTests
         public int PublishedPageCalls { get; private set; }
         public int PublishedCountCalls { get; private set; }
 
-        public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+        public Task<List<ProductListItemDto>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
             CancellationToken cancellationToken = default)
         {
             PublishedPageCalls++;
             return Task.FromResult(categoryId.HasValue ? [] :
                 GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name)
-                    .Skip(skip).Take(take).ToList());
+                    .Skip(skip).Take(take).Select(ProductListItemDto.FromProduct).ToList());
         }
         public Task<int> CountPublishedAsync(int statusId, int? categoryId,
             CancellationToken cancellationToken = default)

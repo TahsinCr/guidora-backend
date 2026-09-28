@@ -38,7 +38,6 @@ public sealed class RoleManagerTests
     private sealed class UserDalStub(IEnumerable<User>? values = null) : EntityRepositoryStub<User>(values), IUserDal
     {
         public Task<List<OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) => Task.FromResult(new List<OperationClaim>());
-        public void AddClaim(User user, OperationClaim operationClaim) { }
     }
     private sealed class UserRoleDalStub(IEnumerable<UserRole>? values = null)
         : EntityRepositoryStub<UserRole>(values), IUserRoleDal

@@ -20,25 +20,23 @@ namespace Business.Concrete;
 public sealed class ProductVerificationManager : IProductVerificationService
 {
     private readonly IProductDal _productDal;
-    private readonly IProductStatusDal _productStatusDal;
     private readonly IVerificationTypeDal _verificationTypeDal;
     private readonly IProductVerificationDal _verificationDal;
     private readonly IProductVerificationVoteDal _voteDal;
-    private readonly ICommunityVerificationReviewDal _reviewDal;
+    private readonly IProductVerificationReadDal _readDal;
     private readonly IAuditLogDal _auditLogDal;
     private readonly IUnitOfWork _unitOfWork;
 
-    public ProductVerificationManager(IProductDal productDal, IProductStatusDal productStatusDal,
+    public ProductVerificationManager(IProductDal productDal,
         IVerificationTypeDal verificationTypeDal, IProductVerificationDal verificationDal,
-        IProductVerificationVoteDal voteDal, ICommunityVerificationReviewDal reviewDal,
-        IAuditLogDal auditLogDal, IUnitOfWork unitOfWork)
+        IProductVerificationVoteDal voteDal,
+        IAuditLogDal auditLogDal, IUnitOfWork unitOfWork, IProductVerificationReadDal readDal)
     {
         _productDal = productDal;
-        _productStatusDal = productStatusDal;
         _verificationTypeDal = verificationTypeDal;
         _verificationDal = verificationDal;
         _voteDal = voteDal;
-        _reviewDal = reviewDal;
+        _readDal = readDal;
         _auditLogDal = auditLogDal;
         _unitOfWork = unitOfWork;
     }
@@ -46,37 +44,18 @@ public sealed class ProductVerificationManager : IProductVerificationService
     public async Task<IDataResult<ProductVerificationSummaryDto>> GetSummaryAsync(int productId, int? currentUserId,
         CancellationToken cancellationToken = default)
     {
-        var published = await _productStatusDal.GetAsync(item => item.Code == "published", cancellationToken);
-        if (published is null)
-            return new ErrorDataResult<ProductVerificationSummaryDto>("Published Product status is not configured.");
-        if (!await _productDal.AnyAsync(item => item.ProductId == productId &&
-                item.ProductStatusId == published.Id, cancellationToken))
+        var state = await _readDal.GetPublishedStateAsync(productId, currentUserId, cancellationToken);
+        if (state is null)
             return new NotFoundDataResult<ProductVerificationSummaryDto>("Product was not found.");
-
-        var adminType = await _verificationTypeDal.GetAsync(item => item.Code == "admin", cancellationToken);
-        var communityType = await _verificationTypeDal.GetAsync(item => item.Code == "community", cancellationToken);
-        if (adminType is null || communityType is null)
-            return new ErrorDataResult<ProductVerificationSummaryDto>("Product verification types are not configured.");
-
-        var admin = await _verificationDal.GetAsync(item => item.ProductId == productId &&
-            item.VerificationTypeId == adminType.Id, cancellationToken);
-        var community = await _verificationDal.GetAsync(item => item.ProductId == productId &&
-            item.VerificationTypeId == communityType.Id, cancellationToken);
-        var review = await _reviewDal.GetAsync(item => item.ProductId == productId, cancellationToken);
         var positiveVotes = await _voteDal.CountCurrentlyEligiblePositiveVotesAsync(productId,
             DateTime.UtcNow.AddDays(-CommunityVerificationPolicy.MinimumAccountAgeDays), cancellationToken);
-        ProductVerificationVote? currentVote = null;
-        if (currentUserId.HasValue)
-            currentVote = await _voteDal.GetAsync(item => item.ProductId == productId &&
-                item.UserId == currentUserId.Value, cancellationToken);
 
         return new SuccessDataResult<ProductVerificationSummaryDto>(new ProductVerificationSummaryDto(
-            admin is { RevokedAt: null }, community is { RevokedAt: null },
-            community is { RevokedAt: not null }, review is { Status: "pending" },
-            review is { Status: "rejected" }, positiveVotes,
+            state.AdminVerified, state.CommunityVerified, state.CommunityRevoked,
+            state.CommunityPendingReview, state.CommunityReviewRejected, positiveVotes,
             CommunityVerificationPolicy.PositiveVoteQuorum,
-            currentUserId.HasValue ? currentVote is not null : null,
-            currentVote?.Approved));
+            currentUserId.HasValue ? state.CurrentUserVote.HasValue : null,
+            state.CurrentUserVote));
     }
 
     [SecuredOperationAspect("Product.Verify")]

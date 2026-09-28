@@ -25,6 +25,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(product => product.Name).HasColumnType("citext").HasMaxLength(200).IsRequired();
             builder.Property(product => product.Slug).HasColumnType("citext").HasMaxLength(220).IsRequired();
             builder.Property(product => product.ShortDescription).HasMaxLength(500).IsRequired();
+            builder.Property(product => product.Description)
+                .HasMaxLength(ProductDescriptionPolicy.MaximumLength).IsRequired();
             builder.Property(product => product.WebsiteUrl).HasMaxLength(2048).IsRequired();
             builder.Property(product => product.LogoUrl).HasMaxLength(2048).IsRequired();
             builder.HasIndex(product => product.Name).IsUnique();

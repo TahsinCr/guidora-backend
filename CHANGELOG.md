@@ -4,8 +4,55 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Performance and shared Core
+
+- Bounded Product and edit-proposal descriptions at 20,000 characters in request
+  validation and PostgreSQL; schema conversion fails on oversized legacy rows
+  rather than truncating them.
+- Projected Product catalog pages directly into a compact list DTO, keeping full
+  descriptions in the detail response only.
+- Added paginated, content-free Document and Changelog lists with dedicated
+  full-content detail endpoints.
+- Collapsed the published Product verification state and current-user vote into
+  one SQL projection; the current eligible-vote count remains a second query.
+- Moved reusable pagination contracts into Core, decoupled JWT generation from
+  Guidora's User entity, and moved catalog cache profile names and Redis provider
+  selection out of Core.
+- Treated cached values with an old return type as cache misses, suppressed
+  routine successful health-check request logs, and added a read-only k6 catalog
+  workload for deployment measurements.
+
 ### Fixed
 
+- Updated Autofac to 9.3.4 and kept its dependency out of the Entities layer.
+- Fixed the PostgreSQL refresh-rotation concurrency fixture to include the
+  active session family and absolute-expiration values required by the rotation
+  preconditions.
+- Stopped absolutely expired refresh tokens from triggering replay-based
+  account-wide session invalidation; added regression coverage.
+- Added authenticated, paged session listing and owned-session, other-session,
+  and all-session logout commands without exposing refresh-token hashes.
+  A stable family ID keeps device revocation effective across refresh rotations.
+  Per-user transaction locks serialize refresh and revocation races.
+- Recorded refresh activity, indexed absolute session expiration, and added
+  bounded daily cleanup after a 30-day retention period.
+- Added explicit login failure, session-management, and Redis eviction failure
+  regression coverage; documented legacy direct-user claims as read-only
+  compatibility data while new grants use managed roles.
+- Removed the unused direct-user claim grant path and its DAL helper, together
+  with obsolete message constants and imports.
+- Made login failures use one credential response and comparable password work
+  for unknown accounts; registration still reports duplicate email conflicts.
+- Isolated post-commit session-cache eviction failures, continued evicting
+  remaining keys, and logged one structured error with the failure count.
+- Made authorization-version increments and session revocations commit in one
+  transaction even for direct invalidation calls, and ordered bulk user IDs to
+  avoid reversed row-lock acquisition.
+- Validated the Community signal key independently of SMTP, checked SMTP sender
+  address syntax at startup, and documented that the latest email code wins.
+- Added a high-volume authenticated-IP email limit alongside per-user limits.
+- Pinned CI to the Docker SDK version and action commit SHAs, and added a
+  non-root container startup and live-health smoke check.
 - Made authorization-version invalidation an atomic PostgreSQL increment,
   preventing concurrent permission changes from retaining an intermediate JWT.
 - Counted currently eligible votes in public verification summaries and added

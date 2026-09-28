@@ -50,7 +50,7 @@ public sealed class EmailVerificationManager(
         {
             await sender.SendAsync(user.Email, token, cancellationToken);
         }
-        catch (Exception exception) when (exception is SmtpException or InvalidOperationException)
+        catch (Exception exception) when (exception is SmtpException or InvalidOperationException or FormatException)
         {
             await challengeDal.ExpireIfMatchingAsync(userId, challenge.TokenHash, DateTime.UtcNow,
                 cancellationToken);

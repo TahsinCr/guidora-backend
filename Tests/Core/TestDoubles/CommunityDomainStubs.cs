@@ -1,6 +1,8 @@
 using Core.Entities.Concrete;
+using Core.Pagination;
 using DataAccess.Abstract;
 using Entities;
+using Entities.DTOs;
 using Tests.Core.TestDoubles;
 
 namespace Tests.Core.TestDoubles;
@@ -64,9 +66,10 @@ public sealed class CommunityCommentStatusDalStub(IEnumerable<CommentStatus>? it
 public sealed class CommunityProductDalStub(IEnumerable<Product>? items = null)
     : EntityRepositoryStub<Product>(items), IProductDal
 {
-    public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+    public Task<List<ProductListItemDto>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
         CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
-        GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+        GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take)
+            .Select(ProductListItemDto.FromProduct).ToList());
     public Task<int> CountPublishedAsync(int statusId, int? categoryId,
         CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
         GetAll(item => item.ProductStatusId == statusId).Count);
@@ -78,15 +81,38 @@ public sealed class CommunityUserDalStub(IEnumerable<User>? items = null)
 {
     public Task<List<global::Core.Entities.Concrete.OperationClaim>> GetClaimsAsync(User user, CancellationToken cancellationToken = default) =>
         Task.FromResult(new List<global::Core.Entities.Concrete.OperationClaim>());
-    public void AddClaim(User user, global::Core.Entities.Concrete.OperationClaim operationClaim) { }
 }
 public sealed class CommunityVerificationDalStub(IEnumerable<ProductVerification>? items = null)
     : EntityRepositoryStub<ProductVerification>(items), IProductVerificationDal;
 public sealed class CommunityDocumentDalStub(IEnumerable<ProductDocument>? items = null)
-    : EntityRepositoryStub<ProductDocument>(items), IProductDocumentDal;
+    : EntityRepositoryStub<ProductDocument>(items), IProductDocumentDal
+{
+    public Task<PagedResult<ProductDocumentListItemDto>> GetPageAsync(int productId, int page, int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = GetAll(item => item.ProductId == productId).OrderBy(item => item.DocumentType)
+            .ThenBy(item => item.Title).ThenBy(item => item.Id).ToList();
+        var pageItems = query.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(item => new ProductDocumentListItemDto(item.Id, item.ProductId, item.DocumentType,
+                item.Title, item.CreatedAt, item.UpdatedAt)).ToList();
+        return Task.FromResult(new PagedResult<ProductDocumentListItemDto>(pageItems, page, pageSize, query.Count));
+    }
+}
 public sealed class CommunityMediaDalStub(IEnumerable<ProductMedia>? items = null)
     : EntityRepositoryStub<ProductMedia>(items), IProductMediaDal;
 public sealed class CommunityChangelogDalStub(IEnumerable<ProductChangelog>? items = null)
-    : EntityRepositoryStub<ProductChangelog>(items), IProductChangelogDal;
+    : EntityRepositoryStub<ProductChangelog>(items), IProductChangelogDal
+{
+    public Task<PagedResult<ProductChangelogListItemDto>> GetPageAsync(int productId, int page, int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = GetAll(item => item.ProductId == productId).OrderByDescending(item => item.ReleaseDate)
+            .ThenByDescending(item => item.Id).ToList();
+        var pageItems = query.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(item => new ProductChangelogListItemDto(item.Id, item.ProductId, item.Version,
+                item.Title, item.ReleaseDate, item.CreatedAt)).ToList();
+        return Task.FromResult(new PagedResult<ProductChangelogListItemDto>(pageItems, page, pageSize, query.Count));
+    }
+}
 public sealed class CommunityContributorDalStub(IEnumerable<ProductContributor>? items = null)
     : EntityRepositoryStub<ProductContributor>(items), IProductContributorDal;

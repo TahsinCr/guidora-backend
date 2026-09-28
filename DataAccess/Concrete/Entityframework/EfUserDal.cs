@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Core.DataAccess.EntityFramework;
-using Core.Entities;
 using Core.Entities.Concrete;
 using DataAccess.Abstract;
 using DataAccess.Concrete.Entityframework.Contexts;
@@ -37,16 +34,6 @@ namespace DataAccess.Concrete.Entityframework
                 select new OperationClaim { Id = operationClaim.Id, Name = operationClaim.Name };
 
             return await directClaims.Concat(roleClaims).Distinct().ToListAsync(cancellationToken);
-        }
-
-        public void AddClaim(User user, OperationClaim operationClaim)
-        {
-            var addedEntity = Context.Entry(new UserOperationClaim
-            {
-                UserId = user.Id,
-                OperationClaimId = operationClaim.Id
-            });
-            addedEntity.State = EntityState.Added;
         }
     }
 }

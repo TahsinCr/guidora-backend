@@ -8,6 +8,11 @@ using Core.Utilities.Results;
 using Core.Exceptions;
 using DataAccess.Concrete.Entityframework;
 using DataAccess.Concrete.Entityframework.Contexts;
+using Core.DataAccess;
+using Tests.Core.TestDoubles;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using Entities;
 using Entities.DTOs;
 using Microsoft.EntityFrameworkCore;
@@ -17,12 +22,71 @@ using RabbitMQ.Client;
 using StackExchange.Redis;
 using System.Reflection;
 using System.Text.Json;
+using Business.Constants;
+using Core.Pagination;
 using GuidoraRole = global::Core.Entities.Concrete.Role;
 
 namespace Tests.Integration;
 
 public sealed class InfrastructureIntegrationTests
 {
+    [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
+    public async Task SessionInvalidationRollsBackAuthorizationIncrementWhenSessionSaveFails()
+    {
+        var options = new DbContextOptionsBuilder<GuidoraDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("GUIDORA_TEST_CONNECTION_STRING"))
+            .Options;
+        int userId;
+        await using (var setup = new GuidoraDbContext(options))
+        {
+            var user = new User
+            {
+                FirstName = "Rollback", LastName = "Check",
+                Email = $"rollback-{Guid.NewGuid():N}@example.test",
+                PasswordHash = [1], PasswordSalt = [1], Status = true
+            };
+            setup.Users.Add(user);
+            await setup.SaveChangesAsync();
+            userId = user.Id;
+            setup.UserAuthenticationStates.Add(new UserAuthenticationState
+                { UserId = userId, AuthorizationVersion = 5, UpdatedAt = DateTime.UtcNow });
+            await setup.SaveChangesAsync();
+        }
+
+        try
+        {
+            await using (var context = new GuidoraDbContext(options))
+            {
+                var manager = new UserSessionInvalidationManager(
+                    new EfUserAuthenticationStateDal(context), new EfUserSessionDal(context),
+                    new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
+                    new FailingSaveUnitOfWork(), Microsoft.Extensions.Logging.Abstractions.NullLogger<global::Business.Concrete.UserSessionInvalidationManager>.Instance);
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    manager.InvalidateUserSessionsAsync(userId));
+            }
+
+            await using var verification = new GuidoraDbContext(options);
+            Assert.Equal(5, await verification.UserAuthenticationStates
+                .Where(item => item.UserId == userId)
+                .Select(item => item.AuthorizationVersion).SingleAsync());
+        }
+        finally
+        {
+            await using var cleanup = new GuidoraDbContext(options);
+            cleanup.Users.Remove(await cleanup.Users.SingleAsync(item => item.Id == userId));
+            await cleanup.SaveChangesAsync();
+        }
+    }
+
+    private sealed class FailingSaveUnitOfWork : IUnitOfWork
+    {
+        public int SaveChanges() => throw new InvalidOperationException("Simulated save failure.");
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
+            Task.FromException<int>(new InvalidOperationException("Simulated save failure."));
+        public Task AcquireTransactionLockAsync(long key, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
+
     [RequiresEnvironmentFact("GUIDORA_TEST_CONNECTION_STRING")]
     public async Task ConcurrentAuthorizationInvalidationsCannotReuseAnIntermediateTokenVersion()
     {
@@ -188,11 +252,10 @@ public sealed class InfrastructureIntegrationTests
         Assert.Equal(1, reviewItem.DistinctClientSignals);
         users[2].Status = false;
         await context.SaveChangesAsync();
-        var summary = await new ProductVerificationManager(new EfProductDal(context),
-            new EfProductStatusDal(context), new EfVerificationTypeDal(context),
-            new EfProductVerificationDal(context), new EfProductVerificationVoteDal(context),
-            new EfCommunityVerificationReviewDal(context), new EfAuditLogDal(context),
-            new GuidoraUnitOfWork(context)).GetSummaryAsync(product.ProductId, null);
+        var summary = await new ProductVerificationManager(new EfProductDal(context), new EfVerificationTypeDal(context),
+            new EfProductVerificationDal(context), new EfProductVerificationVoteDal(context), new EfAuditLogDal(context),
+            new GuidoraUnitOfWork(context), new EfProductVerificationReadDal(context))
+            .GetSummaryAsync(product.ProductId, null);
         Assert.Equal(29, summary.Data.PositiveVotes);
         Assert.IsType<ConflictResult>(await manager.ApproveAsync(product.ProductId, users[32].Id,
             new ReviewNoteRequest { Note = "One voter is inactive." }));
@@ -508,8 +571,10 @@ public sealed class InfrastructureIntegrationTests
             userId = user.Id;
             setup.UserSessions.Add(new UserSession
             {
-                Id = sessionId, UserId = userId, RefreshTokenHash = Guid.NewGuid().ToString("N"),
-                CreatedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(1), DeviceName = "test"
+                Id = sessionId, SessionFamilyId = sessionId, UserId = userId,
+                RefreshTokenHash = Guid.NewGuid().ToString("N"),
+                CreatedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddDays(1),
+                AbsoluteExpiresAt = DateTime.UtcNow.AddDays(30), DeviceName = "test"
             });
             await setup.SaveChangesAsync();
         }

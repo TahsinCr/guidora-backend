@@ -4,6 +4,7 @@ using Entities;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Pagination;
 
 namespace Business.Abstract;
 
