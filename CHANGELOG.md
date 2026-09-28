@@ -24,6 +24,10 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Updated Autofac to 9.3.4 and kept its dependency out of the Entities layer.
+- Fixed the PostgreSQL refresh-rotation concurrency fixture to include the
+  active session family and absolute-expiration values required by the rotation
+  preconditions.
 - Stopped absolutely expired refresh tokens from triggering replay-based
   account-wide session invalidation; added regression coverage.
 - Added authenticated, paged session listing and owned-session, other-session,
