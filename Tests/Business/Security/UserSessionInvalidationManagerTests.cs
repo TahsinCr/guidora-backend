@@ -68,12 +68,13 @@ public sealed class UserSessionInvalidationManagerTests
         var unitOfWork = new UnitOfWorkStub();
         var sut = new UserSessionInvalidationManager(stateDal, sessions, cache, unitOfWork);
 
-        var result = await sut.InvalidateUsersSessionsAsync([42, 43, 42]);
+        var result = await sut.InvalidateUsersSessionsAsync([43, 42, 43]);
 
         Assert.True(result.Success);
         Assert.Equal(5, first.AuthorizationVersion);
         Assert.Equal(0, stateDal.UpdateCount);
         Assert.Single(stateDal.Incremented, item => item.UserId == 43);
+        Assert.Equal([42, 43], stateDal.IncrementedUserIds);
         Assert.Equal(2, sessions.UpdateCount);
         Assert.Equal(1, unitOfWork.SaveCount);
         Assert.Equal(2, cache.RemovedKeys.Count);
@@ -146,11 +147,13 @@ public sealed class UserSessionInvalidationManagerTests
     {
         public List<UserAuthenticationState> Added { get; } = [];
         public List<UserAuthenticationState> Incremented { get; } = [];
+        public List<int> IncrementedUserIds { get; } = [];
         public Task IncrementAuthorizationVersionsAsync(IReadOnlyCollection<int> userIds, DateTime updatedAt,
             CancellationToken cancellationToken = default)
         {
             foreach (var userId in userIds)
             {
+                IncrementedUserIds.Add(userId);
                 var state = Get(item => item.UserId == userId);
                 if (state is null)
                 {

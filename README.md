@@ -104,17 +104,26 @@ configurable IP-partitioned limits under `RateLimiting:Login`, `Register`, and
 `Refresh`. Refresh cookies are Secure outside Development. The API also applies
 user-partitioned limits to email-verification code requests and
 confirmation attempts under `RateLimiting:EmailVerificationRequest` and
-`EmailVerificationConfirm`. Set `EMAIL_VERIFICATION_ENABLED=true` and configure
+`EmailVerificationConfirm`, plus an aggregate IP limit under
+`RateLimiting:EmailVerificationIp` (default 120 requests per hour for
+authenticated callers). Set `EMAIL_VERIFICATION_ENABLED=true` and configure
 `EMAIL_SMTP_HOST`, `EMAIL_SMTP_FROM`, `EMAIL_SMTP_USERNAME`,
-`EMAIL_SMTP_PASSWORD`, and a separate
-`COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY` (at least 32 bytes) to enable sending confirmation
-codes; registered users can still sign in before email confirmation, but cannot
+`EMAIL_SMTP_PASSWORD` to enable sending confirmation codes. Configure a separate
+`COMMUNITY_VERIFICATION_SIGNAL_HASH_KEY` (at least 32 bytes) for Community vote
+signals regardless of SMTP status. Registered users can still sign in before
+email confirmation, but cannot
 cast Community verification votes. `POST /api/auth/email-verification/request`
 and `POST /api/auth/email-verification/confirm` require a valid session. Codes
 are random, stored only as SHA-256 hashes, expire after 30 minutes, and can be
-used once. Startup rejects incomplete enabled SMTP settings. Delivery failure
+used once; only the most recently requested code is valid. Startup rejects
+incomplete or malformed enabled SMTP settings, and always requires a separate
+Community signal key even while SMTP is disabled. Delivery failure
 returns HTTP 503 and expires the undelivered challenge; the user can request a
 new code within their own rate limit. SMTP credentials remain outside Git.
+
+The .NET SDK is fixed at 10.0.401 in `global.json`, matching the Docker build
+image and CI setup. CI also starts the built backend image as a non-root user
+and checks `/health/live`.
 
 HTTP request logs record method, path, response status, duration, and trace ID only. Query strings,
 headers, and request/response bodies are excluded so secret query parameters and

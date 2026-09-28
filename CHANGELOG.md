@@ -6,6 +6,14 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Made authorization-version increments and session revocations commit in one
+  transaction even for direct invalidation calls, and ordered bulk user IDs to
+  avoid reversed row-lock acquisition.
+- Validated the Community signal key independently of SMTP, checked SMTP sender
+  address syntax at startup, and documented that the latest email code wins.
+- Added a high-volume authenticated-IP email limit alongside per-user limits.
+- Pinned CI to the Docker SDK version and action commit SHAs, and added a
+  non-root container startup and live-health smoke check.
 - Made authorization-version invalidation an atomic PostgreSQL increment,
   preventing concurrent permission changes from retaining an intermediate JWT.
 - Counted currently eligible votes in public verification summaries and added

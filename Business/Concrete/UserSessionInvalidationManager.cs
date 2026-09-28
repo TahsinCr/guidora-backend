@@ -38,7 +38,16 @@ namespace Business.Concrete
             if (userIds is null || userIds.Count == 0 || userIds.Any(id => id <= 0))
                 return new ErrorResult("At least one valid user identifier is required.");
 
-            var distinctUserIds = userIds.Distinct().ToArray();
+            using var transaction = Transaction.Current is null
+                ? new TransactionScope(TransactionScopeOption.Required,
+                    new TransactionOptions
+                    {
+                        IsolationLevel = IsolationLevel.ReadCommitted,
+                        Timeout = TransactionManager.DefaultTimeout
+                    }, TransactionScopeAsyncFlowOption.Enabled)
+                : new TransactionScope(TransactionScopeOption.Required, TransactionScopeAsyncFlowOption.Enabled);
+
+            var distinctUserIds = userIds.Distinct().OrderBy(id => id).ToArray();
 
             var now = DateTime.UtcNow;
             await _authenticationStateDal.IncrementAuthorizationVersionsAsync(distinctUserIds, now,
@@ -54,27 +63,18 @@ namespace Business.Concrete
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // A caller may own an ambient TransactionScope (for example Ban/Restore).
-            // SaveChanges only flushes into that scope, so defer cache eviction until
-            // the outer transaction really commits. Without an ambient transaction,
-            // SaveChanges above is the commit boundary.
+            // The local scope joins a caller's ambient transaction when present.
+            // Evict only after the actual outermost commit.
             var cacheKeys = activeSessions.Select(session => $"auth-session:{session.Id}").ToArray();
-            var ambientTransaction = Transaction.Current;
-            if (ambientTransaction is null)
+            Transaction.Current!.TransactionCompleted += (_, eventArgs) =>
             {
-                RemoveSessionValidationCache(cacheKeys);
-            }
-            else
-            {
-                ambientTransaction.TransactionCompleted += (_, eventArgs) =>
+                if (eventArgs.Transaction?.TransactionInformation.Status == TransactionStatus.Committed)
                 {
-                    if (eventArgs.Transaction?.TransactionInformation.Status == TransactionStatus.Committed)
-                    {
-                        RemoveSessionValidationCache(cacheKeys);
-                    }
-                };
-            }
+                    RemoveSessionValidationCache(cacheKeys);
+                }
+            };
 
+            transaction.Complete();
             return new SuccessResult();
         }
 

@@ -60,6 +60,7 @@ namespace WebAPI
             builder.Services.AddRateLimiter(options =>
             {
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                AddEmailIpAggregateLimit(options, builder.Configuration);
                 AddIpRateLimitPolicy(options, builder.Configuration, "auth-login", "RateLimiting:Login",
                     permitLimit: 10, windowSeconds: 60);
                 AddIpRateLimitPolicy(options, builder.Configuration, "auth-register", "RateLimiting:Register",
@@ -277,6 +278,31 @@ namespace WebAPI
                 }));
         }
 
+        private static void AddEmailIpAggregateLimit(RateLimiterOptions options, IConfiguration configuration)
+        {
+            var permitLimit = configuration.GetValue<int?>("RateLimiting:EmailVerificationIp:PermitLimit") ?? 120;
+            var windowSeconds = configuration.GetValue<int?>("RateLimiting:EmailVerificationIp:WindowSeconds") ?? 3600;
+            if (permitLimit <= 0 || windowSeconds <= 0)
+                throw new InvalidOperationException("Email verification IP aggregate rate limit must be positive.");
+
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            {
+                if (context.User.Identity?.IsAuthenticated != true ||
+                    !context.Request.Path.StartsWithSegments("/api/auth/email-verification"))
+                    return RateLimitPartition.GetNoLimiter("other-routes");
+
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    "email-ip:" + RateLimitPartitionKey.FromAddress(context.Connection.RemoteIpAddress),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        AutoReplenishment = true,
+                        PermitLimit = permitLimit,
+                        QueueLimit = 0,
+                        Window = TimeSpan.FromSeconds(windowSeconds)
+                    });
+            });
+        }
+
         private static void ValidateStartupConfiguration(IConfiguration configuration, TokenOptions tokenOptions)
         {
             if (string.IsNullOrWhiteSpace(tokenOptions.Issuer) ||
@@ -289,6 +315,10 @@ namespace WebAPI
                 tokenOptions.ClockSkewSeconds < 0)
                 throw new InvalidOperationException("TokenOptions must include issuer, audience, a signing key of at least 32 bytes, and valid lifetimes.");
 
+            if (System.Text.Encoding.UTF8.GetByteCount(
+                    configuration["CommunityVerification:SignalHashKey"] ?? string.Empty) < 32)
+                throw new InvalidOperationException("CommunityVerification:SignalHashKey must be at least 32 bytes.");
+
             if (!configuration.GetValue<bool>("EmailVerification:Enabled")) return;
             if (string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:Host"]) ||
                 string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:From"]) ||
@@ -296,9 +326,14 @@ namespace WebAPI
                 string.IsNullOrWhiteSpace(configuration["EmailVerification:Smtp:Password"]) ||
                 configuration.GetValue<int>("EmailVerification:Smtp:Port") is < 1 or > 65535)
                 throw new InvalidOperationException("Email verification is enabled but SMTP configuration is incomplete.");
-            if (System.Text.Encoding.UTF8.GetByteCount(
-                    configuration["CommunityVerification:SignalHashKey"] ?? string.Empty) < 32)
-                throw new InvalidOperationException("CommunityVerification:SignalHashKey must be at least 32 bytes when email verification is enabled.");
+            try
+            {
+                _ = new System.Net.Mail.MailAddress(configuration["EmailVerification:Smtp:From"]!);
+            }
+            catch (FormatException exception)
+            {
+                throw new InvalidOperationException("Email verification SMTP sender address is invalid.", exception);
+            }
         }
     }
 }
