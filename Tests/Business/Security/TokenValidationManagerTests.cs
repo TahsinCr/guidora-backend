@@ -88,7 +88,7 @@ public sealed class TokenValidationManagerTests
     private sealed class UserSessionDalStub(IEnumerable<UserSession>? values = null)
         : EntityRepositoryStub<UserSession>(values), IUserSessionDal
     {
-        public Task<global::Entities.DTOs.PagedResult<global::Entities.DTOs.UserSessionSummaryDto>> GetActivePageAsync(
+        public Task<global::Core.Pagination.PagedResult<global::Entities.DTOs.UserSessionSummaryDto>> GetActivePageAsync(
             int userId, Guid currentSessionId, int page, int pageSize, DateTime now,
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<Guid>> RevokeOwnedFamilyAsync(int userId, Guid sessionId, DateTime now,

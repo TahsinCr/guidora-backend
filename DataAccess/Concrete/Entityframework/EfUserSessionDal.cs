@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
+using Core.Pagination;
 using Entities.DTOs;
 
 namespace DataAccess.Concrete.Entityframework

@@ -4,6 +4,24 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Performance and shared Core
+
+- Bounded Product and edit-proposal descriptions at 20,000 characters in request
+  validation and PostgreSQL; schema conversion fails on oversized legacy rows
+  rather than truncating them.
+- Projected Product catalog pages directly into a compact list DTO, keeping full
+  descriptions in the detail response only.
+- Added paginated, content-free Document and Changelog lists with dedicated
+  full-content detail endpoints.
+- Collapsed the published Product verification state and current-user vote into
+  one SQL projection; the current eligible-vote count remains a second query.
+- Moved reusable pagination contracts into Core, decoupled JWT generation from
+  Guidora's User entity, and moved catalog cache profile names and Redis provider
+  selection out of Core.
+- Treated cached values with an old return type as cache misses, suppressed
+  routine successful health-check request logs, and added a read-only k6 catalog
+  workload for deployment measurements.
+
 ### Fixed
 
 - Stopped absolutely expired refresh tokens from triggering replay-based

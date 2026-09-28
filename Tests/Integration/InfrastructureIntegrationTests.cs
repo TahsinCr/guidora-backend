@@ -22,6 +22,8 @@ using RabbitMQ.Client;
 using StackExchange.Redis;
 using System.Reflection;
 using System.Text.Json;
+using Business.Constants;
+using Core.Pagination;
 using GuidoraRole = global::Core.Entities.Concrete.Role;
 
 namespace Tests.Integration;
@@ -250,11 +252,10 @@ public sealed class InfrastructureIntegrationTests
         Assert.Equal(1, reviewItem.DistinctClientSignals);
         users[2].Status = false;
         await context.SaveChangesAsync();
-        var summary = await new ProductVerificationManager(new EfProductDal(context),
-            new EfProductStatusDal(context), new EfVerificationTypeDal(context),
-            new EfProductVerificationDal(context), new EfProductVerificationVoteDal(context),
-            new EfCommunityVerificationReviewDal(context), new EfAuditLogDal(context),
-            new GuidoraUnitOfWork(context)).GetSummaryAsync(product.ProductId, null);
+        var summary = await new ProductVerificationManager(new EfProductDal(context), new EfVerificationTypeDal(context),
+            new EfProductVerificationDal(context), new EfProductVerificationVoteDal(context), new EfAuditLogDal(context),
+            new GuidoraUnitOfWork(context), new EfProductVerificationReadDal(context))
+            .GetSummaryAsync(product.ProductId, null);
         Assert.Equal(29, summary.Data.PositiveVotes);
         Assert.IsType<ConflictResult>(await manager.ApproveAsync(product.ProductId, users[32].Id,
             new ReviewNoteRequest { Note = "One voter is inactive." }));

@@ -19,6 +19,8 @@ using System.Threading;
 using System.Transactions;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
+using System.Linq;
+using Core.Pagination;
 
 namespace Business.Concrete
 {
@@ -181,7 +183,8 @@ namespace Business.Concrete
 
             await _userSessionDal.AddAsync(session, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            var accessToken = _tokenHelper.CreateToken(user, claims, session.Id, authenticationState.AuthorizationVersion);
+            var accessToken = _tokenHelper.CreateToken(ToTokenSubject(user),
+                claims.Select(claim => claim.Name).ToArray(), session.Id, authenticationState.AuthorizationVersion);
             return new SuccessDataResult<AuthenticationResultDto>(new AuthenticationResultDto
             {
                 AccessToken = accessToken,
@@ -257,7 +260,8 @@ namespace Business.Concrete
                     var claims = (await _userService.GetClaimsAsync(userResult.Data, cancellationToken)).Data;
                     await _userSessionDal.AddAsync(replacement, cancellationToken);
                     await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    var accessToken = _tokenHelper.CreateToken(userResult.Data, claims, replacement.Id,
+                    var accessToken = _tokenHelper.CreateToken(ToTokenSubject(userResult.Data),
+                        claims.Select(claim => claim.Name).ToArray(), replacement.Id,
                         authenticationState.AuthorizationVersion);
                     result = new SuccessDataResult<AuthenticationResultDto>(new AuthenticationResultDto
                     {
@@ -414,6 +418,9 @@ namespace Business.Concrete
             await _authenticationStateDal.AddAsync(state, cancellationToken);
             return state;
         }
+
+        private static TokenSubject ToTokenSubject(User user) => new(
+            user.Id.ToString(), user.Email, $"{user.FirstName} {user.LastName}");
 
     }
 }

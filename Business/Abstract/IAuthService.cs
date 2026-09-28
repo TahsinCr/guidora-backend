@@ -6,6 +6,7 @@ using Entities.DTOs;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
+using Core.Pagination;
 
 namespace Business.Abstract;
 

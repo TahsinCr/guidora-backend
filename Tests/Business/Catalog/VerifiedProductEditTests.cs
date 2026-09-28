@@ -121,9 +121,10 @@ public sealed class VerifiedProductEditTests
 
     private sealed class ProductDalStub(IEnumerable<Product>? values = null) : EntityRepositoryStub<Product>(values), IProductDal
     {
-        public Task<List<Product>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
+        public Task<List<ProductListItemDto>> GetPublishedPageAsync(int statusId, int? categoryId, int skip, int take,
             CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? [] :
-            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take).ToList());
+            GetAll(item => item.ProductStatusId == statusId).OrderBy(item => item.Name).Skip(skip).Take(take)
+                .Select(ProductListItemDto.FromProduct).ToList());
         public Task<int> CountPublishedAsync(int statusId, int? categoryId,
             CancellationToken cancellationToken = default) => Task.FromResult(categoryId.HasValue ? 0 :
             GetAll(item => item.ProductStatusId == statusId).Count);

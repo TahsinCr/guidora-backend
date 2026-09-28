@@ -12,9 +12,9 @@ using DataAccess.Abstract;
 using Entities;
 using Entities.DTOs;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Pagination;
 
 namespace Business.Concrete;
 
@@ -34,14 +34,28 @@ public sealed class ProductDocumentManager : IProductDocumentService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IDataResult<List<ProductDocument>>> GetByProductAsync(int productId,
+    public async Task<IDataResult<PagedResult<ProductDocumentListItemDto>>> GetByProductAsync(int productId,
+        PageRequest page,
+        CancellationToken cancellationToken = default)
+    {
+        if (page is null || page.Page < 1 || page.PageSize is < 1 or > 100 ||
+            ((long)page.Page - 1) * page.PageSize > int.MaxValue)
+            return new ErrorDataResult<PagedResult<ProductDocumentListItemDto>>("Invalid document page request.");
+        var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
+        if (!rule.Success) return new NotFoundDataResult<PagedResult<ProductDocumentListItemDto>>("Product was not found.");
+        return new SuccessDataResult<PagedResult<ProductDocumentListItemDto>>(
+            await _documentDal.GetPageAsync(productId, page.Page, page.PageSize, cancellationToken));
+    }
+
+    public async Task<IDataResult<ProductDocument>> GetByIdAsync(int productId, int documentId,
         CancellationToken cancellationToken = default)
     {
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
-        if (!rule.Success) return new NotFoundDataResult<List<ProductDocument>>("Product was not found.");
-        var documents = await _documentDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
-        return new SuccessDataResult<List<ProductDocument>>(documents.OrderBy(item => item.DocumentType)
-            .ThenBy(item => item.Title).ToList());
+        if (!rule.Success) return new NotFoundDataResult<ProductDocument>("Product was not found.");
+        var document = await _documentDal.GetAsync(item => item.ProductId == productId && item.Id == documentId,
+            cancellationToken);
+        return document is null ? new NotFoundDataResult<ProductDocument>("Product document was not found.")
+            : new SuccessDataResult<ProductDocument>(document);
     }
 
     [SecuredOperationAspect("Product.Content.Manage")]

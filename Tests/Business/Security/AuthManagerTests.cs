@@ -1,6 +1,7 @@
 using Business.Abstract;
 using Business.Concrete;
 using Core.Entities.Concrete;
+using Core.Pagination;
 using Core.Utilities.Results;
 using Core.Utilities.Security.Hashing;
 using Core.Utilities.Security.JWT;
@@ -343,7 +344,8 @@ public sealed class AuthManagerTests
 
     private sealed class TokenHelperStub : ITokenHelper
     {
-        public AccessToken CreateToken(User user, List<OperationClaim> operationClaims, Guid sessionId,
+        public AccessToken CreateToken(TokenSubject subject, IReadOnlyCollection<string> operationClaims,
+            Guid sessionId,
             int authorizationVersion) => new() { Token = "access-token", SessionId = sessionId,
             Expiration = DateTime.UtcNow.AddMinutes(15) };
     }

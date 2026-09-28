@@ -245,6 +245,18 @@ Public catalog reads expose only `published` Products. Product listing
 endpoints are database-paginated (`page`, `pageSize`, capped at 100) and
 category filtering is performed in the database rather than materializing
 category Product IDs in the API process.
+List responses contain Product identity, short description, URLs, and dates;
+the full description is returned only by `GET /api/products/{id}`. New Product
+and edit-proposal descriptions are capped at 20,000 characters. The
+`BoundProductDescriptions` migration fails if existing rows exceed that limit;
+review those rows before applying it. Apply the column-type change during a
+maintenance window if Product tables are already large, because PostgreSQL must
+validate existing values under a schema lock.
+
+```sql
+SELECT "ProductId" FROM "Products" WHERE char_length("Description") > 20000;
+SELECT "Id" FROM "ProductEditProposals" WHERE char_length("Description") > 20000;
+```
 Only active Categories are public: listing Products by an inactive or unknown
 Category returns 404. Deactivating a Category invalidates both navigation and
 Product-listing caches after the database transaction commits.
@@ -348,6 +360,10 @@ Product-scoped resources under `/api/products/{productId}/documents`,
 content in PostgreSQL. Media currently stores validated HTTP(S) references and
 metadata only: binary upload and its physical storage provider remain an open
 infrastructure decision. Changelog entries are version-unique and append-only.
+Document and Changelog list endpoints accept `page` and `pageSize` (maximum 100)
+and return metadata without `Content`. Fetch full content from
+`GET /api/products/{productId}/documents/{documentId}` or
+`GET /api/products/{productId}/changelogs/{changelogId}`.
 Contributor records credit a User once per Product; users may add/remove their
 own credit, while the Product creator can manage other credits. Direct Document
 and Media mutations are rejected for actively verified Products because those
@@ -462,6 +478,21 @@ Business/    Current business rules and services
 WebAPI/      Current HTTP entry point
 infra/       Local Docker infrastructure
 ```
+
+Core owns reusable pagination contracts, cache/aspect implementations, hashing,
+and JWT issuance from a `TokenSubject`; it does not choose Guidora's cache
+profiles or Redis provider. Business owns catalog profiles and the mapping from
+its User entity to token identity. WebAPI selects Redis during composition.
+Core still contains the existing shared User/role persistence models for
+compatibility; moving them into a separately versioned identity package requires
+a deliberate cross-project contract and migration plan.
+
+For a read-only load baseline against a seeded deployment, run
+`PERF_BASE_URL=https://your-api PERF_PRODUCT_ID=1 k6 run perf/catalog-reads.js`.
+Set `PERF_ACCESS_TOKEN` to include authenticated reads. Compare p50/p95/p99,
+request rate, database/Redis latency, CPU, and allocation measurements across
+the same dataset and hardware before selecting further indexes or pagination
+changes.
 
 The first architectural split will separate the Identity and Catalog bounded contexts. Every new service must have its own application, data access, migrations, and test boundaries.
 
