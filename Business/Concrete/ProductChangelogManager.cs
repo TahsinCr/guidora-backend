@@ -12,9 +12,9 @@ using DataAccess.Abstract;
 using Entities;
 using Entities.DTOs;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Pagination;
 
 namespace Business.Concrete;
 
@@ -34,14 +34,28 @@ public sealed class ProductChangelogManager : IProductChangelogService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IDataResult<List<ProductChangelog>>> GetByProductAsync(int productId,
+    public async Task<IDataResult<PagedResult<ProductChangelogListItemDto>>> GetByProductAsync(int productId,
+        PageRequest page,
+        CancellationToken cancellationToken = default)
+    {
+        if (page is null || page.Page < 1 || page.PageSize is < 1 or > 100 ||
+            ((long)page.Page - 1) * page.PageSize > int.MaxValue)
+            return new ErrorDataResult<PagedResult<ProductChangelogListItemDto>>("Invalid changelog page request.");
+        var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
+        if (!rule.Success) return new NotFoundDataResult<PagedResult<ProductChangelogListItemDto>>("Product was not found.");
+        return new SuccessDataResult<PagedResult<ProductChangelogListItemDto>>(
+            await _changelogDal.GetPageAsync(productId, page.Page, page.PageSize, cancellationToken));
+    }
+
+    public async Task<IDataResult<ProductChangelog>> GetByIdAsync(int productId, int changelogId,
         CancellationToken cancellationToken = default)
     {
         var rule = await _rules.EnsurePublishedAsync(productId, cancellationToken);
-        if (!rule.Success) return new NotFoundDataResult<List<ProductChangelog>>("Product was not found.");
-        var entries = await _changelogDal.GetAllAsync(item => item.ProductId == productId, cancellationToken);
-        return new SuccessDataResult<List<ProductChangelog>>(entries.OrderByDescending(item => item.ReleaseDate)
-            .ThenByDescending(item => item.Id).ToList());
+        if (!rule.Success) return new NotFoundDataResult<ProductChangelog>("Product was not found.");
+        var entry = await _changelogDal.GetAsync(item => item.ProductId == productId && item.Id == changelogId,
+            cancellationToken);
+        return entry is null ? new NotFoundDataResult<ProductChangelog>("Product changelog was not found.")
+            : new SuccessDataResult<ProductChangelog>(entry);
     }
 
     [SecuredOperationAspect("Product.Content.Manage")]

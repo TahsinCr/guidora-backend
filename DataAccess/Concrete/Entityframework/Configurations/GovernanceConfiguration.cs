@@ -151,6 +151,8 @@ namespace DataAccess.Concrete.Entityframework.Configurations
             builder.Property(proposal => proposal.WebsiteUrl).HasMaxLength(2048).IsRequired();
             builder.Property(proposal => proposal.LogoUrl).HasMaxLength(2048).IsRequired();
             builder.Property(proposal => proposal.ShortDescription).HasMaxLength(500).IsRequired();
+            builder.Property(proposal => proposal.Description)
+                .HasMaxLength(ProductDescriptionPolicy.MaximumLength).IsRequired();
             builder.Property(proposal => proposal.ReviewNote).HasMaxLength(4000).IsRequired();
             builder.HasIndex(proposal => new { proposal.ProductId, proposal.Status });
             builder.HasIndex(proposal => new { proposal.Status, proposal.CreatedAt });

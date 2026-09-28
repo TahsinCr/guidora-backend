@@ -3,6 +3,7 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 COPY ["NetCoreBackend.sln", "."]
+COPY ["global.json", "."]
 COPY ["Core/Core.csproj", "Core/"]
 COPY ["Entities/Entities.csproj", "Entities/"]
 COPY ["DataAccess/DataAccess.csproj", "DataAccess/"]

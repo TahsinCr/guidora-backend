@@ -45,7 +45,8 @@ namespace Core.Aspects.Caching
             }
 
             var key = BuildCacheKey(invocation, _cacheManager.GetProfileGeneration(_profile));
-            if (_cacheManager.TryGet(key, out var cachedValue))
+            if (_cacheManager.TryGet(key, out var cachedValue) &&
+                returnType.IsInstanceOfType(cachedValue))
             {
                 invocation.ReturnValue = cachedValue;
                 return;
@@ -60,7 +61,7 @@ namespace Core.Aspects.Caching
             var generation = await _cacheManager.GetProfileGenerationAsync(_profile).ConfigureAwait(false);
             var key = BuildCacheKey(invocation, generation);
             var (found, cachedValue) = await _cacheManager.TryGetAsync(key).ConfigureAwait(false);
-            if (found) return (T)cachedValue!;
+            if (found && cachedValue is T typedValue) return typedValue;
 
             invocation.Proceed();
             if (invocation.ReturnValue is not Task<T> pending)

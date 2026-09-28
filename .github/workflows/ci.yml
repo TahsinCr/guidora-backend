@@ -37,10 +37,10 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 10.0.401
       - name: Install EF tooling
         run: dotnet tool install --global dotnet-ef --version 10.0.4
       - name: Restore backend layers
@@ -79,3 +79,16 @@ jobs:
         run: docker compose --env-file .env.example config --quiet
       - name: Build backend image
         run: docker build --tag guidora-backend:ci .
+      - name: Smoke test non-root backend runtime
+        run: |
+          docker run --detach --name guidora-ci-backend --publish 18080:8080 \
+            --env TokenOptions__SecurityKey=ci-only-signing-key-at-least-thirty-two-bytes \
+            --env CommunityVerification__SignalHashKey=ci-only-signal-key-at-least-thirty-two-bytes \
+            guidora-backend:ci
+          test "$(docker exec guidora-ci-backend id -u)" != 0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/health/live > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          docker logs guidora-ci-backend
+          exit 1
