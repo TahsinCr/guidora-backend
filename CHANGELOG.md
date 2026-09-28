@@ -4,6 +4,14 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Dependencies and CI
+
+- Updated the ASP.NET runtime image to 10.0.12 and IdentityModel token packages
+  to 8.23.0.
+- Updated GitHub Actions checkout and setup-dotnet to current pinned revisions.
+- Removed the unused Coverlet collector package; CI does not collect coverage
+  through it, so its dependency update was not needed.
+
 ### Performance and shared Core
 
 - Bounded Product and edit-proposal descriptions at 20,000 characters in request
