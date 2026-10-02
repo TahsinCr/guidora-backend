@@ -28,6 +28,7 @@ namespace Business.DependencyResolvers.Autofac
             builder.RegisterType<EfUserProfileDal>().As<IUserProfileDal>();
             builder.RegisterType<EfRoleDal>().As<IRoleDal>();
             builder.RegisterType<EfUserRoleDal>().As<IUserRoleDal>();
+            builder.RegisterType<EfUserOperationClaimDal>().As<IUserOperationClaimDal>();
             builder.RegisterType<EfRoleOperationClaimDal>().As<IRoleOperationClaimDal>();
             builder.RegisterType<EfProductStatusDal>().As<IProductStatusDal>();
             builder.RegisterType<EfTagCategoryDal>().As<ITagCategoryDal>();

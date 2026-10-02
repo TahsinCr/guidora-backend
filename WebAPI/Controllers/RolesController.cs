@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Business.Abstract;
+using Entities.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using WebAPI.Utilities;
 
@@ -19,9 +20,41 @@ public sealed class RolesController : ControllerBase
     public async Task<IActionResult> GetActive(CancellationToken cancellationToken) =>
         this.ToHttpResult(await _roleService.GetActiveAsync(cancellationToken));
 
+    [HttpGet("permissions")]
+    public async Task<IActionResult> GetOperationClaims(CancellationToken cancellationToken) =>
+        this.ToHttpResult(await _roleService.GetOperationClaimsAsync(cancellationToken));
+
+    [HttpPost]
+    public Task<IActionResult> Create(RoleRequest request, CancellationToken cancellationToken) =>
+        Mutate(actorId => _roleService.CreateAsync(request, actorId, cancellationToken));
+
+    [HttpPut("{roleId:int}")]
+    public Task<IActionResult> Update(int roleId, RoleRequest request, CancellationToken cancellationToken) =>
+        Mutate(actorId => _roleService.UpdateAsync(roleId, request, actorId, cancellationToken));
+
+    [HttpDelete("{roleId:int}")]
+    public Task<IActionResult> Deactivate(int roleId, CancellationToken cancellationToken) =>
+        Mutate(actorId => _roleService.DeactivateAsync(roleId, actorId, cancellationToken));
+
+    [HttpPut("{roleId:int}/activate")]
+    public Task<IActionResult> Activate(int roleId, CancellationToken cancellationToken) =>
+        Mutate(actorId => _roleService.ActivateAsync(roleId, actorId, cancellationToken));
+
     [HttpGet("{roleId:int}/permissions")]
     public async Task<IActionResult> GetPermissions(int roleId, CancellationToken cancellationToken) =>
         this.ToHttpResult(await _roleService.GetPermissionsAsync(roleId, cancellationToken));
+
+    [HttpGet("users/{userId:int}/permissions")]
+    public async Task<IActionResult> GetUserPermissions(int userId, CancellationToken cancellationToken) =>
+        this.ToHttpResult(await _roleService.GetUserClaimsAsync(userId, cancellationToken));
+
+    [HttpPut("users/{userId:int}/permissions/{operationClaimId:int}")]
+    public Task<IActionResult> GrantUserPermission(int userId, int operationClaimId, CancellationToken cancellationToken) =>
+        Mutate(actorId => _roleService.GrantUserClaimAsync(userId, operationClaimId, actorId, cancellationToken));
+
+    [HttpDelete("users/{userId:int}/permissions/{operationClaimId:int}")]
+    public Task<IActionResult> RevokeUserPermission(int userId, int operationClaimId, CancellationToken cancellationToken) =>
+        Mutate(actorId => _roleService.RevokeUserClaimAsync(userId, operationClaimId, actorId, cancellationToken));
 
     [HttpPut("{roleId:int}/users/{userId:int}")]
     public Task<IActionResult> AssignUser(int roleId, int userId, CancellationToken cancellationToken) =>

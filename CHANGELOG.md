@@ -4,6 +4,14 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Identity and authorization management
+
+- Added audited role creation, update, deactivation, and reactivation, plus
+  operation-claim catalog reads and direct per-user permission grant/revoke.
+  Authorization-changing role and user-claim operations invalidate affected
+  sessions; built-in Admin/User role protections and code-defined claim
+  ownership remain enforced.
+
 ### Deployment
 
 - Renamed the root build file to lowercase `dockerfile` and updated the Compose
