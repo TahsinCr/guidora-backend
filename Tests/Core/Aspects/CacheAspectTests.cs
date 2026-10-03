@@ -11,6 +11,33 @@ namespace Tests.Core.Aspects;
 public sealed class CacheAspectTests
 {
     [Fact]
+    public void CachedSuccessResultPreservesItsPayloadThroughJsonSerialization()
+    {
+        var original = new SuccessDataResult<string[]>(["catalog-item"], "loaded");
+        var serialized = Newtonsoft.Json.JsonConvert.SerializeObject(original);
+        var restored = Newtonsoft.Json.JsonConvert.DeserializeObject<SuccessDataResult<string[]>>(serialized)!;
+        Assert.Equal(original.Data, restored.Data);
+        Assert.Equal(original.Message, restored.Message);
+        Assert.True(restored.Success);
+    }
+
+    [Fact]
+    public async Task ResumesAfterCacheReadWithoutReenteringTheInterceptor()
+    {
+        var (proxy, cache) = CreateProxy();
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        cache.AsyncReadGate = gate.Task;
+        var pending = proxy.GetAsync();
+        Assert.False(pending.IsCompleted);
+        gate.SetResult();
+
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("async", result.Message);
+        Assert.Single(cache.Values);
+        Assert.Equal("async", (await proxy.GetAsync()).Message);
+    }
+
+    [Fact]
     public void OmittingTtlStoresEntryWithoutTimeExpiration()
     {
         var (proxy, cache) = CreateProxy();

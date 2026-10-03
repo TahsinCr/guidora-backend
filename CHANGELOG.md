@@ -4,6 +4,13 @@ All notable changes to the Guidora backend are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve the Castle invocation continuation across asynchronous cache reads,
+  preventing Redis-backed catalog requests from reentering the cache interceptor.
+- Preserve successful result payloads during Redis JSON round trips instead of
+  returning null data on cache hits.
+
 ### Identity and authorization management
 
 - Added audited role creation, update, deactivation, and reactivation, plus

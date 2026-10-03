@@ -40,7 +40,7 @@ namespace Core.Aspects.Caching
                 var method = typeof(CacheAspect).GetMethod(nameof(InterceptGenericTaskCore),
                     BindingFlags.Instance | BindingFlags.NonPublic)!;
                 invocation.ReturnValue = method.MakeGenericMethod(returnType.GetGenericArguments()[0])
-                    .Invoke(this, [invocation])!;
+                    .Invoke(this, [invocation, invocation.CaptureProceedInfo()])!;
                 return;
             }
 
@@ -56,14 +56,14 @@ namespace Core.Aspects.Caching
             CacheIfSuccessful(key, invocation.ReturnValue);
         }
 
-        private async Task<T> InterceptGenericTaskCore<T>(IInvocation invocation)
+        private async Task<T> InterceptGenericTaskCore<T>(IInvocation invocation, IInvocationProceedInfo proceedInfo)
         {
             var generation = await _cacheManager.GetProfileGenerationAsync(_profile).ConfigureAwait(false);
             var key = BuildCacheKey(invocation, generation);
             var (found, cachedValue) = await _cacheManager.TryGetAsync(key).ConfigureAwait(false);
             if (found && cachedValue is T typedValue) return typedValue;
 
-            invocation.Proceed();
+            proceedInfo.Invoke();
             if (invocation.ReturnValue is not Task<T> pending)
                 throw new InvalidOperationException("Cached asynchronous method did not return a Task.");
             var result = await pending.ConfigureAwait(false);

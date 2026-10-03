@@ -10,6 +10,13 @@ public sealed class CacheManagerStub : ICacheManager
     public Dictionary<string, object?> Values { get; } = new();
     public Dictionary<string, int?> RequestedDurations { get; } = new();
 
+    public Task? AsyncReadGate { get; set; }
+    public async Task<long> GetProfileGenerationAsync(string profile)
+    {
+        if (AsyncReadGate is not null) await AsyncReadGate;
+        return 0;
+    }
+
     public T Get<T>(string key) => (T)Get(key)!;
     public object? Get(string key) => Values.TryGetValue(key, out var value) ? value : null;
     public bool TryGet(string key, out object? value) => Values.TryGetValue(key, out value);

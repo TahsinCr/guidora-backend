@@ -6,6 +6,7 @@ namespace Core.Utilities.Results
 {
     public class SuccessDataResult<T>:DataResult<T>
     {
+        [Newtonsoft.Json.JsonConstructor]
         public SuccessDataResult(T data, string message) : base(data, true, message)
         {
         }
