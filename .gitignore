@@ -8,6 +8,9 @@
 .env.*
 !.env.example
 MEMORY.md
+.idea/
+.serena/
+*.drawio
 *.rsuser
 *.suo
 *.user
