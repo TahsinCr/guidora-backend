@@ -96,13 +96,13 @@ public sealed class ProductVerificationManager : IProductVerificationService
             verification.RevokedAt = null;
             verification.VerifiedAt = DateTime.UtcNow;
             verification.VerifiedByUserId = verifierUserId;
-            verification.Note = request.Note;
+            verification.Note = request?.Note ?? string.Empty;
             _verificationDal.Update(verification);
         }
 
         verification.VerifiedAt = DateTime.UtcNow;
         verification.VerifiedByUserId = verifierUserId;
-        verification.Note = request.Note;
+        verification.Note = request?.Note ?? string.Empty;
         await _auditLogDal.AddAsync(AuditLogFactory.Create(verifierUserId, nameof(ProductVerification), productId.ToString(),
             "AdminVerified", oldValues, new
             {
@@ -139,7 +139,7 @@ public sealed class ProductVerificationManager : IProductVerificationService
             verification.VerifiedAt, verification.RevokedAt
         };
         verification.RevokedAt = DateTime.UtcNow;
-        verification.Note = request.Note;
+        verification.Note = request?.Note ?? string.Empty;
         _verificationDal.Update(verification);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(actorUserId, nameof(ProductVerification), productId.ToString(),
             "AdminVerificationRevoked", oldValues, new

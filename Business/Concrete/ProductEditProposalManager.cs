@@ -131,7 +131,7 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         };
         proposal.ReviewedAt = DateTime.UtcNow;
         proposal.ReviewedByUserId = reviewerUserId;
-        proposal.ReviewNote = request.Note;
+        proposal.ReviewNote = request?.Note ?? string.Empty;
         _proposalDal.Update(proposal);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(reviewerUserId, nameof(Product), product.ProductId.ToString(),
             "EditProposalAccepted", oldValues, new
@@ -189,7 +189,7 @@ public sealed class ProductEditProposalManager : IProductEditProposalService
         proposal.Status = ProductEditProposalStatus.Rejected;
         proposal.ReviewedAt = DateTime.UtcNow;
         proposal.ReviewedByUserId = reviewerUserId;
-        proposal.ReviewNote = request.Note;
+        proposal.ReviewNote = request?.Note ?? string.Empty;
         _proposalDal.Update(proposal);
         await _auditLogDal.AddAsync(AuditLogFactory.Create(reviewerUserId, nameof(ProductEditProposal), proposalId.ToString(),
             "Rejected", oldReview, new

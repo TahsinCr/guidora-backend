@@ -86,14 +86,14 @@ public sealed class ProductReportManager : IProductReportService
     [TransactionScopeAspect]
     public Task<IResult> ResolveAsync(int reportId, int reviewerUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default) =>
-        ChangeStatusAsync(reportId, reviewerUserId, "resolved", request.Note, cancellationToken);
+        ChangeStatusAsync(reportId, reviewerUserId, "resolved", request?.Note ?? string.Empty, cancellationToken);
 
     [SecuredOperationAspect("ProductReport.Review")]
     [ValidationAspect(typeof(ReviewNoteRequestValidator))]
     [TransactionScopeAspect]
     public Task<IResult> DismissAsync(int reportId, int reviewerUserId, ReviewNoteRequest request,
         CancellationToken cancellationToken = default) =>
-        ChangeStatusAsync(reportId, reviewerUserId, "dismissed", request.Note, cancellationToken);
+        ChangeStatusAsync(reportId, reviewerUserId, "dismissed", request?.Note ?? string.Empty, cancellationToken);
 
     [SecuredOperationAspect("ProductReport.Review")]
     [ValidationAspect(typeof(PageRequestValidator))]

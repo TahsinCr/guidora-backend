@@ -259,6 +259,48 @@ public sealed class GovernanceWorkflowTests
     }
 
     [Fact]
+    public async Task RejectingProposalWithNullOrEmptyNoteSucceedsAndSetsEmptyReviewNote()
+    {
+        var product = new Product { ProductId = 5, Name = "Canonical" };
+        var proposal = new ProductEditProposal
+        {
+            Id = 15, ProductId = 5, Status = ProductEditProposalStatus.Pending,
+            Name = "Proposed", Slug = "proposed", WebsiteUrl = "https://proposed.example.test"
+        };
+        var audit = new AuditDal();
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = CreateProposalManager(product, proposal, audit, unitOfWork);
+
+        var result = await manager.RejectAsync(15, 99, null!);
+
+        Assert.True(result.Success);
+        Assert.Equal(ProductEditProposalStatus.Rejected, proposal.Status);
+        Assert.Equal(string.Empty, proposal.ReviewNote);
+        Assert.Equal(1, unitOfWork.SaveCount);
+        Assert.Single(audit.Entries);
+    }
+
+    [Fact]
+    public async Task ResolvingReportWithNullOrEmptyNoteSucceeds()
+    {
+        var report = new ProductReport { Id = 20, ReportStatusId = 1 };
+        var reports = new ReportDal([report]);
+        var unitOfWork = new UnitOfWorkStub();
+        var manager = new ProductReportManager(reports, new ProductDal(), new ProductStatusDal(), new ReportReasonDal(),
+            new ReportStatusDal([
+                new ReportStatus { Id = 1, Code = "open" },
+                new ReportStatus { Id = 2, Code = "resolved" }
+            ]), new AuditDal(), unitOfWork);
+
+        var result = await manager.ResolveAsync(20, 88, null!);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, report.ReportStatusId);
+        Assert.Equal(88, report.ResolvedByUserId);
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
     public async Task ProposalReviewQueueReturnsOldestPendingItemsWithPageMetadata()
     {
         var proposalDal = new ProposalDal([

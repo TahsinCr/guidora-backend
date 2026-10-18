@@ -6,6 +6,7 @@ All notable changes to the Guidora backend are documented here.
 
 ### Fixed
 
+- Made governance review requests (proposals, reports, verifications) optional in WebAPI controllers with null-safe handling in business managers, preventing model-binding failures and NullReferenceExceptions when reviews are submitted without an explicit note body.
 - Preserve the Castle invocation continuation across asynchronous cache reads,
   preventing Redis-backed catalog requests from reentering the cache interceptor.
 - Preserve successful result payloads during Redis JSON round trips instead of

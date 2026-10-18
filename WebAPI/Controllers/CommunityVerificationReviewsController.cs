@@ -21,18 +21,18 @@ public sealed class CommunityVerificationReviewsController(ICommunityVerificatio
         this.ToHttpResult(await service.GetPendingAsync(request, cancellationToken));
 
     [HttpPost("{productId:int}/approve")]
-    public async Task<IActionResult> Approve(int productId, ReviewNoteRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Approve(int productId, [FromBody] ReviewNoteRequest? request = null,
+        CancellationToken cancellationToken = default)
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId)) return Unauthorized();
-        return this.ToHttpResult(await service.ApproveAsync(productId, actorId, request, cancellationToken));
+        return this.ToHttpResult(await service.ApproveAsync(productId, actorId, request ?? new ReviewNoteRequest(), cancellationToken));
     }
 
     [HttpPost("{productId:int}/reject")]
-    public async Task<IActionResult> Reject(int productId, ReviewNoteRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Reject(int productId, [FromBody] ReviewNoteRequest? request = null,
+        CancellationToken cancellationToken = default)
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId)) return Unauthorized();
-        return this.ToHttpResult(await service.RejectAsync(productId, actorId, request, cancellationToken));
+        return this.ToHttpResult(await service.RejectAsync(productId, actorId, request ?? new ReviewNoteRequest(), cancellationToken));
     }
 }

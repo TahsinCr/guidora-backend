@@ -26,12 +26,12 @@ public sealed class ProductEditProposalsController : ControllerBase
     }
 
     [HttpPost("{id:int}/accept")]
-    public Task<IActionResult> Accept(int id, ReviewNoteRequest request, CancellationToken cancellationToken) =>
-        ReviewAsync(id, request, accept: true, cancellationToken);
+    public Task<IActionResult> Accept(int id, [FromBody] ReviewNoteRequest? request = null, CancellationToken cancellationToken = default) =>
+        ReviewAsync(id, request ?? new ReviewNoteRequest(), accept: true, cancellationToken);
 
     [HttpPost("{id:int}/reject")]
-    public Task<IActionResult> Reject(int id, ReviewNoteRequest request, CancellationToken cancellationToken) =>
-        ReviewAsync(id, request, accept: false, cancellationToken);
+    public Task<IActionResult> Reject(int id, [FromBody] ReviewNoteRequest? request = null, CancellationToken cancellationToken = default) =>
+        ReviewAsync(id, request ?? new ReviewNoteRequest(), accept: false, cancellationToken);
 
     private async Task<IActionResult> ReviewAsync(int id, ReviewNoteRequest request, bool accept,
         CancellationToken cancellationToken)

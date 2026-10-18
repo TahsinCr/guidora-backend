@@ -39,22 +39,22 @@ public sealed class ProductVerificationsController : ControllerBase
     }
 
     [HttpPost("admin")]
-    public async Task<IActionResult> VerifyAsAdmin(int productId, ReviewNoteRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> VerifyAsAdmin(int productId, [FromBody] ReviewNoteRequest? request = null,
+        CancellationToken cancellationToken = default)
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
             return Unauthorized();
-        var result = await _verificationService.VerifyAsAdminAsync(productId, actorId, request, cancellationToken);
+        var result = await _verificationService.VerifyAsAdminAsync(productId, actorId, request ?? new ReviewNoteRequest(), cancellationToken);
         return this.ToHttpResult(result);
     }
 
     [HttpDelete("admin")]
-    public async Task<IActionResult> RevokeAdminVerification(int productId, [FromBody] ReviewNoteRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> RevokeAdminVerification(int productId, [FromBody] ReviewNoteRequest? request = null,
+        CancellationToken cancellationToken = default)
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
             return Unauthorized();
-        var result = await _verificationService.RevokeAdminVerificationAsync(productId, actorId, request, cancellationToken);
+        var result = await _verificationService.RevokeAdminVerificationAsync(productId, actorId, request ?? new ReviewNoteRequest(), cancellationToken);
         return this.ToHttpResult(result);
     }
 
@@ -81,12 +81,12 @@ public sealed class ProductVerificationsController : ControllerBase
 
 
     [HttpDelete("community")]
-    public async Task<IActionResult> RevokeCommunity(int productId, [FromBody] ReviewNoteRequest request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> RevokeCommunity(int productId, [FromBody] ReviewNoteRequest? request = null,
+        CancellationToken cancellationToken = default)
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId))
             return Unauthorized();
-        var result = await _communityVerificationService.RevokeAsync(productId, actorId, request, cancellationToken);
+        var result = await _communityVerificationService.RevokeAsync(productId, actorId, request ?? new ReviewNoteRequest(), cancellationToken);
         return this.ToHttpResult(result);
     }
 }

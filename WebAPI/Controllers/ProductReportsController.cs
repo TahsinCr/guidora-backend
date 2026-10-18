@@ -37,12 +37,12 @@ public sealed class ProductReportsController : ControllerBase
     }
 
     [HttpPost("{id:int}/resolve")]
-    public Task<IActionResult> Resolve(int id, ReviewNoteRequest request, CancellationToken cancellationToken) =>
-        ReviewAsync(id, request, resolve: true, cancellationToken);
+    public Task<IActionResult> Resolve(int id, [FromBody] ReviewNoteRequest? request = null, CancellationToken cancellationToken = default) =>
+        ReviewAsync(id, request ?? new ReviewNoteRequest(), resolve: true, cancellationToken);
 
     [HttpPost("{id:int}/dismiss")]
-    public Task<IActionResult> Dismiss(int id, ReviewNoteRequest request, CancellationToken cancellationToken) =>
-        ReviewAsync(id, request, resolve: false, cancellationToken);
+    public Task<IActionResult> Dismiss(int id, [FromBody] ReviewNoteRequest? request = null, CancellationToken cancellationToken = default) =>
+        ReviewAsync(id, request ?? new ReviewNoteRequest(), resolve: false, cancellationToken);
 
     private async Task<IActionResult> ReviewAsync(int id, ReviewNoteRequest request, bool resolve,
         CancellationToken cancellationToken)
