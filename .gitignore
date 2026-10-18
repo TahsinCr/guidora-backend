@@ -11,6 +11,7 @@ MEMORY.md
 .idea/
 .serena/
 *.drawio
+*.sql
 *.rsuser
 *.suo
 *.user
